@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.ir.declarations
+package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.IrElement
 

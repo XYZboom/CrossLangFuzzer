@@ -1,10 +1,7 @@
 package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.declarations.impl.IrFileImpl
-import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionImpl
-import com.github.xyzboom.codesmith.ir.declarations.impl.IrModuleImpl
-import com.github.xyzboom.codesmith.ir.declarations.impl.IrProgramImpl
+import com.github.xyzboom.codesmith.ir.declarations.impl.*
 
 interface IrGenerator {
     fun generate(): IrProgram
@@ -32,7 +29,15 @@ interface IrGenerator {
         name: String = randomName(false),
         functionCtx: IrFunctionContainer.() -> Unit = {}
     ): IrFunction {
-        return IrFunctionImpl(name, this).apply(functionCtx)
+        return IrFunctionImpl(name, this).apply(functionCtx).apply { this@function.functions.add(this) }
+    }
+
+    @IrGeneratorDsl
+    fun IrClassContainer.`class`(
+        name: String = randomName(false),
+        functionCtx: IrClassContainer.() -> Unit = {}
+    ): IrClass {
+        return IrClassImpl(name).apply(functionCtx).apply { this@`class`.classes.add(this) }
     }
 
     fun IrProgram.generateModuleDependencies()

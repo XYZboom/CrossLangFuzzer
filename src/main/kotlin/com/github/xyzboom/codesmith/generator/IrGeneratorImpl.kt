@@ -6,10 +6,9 @@ import kotlin.math.roundToInt
 import kotlin.random.Random
 
 class IrGeneratorImpl(
-    seed: Long = System.currentTimeMillis(),
+    private val random: Random = Random.Default,
     private val config: GeneratorConfig = GeneratorConfig.default
 ): IrGenerator {
-    private val random = Random(seed)
     override fun randomName(startsWithUpper: Boolean): String {
         val length = config.nameLengthRange.random(random)
         val sb = StringBuilder(
@@ -70,7 +69,9 @@ class IrGeneratorImpl(
             for (module in modules) {
                 with(module) {
                     for (i in 0 until config.fileNumRange.random(random)) {
-                        file()
+                        file {
+
+                        }
                     }
                 }
             }
