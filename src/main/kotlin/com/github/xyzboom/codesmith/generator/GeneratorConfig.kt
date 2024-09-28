@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.ir.generator
+package com.github.xyzboom.codesmith.generator
 
 data class GeneratorConfig(
     val moduleNumRange: IntRange = 1..8,
@@ -18,7 +18,8 @@ data class GeneratorConfig(
     /**
      * 每次从待依赖集合中剔除的比例
      */
-    val moduleDependencyEliminateRate: Float = 0.3f
+    val moduleDependencyEliminateRate: Float = 0.3f,
+    val fileNumRange: IntRange = 2..8,
 ) {
     companion object {
         @JvmStatic

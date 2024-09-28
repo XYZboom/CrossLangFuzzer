@@ -1,16 +1,14 @@
-package com.github.xyzboom.codesmith.ir.generator
+package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.ir.declarations.IrModule
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
-import com.github.xyzboom.codesmith.ir.declarations.impl.IrModuleImpl
-import com.github.xyzboom.codesmith.ir.declarations.impl.IrProgramImpl
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
 class IrGeneratorImpl(
     seed: Long = System.currentTimeMillis(),
     private val config: GeneratorConfig = GeneratorConfig.default
-) : IrGenerator {
+): IrGenerator {
     private val random = Random(seed)
     override fun randomName(startsWithUpper: Boolean): String {
         val length = config.nameLengthRange.random(random)
@@ -27,7 +25,7 @@ class IrGeneratorImpl(
         return sb.toString()
     }
 
-    private fun IrProgram.generateModuleDependencies() {
+    override fun IrProgram.generateModuleDependencies() {
         if (modules.size <= 1) return
         if (modules.size == 2) {
             if (random.nextBoolean()) {
@@ -64,11 +62,21 @@ class IrGeneratorImpl(
     }
 
     override fun generate(): IrProgram {
-        return IrProgramImpl().apply {
+        return program {
             for (i in 0 until config.moduleNumRange.random(random)) {
-                modules.add(IrModuleImpl(randomName(false)))
+                module()
             }
             generateModuleDependencies()
+            for (module in modules) {
+                with(module) {
+                    for (i in 0 until config.fileNumRange.random(random)) {
+                        file()
+                    }
+                }
+            }
+            mainModule = module {
+                dependsOn(modules)
+            }
         }
     }
 }

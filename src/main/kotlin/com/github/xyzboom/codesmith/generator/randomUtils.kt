@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.ir.generator
+package com.github.xyzboom.codesmith.generator
 
 val lowerLetters = 'a'..'z'
 val upperLetters = 'A'..'Z'

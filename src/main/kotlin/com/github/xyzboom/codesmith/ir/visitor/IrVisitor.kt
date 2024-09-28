@@ -1,19 +1,20 @@
 package com.github.xyzboom.codesmith.ir.visitor
 
 import com.github.xyzboom.codesmith.ir.IrElement
-import com.github.xyzboom.codesmith.ir.declarations.IrFile
-import com.github.xyzboom.codesmith.ir.declarations.IrFunction
-import com.github.xyzboom.codesmith.ir.declarations.IrModule
-import com.github.xyzboom.codesmith.ir.declarations.IrProgram
+import com.github.xyzboom.codesmith.ir.declarations.*
 
 interface IrVisitor<out R, in D> {
     fun visitElement(element: IrElement, data: D): R
 
-    fun visitModule(module: IrModule, data: D): R = visitElement(module, data)
+    fun visitDeclaration(declaration: IrDeclaration, data: D): R = visitElement(declaration, data)
 
-    fun visitProgram(program: IrProgram, data: D): R = visitElement(program, data)
+    fun visitModule(module: IrModule, data: D): R = visitDeclaration(module, data)
 
-    fun visitFile(file: IrFile, data: D): R = visitElement(file, data)
+    fun visitProgram(program: IrProgram, data: D): R = visitDeclaration(program, data)
 
-    fun visitFunction(function: IrFunction, data: D): R = visitElement(function, data)
+    fun visitFile(file: IrFile, data: D): R = visitDeclaration(file, data)
+
+    fun visitClass(clazz: IrClass, data: D): R = visitDeclaration(clazz, data)
+
+    fun visitFunction(function: IrFunction, data: D): R = visitDeclaration(function, data)
 }

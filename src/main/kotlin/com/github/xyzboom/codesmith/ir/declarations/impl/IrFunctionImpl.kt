@@ -1,12 +1,11 @@
 package com.github.xyzboom.codesmith.ir.declarations.impl
 
-import com.github.xyzboom.codesmith.ir.declarations.IrFile
 import com.github.xyzboom.codesmith.ir.declarations.IrFunction
-import com.github.xyzboom.codesmith.ir.declarations.IrModule
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionContainer
 
-open class IrFileImpl(
+class IrFunctionImpl(
     override val name: String,
-    override val containingModule: IrModule
-): IrFile {
+    override val containingDeclaration: IrFunctionContainer
+): IrFunction {
     override val functions: MutableList<IrFunction> = ArrayList()
 }
