@@ -19,7 +19,9 @@ data class GeneratorConfig(
      * 每次从待依赖集合中剔除的比例
      */
     val moduleDependencyEliminateRate: Float = 0.3f,
+    val packageNumRange: IntRange = 1..4,
     val fileNumRange: IntRange = 2..8,
+    val classNumRange: IntRange = 1..3,
 ) {
     companion object {
         @JvmStatic

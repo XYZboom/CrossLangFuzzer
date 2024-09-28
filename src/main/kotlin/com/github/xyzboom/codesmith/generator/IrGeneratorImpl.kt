@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.ir.declarations.IrFile
 import com.github.xyzboom.codesmith.ir.declarations.IrModule
+import com.github.xyzboom.codesmith.ir.declarations.IrPackage
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -68,9 +70,12 @@ class IrGeneratorImpl(
             generateModuleDependencies()
             for (module in modules) {
                 with(module) {
-                    for (i in 0 until config.fileNumRange.random(random)) {
-                        file {
-
+                    var lastPackage: IrPackage? = null
+                    for (i in 0 until config.packageNumRange.random(random)) {
+                        lastPackage = if (random.nextBoolean()) {
+                            `package`()
+                        } else {
+                            `package`(parent = lastPackage)
                         }
                     }
                 }
@@ -78,6 +83,18 @@ class IrGeneratorImpl(
             mainModule = module {
                 dependsOn(modules)
             }
+        }
+    }
+
+    override fun IrPackage.generateFiles() {
+        for (i in 0 until config.fileNumRange.random(random)) {
+            file { generateClasses() }
+        }
+    }
+
+    override fun IrFile.generateClasses() {
+        for (i in 0 until config.classNumRange.random(random)) {
+            `class` { TODO() }
         }
     }
 }

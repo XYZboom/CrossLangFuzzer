@@ -8,9 +8,11 @@ interface IrVisitor<out R, in D> {
 
     fun visitDeclaration(declaration: IrDeclaration, data: D): R = visitElement(declaration, data)
 
+    fun visitProgram(program: IrProgram, data: D): R = visitDeclaration(program, data)
+
     fun visitModule(module: IrModule, data: D): R = visitDeclaration(module, data)
 
-    fun visitProgram(program: IrProgram, data: D): R = visitDeclaration(program, data)
+    fun visitPackage(`package`: IrPackage, data: D): R = visitDeclaration(`package`, data)
 
     fun visitFile(file: IrFile, data: D): R = visitDeclaration(file, data)
 

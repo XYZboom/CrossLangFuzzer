@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.ir.types
 
-import com.github.xyzboom.codesmith.ir.IrElement
-
-interface IrType: IrElement {
+interface IrType: IrTypeArgument {
+    val name: String
+    var nullability: Nullability
 }

@@ -6,11 +6,11 @@ interface IrFile: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, Ir
     val name: String
 
     override val declarations: List<IrDeclaration>
-        get() = ArrayList<IrDeclaration>(initialCapacity = functions.size + classes.size).apply {
+        get() = ArrayList<IrDeclaration>(functions.size + classes.size).apply {
             addAll(functions)
             addAll(classes)
         }
-    val containingModule: IrModule
+    val containingPackage: IrPackage
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitFile(this, data)
 

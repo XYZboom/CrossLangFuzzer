@@ -20,7 +20,17 @@ interface IrGenerator {
     }
 
     @IrGeneratorDsl
-    fun IrModule.file(name: String = randomName(false), fileCtx: IrFile.() -> Unit = {}): IrFile {
+    fun IrModule.`package`(
+        name: String = randomName(false),
+        parent: IrPackage? = null,
+        moduleCtx: IrPackage.() -> Unit = {}
+    ): IrPackage {
+        return IrPackageImpl(name, parent, this)
+            .apply(moduleCtx).apply { this@`package`.packages.add(this) }
+    }
+
+    @IrGeneratorDsl
+    fun IrPackage.file(name: String = randomName(false), fileCtx: IrFile.() -> Unit = {}): IrFile {
         return IrFileImpl(name, this).apply(fileCtx).apply { this@file.files.add(this) }
     }
 
@@ -34,11 +44,15 @@ interface IrGenerator {
 
     @IrGeneratorDsl
     fun IrClassContainer.`class`(
-        name: String = randomName(false),
+        name: String = randomName(true),
         functionCtx: IrClassContainer.() -> Unit = {}
     ): IrClass {
         return IrClassImpl(name).apply(functionCtx).apply { this@`class`.classes.add(this) }
     }
 
     fun IrProgram.generateModuleDependencies()
+
+    fun IrPackage.generateFiles()
+
+    fun IrFile.generateClasses()
 }

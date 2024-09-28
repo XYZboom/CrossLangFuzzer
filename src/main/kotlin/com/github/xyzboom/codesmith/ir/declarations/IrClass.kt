@@ -5,7 +5,7 @@ import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, IrClassContainer {
     val name: String
     override val declarations: List<IrDeclaration>
-        get() = ArrayList<IrDeclaration>(initialCapacity = functions.size + classes.size).apply {
+        get() = ArrayList<IrDeclaration>(functions.size + classes.size).apply {
             addAll(functions)
             addAll(classes)
         }
