@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.printer.IrPrinter
 
 class IrJavaFilePrinter: IrPrinter<IrFile, String> {
     override fun print(element: IrFile): String {
-        return "// FILE: ${element.name}.java\n"
+        return "// FILE: ${element.name}.java\n" +
+                "package ${element.containingPackage.fullName};\n"
     }
 }

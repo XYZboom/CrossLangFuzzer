@@ -6,10 +6,9 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 
 class IrFunctionImpl(
     override val name: String,
-    override val containingDeclaration: IrFunctionContainer
-): IrFunction {
+    override val containingDeclaration: IrFunctionContainer,
     override val returnType: IrType
-        get() = TODO("Not yet implemented")
+): IrFunction {
     override val functions: MutableList<IrFunction> = ArrayList()
 
 }

@@ -7,6 +7,9 @@ interface IrPackage: IrDeclaration {
     val parent: IrPackage?
     val containingModule: IrModule
     val files: MutableList<IrFile>
+    val fullName: String
+        get() = if (parent != null) "${parent!!.name}.$name" else name
+
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitPackage(this, data)
 
