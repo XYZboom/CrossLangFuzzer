@@ -11,6 +11,9 @@ class IrGeneratorImpl(
     private val random: Random = Random.Default,
     private val config: GeneratorConfig = GeneratorConfig.default
 ): IrGenerator {
+
+    private val generatedNames = mutableSetOf<String>()
+
     override fun randomName(startsWithUpper: Boolean): String {
         val length = config.nameLengthRange.random(random)
         val sb = StringBuilder(
@@ -23,7 +26,11 @@ class IrGeneratorImpl(
         for (i in 1 until length) {
             sb.append(lettersAndNumbers.random(random))
         }
-        return sb.toString()
+        val result = sb.toString()
+        if (generatedNames.contains(result)) {
+            return randomName(startsWithUpper)
+        }
+        return result.apply(generatedNames::add)
     }
 
     override fun IrProgram.generateModuleDependencies() {

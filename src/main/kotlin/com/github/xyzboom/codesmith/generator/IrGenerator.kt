@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
+import com.github.xyzboom.codesmith.ir.types.IrType
 
 interface IrGenerator {
     fun generate(): IrProgram
@@ -37,9 +38,11 @@ interface IrGenerator {
     @IrGeneratorDsl
     fun IrFunctionContainer.function(
         name: String = randomName(false),
+        returnType: IrType,
         functionCtx: IrFunctionContainer.() -> Unit = {}
     ): IrFunction {
-        return IrFunctionImpl(name, this).apply(functionCtx).apply { this@function.functions.add(this) }
+        return IrFunctionImpl(name, this, returnType)
+            .apply(functionCtx).apply { this@function.functions.add(this) }
     }
 
     @IrGeneratorDsl
