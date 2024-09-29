@@ -9,7 +9,7 @@ import kotlin.random.Random
 class IrPrinterToSingleFile(
     private val filePrinters: List<IrPrinter<IrFile, String>>,
     private val random: Random = Random.Default,
-): IrTopDownVisitor<StringBuilder>(), IrPrinter<IrElement, String> {
+): IrTopDownVisitor<StringBuilder>, IrPrinter<IrElement, String> {
     private val stringBuilder = StringBuilder()
 
     init {

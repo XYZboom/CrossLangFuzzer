@@ -3,7 +3,7 @@ package com.github.xyzboom.codesmith.ir.declarations
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
-interface IrFunction: IrDeclaration, IrFunctionContainer {
+interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContainer {
     val name: String
     val containingDeclaration: IrFunctionContainer
     val returnType: IrType

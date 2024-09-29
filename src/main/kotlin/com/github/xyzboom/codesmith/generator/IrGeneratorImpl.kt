@@ -1,6 +1,9 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.ir.IrAccessModifier.INTERNAL
+import com.github.xyzboom.codesmith.ir.IrAccessModifier.PUBLIC
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.types.IrClassType
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -102,7 +105,9 @@ class IrGeneratorImpl(
 
     override fun IrFile.generateClasses() {
         for (i in 0 until config.classNumRange.random(random)) {
-            `class`(containingFile = this) {
+            val chooseType = IrClassType.entries.random(random)
+            val chooseModifier = listOf(PUBLIC, INTERNAL).random(random)
+            `class`(containingFile = this, classType = chooseType, accessModifier = chooseModifier) {
 
             }
         }

@@ -1,7 +1,9 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
+import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrType
 
 interface IrGenerator {
@@ -38,10 +40,11 @@ interface IrGenerator {
     @IrGeneratorDsl
     fun IrFunctionContainer.function(
         name: String = randomName(false),
+        accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
         returnType: IrType,
         functionCtx: IrFunctionContainer.() -> Unit = {}
     ): IrFunction {
-        return IrFunctionImpl(name, this, returnType)
+        return IrFunctionImpl(name, this, accessModifier, returnType)
             .apply(functionCtx).apply { this@function.functions.add(this) }
     }
 
@@ -49,9 +52,12 @@ interface IrGenerator {
     fun IrClassContainer.`class`(
         name: String = randomName(true),
         containingFile: IrFile,
+        classType: IrClassType = IrClassType.FINAL,
+        accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
         functionCtx: IrClassContainer.() -> Unit = {}
     ): IrClass {
-        return IrClassImpl(name, containingFile).apply(functionCtx).apply { this@`class`.classes.add(this) }
+        return IrClassImpl(name, containingFile, accessModifier, classType)
+            .apply(functionCtx).apply { this@`class`.classes.add(this) }
     }
 
     fun IrProgram.generateModuleDependencies()

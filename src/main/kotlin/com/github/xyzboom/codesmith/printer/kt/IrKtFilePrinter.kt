@@ -2,10 +2,9 @@ package com.github.xyzboom.codesmith.printer.kt
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
-import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
-import com.github.xyzboom.codesmith.printer.IrPrinter
+import com.github.xyzboom.codesmith.printer.AbstractIrFilePrinter
 
-class IrKtFilePrinter: IrPrinter<IrFile, String>, IrTopDownVisitor<StringBuilder>() {
+class IrKtFilePrinter: AbstractIrFilePrinter() {
 
     private val stringBuilder = StringBuilder()
     private val ktClassPrinter = IrKtClassPrinter()
