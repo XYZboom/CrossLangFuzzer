@@ -8,4 +8,9 @@ class IrModuleImpl(
 ): IrModule {
     override val dependencies: MutableList<IrModule> = ArrayList()
     override val packages: MutableList<IrPackage> = ArrayList()
+
+    companion object {
+        @JvmStatic
+        val builtin = IrModuleImpl("<built-in>")
+    }
 }

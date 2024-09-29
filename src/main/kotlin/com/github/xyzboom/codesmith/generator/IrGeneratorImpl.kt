@@ -102,7 +102,7 @@ class IrGeneratorImpl(
 
     override fun IrFile.generateClasses() {
         for (i in 0 until config.classNumRange.random(random)) {
-            `class` {
+            `class`(containingFile = this) {
 
             }
         }

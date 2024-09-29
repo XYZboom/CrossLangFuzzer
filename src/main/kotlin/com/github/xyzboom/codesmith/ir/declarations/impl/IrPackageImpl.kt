@@ -11,4 +11,8 @@ class IrPackageImpl(
 ): IrPackage {
     override val files: MutableList<IrFile> = ArrayList()
 
+    companion object {
+        @JvmStatic
+        val builtin = IrPackageImpl("<built-in>", null, IrModuleImpl.builtin)
+    }
 }

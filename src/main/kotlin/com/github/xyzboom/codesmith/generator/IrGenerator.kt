@@ -48,9 +48,10 @@ interface IrGenerator {
     @IrGeneratorDsl
     fun IrClassContainer.`class`(
         name: String = randomName(true),
+        containingFile: IrFile,
         functionCtx: IrClassContainer.() -> Unit = {}
     ): IrClass {
-        return IrClassImpl(name).apply(functionCtx).apply { this@`class`.classes.add(this) }
+        return IrClassImpl(name, containingFile).apply(functionCtx).apply { this@`class`.classes.add(this) }
     }
 
     fun IrProgram.generateModuleDependencies()

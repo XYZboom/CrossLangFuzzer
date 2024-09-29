@@ -8,4 +8,9 @@ open class IrFileImpl(
 ): IrFile {
     override val functions: MutableList<IrFunction> = ArrayList()
     override val classes: MutableList<IrClass> = ArrayList()
+
+    companion object {
+        @JvmStatic
+        val builtin = IrFileImpl("<built-in>", IrPackageImpl.builtin)
+    }
 }

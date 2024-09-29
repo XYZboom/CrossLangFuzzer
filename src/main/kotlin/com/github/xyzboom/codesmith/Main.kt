@@ -7,9 +7,15 @@ import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 
 fun main() {
-    for (i in 0 until 100) {
-        val prog = IrGeneratorImpl(config = GeneratorConfig(moduleNumRange = 8..8)).generate()
-        val result = IrPrinterToSingleFile(listOf(IrKtFilePrinter(), IrJavaFilePrinter())).print(prog)
+    for (i in 0 until 1) {
+        val prog = IrGeneratorImpl(
+            config = GeneratorConfig(
+                moduleNumRange = 1..1,
+                fileNumRange = 1..1,
+                packageNumRange = 1..1,
+            )
+        ).generate()
+        val result = IrPrinterToSingleFile(listOf(IrKtFilePrinter(), )).print(prog)
         println(result)
     }
 }
