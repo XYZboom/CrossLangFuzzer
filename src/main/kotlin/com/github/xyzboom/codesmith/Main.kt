@@ -11,8 +11,9 @@ fun main() {
         val prog = IrGeneratorImpl(
             config = GeneratorConfig(
                 moduleNumRange = 1..1,
-                fileNumRange = 1..1,
+                fileNumRange = 1..5,
                 packageNumRange = 1..1,
+                classNumRange = 3..5
             )
         ).generate()
         val result = IrPrinterToSingleFile(listOf(IrKtFilePrinter(), )).print(prog)

@@ -5,8 +5,8 @@ object BuiltinClasses {
     val builtins = listOf(
         AnyClass,
         BooleanClass,
-        Function0Class,
-        Function1Class,
-        NumberClass,
+//        Function0Class,
+//        Function1Class,
+//        NumberClass,
     )
 }

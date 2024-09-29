@@ -33,7 +33,7 @@ object IrBuiltinTypes {
     )
     val builtinTypes = listOf(
         ANY,
-        NUMBER,
+//        NUMBER,
         INT,
         LONG,
         FLOAT,

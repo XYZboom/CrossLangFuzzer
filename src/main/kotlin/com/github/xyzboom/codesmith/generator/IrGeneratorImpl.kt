@@ -16,21 +16,35 @@ class IrGeneratorImpl(
 
     private val generatedNames = mutableSetOf<String>()
 
-    override val IrModule.accessibleClasses: List<IrClass>
-        get() = mutableListOf<IrClass>().apply {
+    override val IrFile.accessibleClasses: Set<IrClass>
+        get() = mutableSetOf<IrClass>().apply {
             addAll(BuiltinClasses.builtins)
-            addAll(packages.flatMap {
-                it.files.flatMap { it1 ->
-                    it1.declarations.filterIsInstance<IrClass>()
-                }
+            addAll(declarations.filterIsInstance<IrClass>())
+            addAll(containingPackage.accessibleClasses)
+            addAll(containingPackage.containingModule.accessibleClasses)
+            addAll(containingPackage.containingModule.program.modules.flatMap { it.accessibleClasses })
+        }
+
+    override val IrPackage.accessibleClasses: Set<IrClass>
+        get() = mutableSetOf<IrClass>().apply {
+            addAll(BuiltinClasses.builtins)
+            addAll(files.flatMap { it.declarations.filterIsInstance<IrClass>() })
+        }
+
+    override val IrModule.accessibleClasses: Set<IrClass>
+        get() = mutableSetOf<IrClass>().apply {
+            addAll(BuiltinClasses.builtins)
+            addAll(packages.flatMap { p ->
+                p.files.flatMap { it.declarations.filterIsInstance<IrClass>() }
             })
-            addAll(program.modules.filter { it !== this }.flatMap {
-                it.packages.flatMap { it1 ->
-                    it1.files.flatMap { it2 ->
-                        it2.declarations.filterIsInstance<IrClass>().filter { it3 ->
-                            it3.accessModifier == PUBLIC
-                        }
-                    }
+        }
+
+    override val IrProgram.accessibleClasses: Set<IrClass>
+        get() = mutableSetOf<IrClass>().apply {
+            addAll(BuiltinClasses.builtins)
+            addAll(modules.flatMap { m ->
+                m.packages.flatMap { p ->
+                    p.files.flatMap { it.declarations.filterIsInstance<IrClass>() }
                 }
             })
         }
@@ -128,22 +142,25 @@ class IrGeneratorImpl(
         for (i in 0 until config.classNumRange.random(random)) {
             val chooseType = IrClassType.entries.random(random)
             val chooseModifier = listOf(PUBLIC, INTERNAL).random(random)
-            val accessibleClasses = containingPackage.containingModule.accessibleClasses
+            val accessibleClasses = accessibleClasses
             val superType = if (chooseType != INTERFACE) {
                 accessibleClasses.filter { it.classType == ABSTRACT || it.classType == OPEN }.random(random)
             } else {
                 null
             }
             val interfaces = accessibleClasses.filter { it.classType == INTERFACE }.shuffled(random)
-            val implements = interfaces.take(
-                config.classImplNumRange.random(random)
-                    .coerceAtMost(interfaces.size - 1)
-            ).map { it.type }
+            val implements = if (interfaces.isNotEmpty()) {
+                interfaces.take(
+                    config.classImplNumRange.random(random)
+                        .coerceAtMost(interfaces.size - 1)
+                ).map { it.type }
+            } else {
+                emptyList()
+            }
             `class`(
                 containingFile = this, classType = chooseType, accessModifier = chooseModifier,
                 superType = superType?.type, implementedTypes = implements
             ) {
-
             }
         }
     }

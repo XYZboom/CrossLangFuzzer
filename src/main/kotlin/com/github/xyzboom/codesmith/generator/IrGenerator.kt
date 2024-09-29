@@ -12,7 +12,18 @@ interface IrGenerator {
 
     fun randomName(startsWithUpper: Boolean): String
 
-    val IrModule.accessibleClasses: List<IrClass>
+    /**
+     * note that inside [file#fileCtx], current file is not added into module.
+     */
+    @IrGeneratorDsl
+    val IrFile.accessibleClasses: Set<IrClass>
+
+    @IrGeneratorDsl
+    val IrPackage.accessibleClasses: Set<IrClass>
+    @IrGeneratorDsl
+    val IrModule.accessibleClasses: Set<IrClass>
+    @IrGeneratorDsl
+    val IrProgram.accessibleClasses: Set<IrClass>
 
     @IrGeneratorDsl
     fun program(programCtx: IrProgram.() -> Unit = {}): IrProgram {
