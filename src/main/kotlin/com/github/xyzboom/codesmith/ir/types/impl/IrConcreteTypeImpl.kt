@@ -1,16 +1,13 @@
 package com.github.xyzboom.codesmith.ir.types.impl
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
-import com.github.xyzboom.codesmith.ir.types.IrClassType
-import com.github.xyzboom.codesmith.ir.types.IrConcreteType
-import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
-import com.github.xyzboom.codesmith.ir.types.Nullability
+import com.github.xyzboom.codesmith.ir.types.*
 
-class IrConcreteTypeImpl(
+open class IrConcreteTypeImpl(
     override val name: String,
     override val declaration: IrClass,
     override val arguments: List<IrTypeArgument> = emptyList(),
-    override var nullability: Nullability = Nullability.NOT_SPECIFIED,
+    override val nullability: Nullability = Nullability.NOT_SPECIFIED,
     override val classType: IrClassType = IrClassType.FINAL
 ): IrConcreteType() {
     override fun equals(other: Any?): Boolean {
@@ -31,5 +28,9 @@ class IrConcreteTypeImpl(
         result = 31 * result + nullability.hashCode()
         result = 31 * result + classType.hashCode()
         return result
+    }
+
+    override fun copy(nullability: Nullability): IrType {
+        return IrConcreteTypeImpl(name, declaration, arguments, nullability, classType)
     }
 }

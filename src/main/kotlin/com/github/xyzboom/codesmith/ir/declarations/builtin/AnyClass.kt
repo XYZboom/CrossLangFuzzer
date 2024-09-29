@@ -12,5 +12,5 @@ object AnyClass: AbstractBuiltinClass("Any", classType = IrClassType.OPEN) {
         arrayListOf(
             IrFunctionImpl("equals", this, IrAccessModifier.PUBLIC, BooleanClass.type)
         )
-    override val type: IrConcreteType = IrBuiltinTypes.ANY
+    override val type: IrConcreteType get() = IrBuiltinTypes.ANY
 }

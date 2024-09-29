@@ -2,7 +2,6 @@ package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
-import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
@@ -11,7 +10,7 @@ interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, I
     val name: String
     val containingFile: IrFile
     val classType: IrClassType
-    val type: IrType
+    val type: IrConcreteType
     val superType: IrConcreteType?
     val implementedTypes: MutableList<IrConcreteType>
     val typeParameters: MutableList<IrTypeParameter>

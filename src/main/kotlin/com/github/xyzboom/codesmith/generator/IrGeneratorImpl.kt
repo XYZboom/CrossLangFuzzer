@@ -3,7 +3,9 @@ package com.github.xyzboom.codesmith.generator
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.INTERNAL
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.PUBLIC
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
 import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -13,6 +15,25 @@ class IrGeneratorImpl(
 ): IrGenerator {
 
     private val generatedNames = mutableSetOf<String>()
+
+    override val IrModule.accessibleClasses: List<IrClass>
+        get() = mutableListOf<IrClass>().apply {
+            addAll(BuiltinClasses.builtins)
+            addAll(packages.flatMap {
+                it.files.flatMap { it1 ->
+                    it1.declarations.filterIsInstance<IrClass>()
+                }
+            })
+            addAll(program.modules.filter { it !== this }.flatMap {
+                it.packages.flatMap { it1 ->
+                    it1.files.flatMap { it2 ->
+                        it2.declarations.filterIsInstance<IrClass>().filter { it3 ->
+                            it3.accessModifier == PUBLIC
+                        }
+                    }
+                }
+            })
+        }
 
     override fun randomName(startsWithUpper: Boolean): String {
         val length = config.nameLengthRange.random(random)
@@ -107,7 +128,21 @@ class IrGeneratorImpl(
         for (i in 0 until config.classNumRange.random(random)) {
             val chooseType = IrClassType.entries.random(random)
             val chooseModifier = listOf(PUBLIC, INTERNAL).random(random)
-            `class`(containingFile = this, classType = chooseType, accessModifier = chooseModifier) {
+            val accessibleClasses = containingPackage.containingModule.accessibleClasses
+            val superType = if (chooseType != INTERFACE) {
+                accessibleClasses.filter { it.classType == ABSTRACT || it.classType == OPEN }.random(random)
+            } else {
+                null
+            }
+            val interfaces = accessibleClasses.filter { it.classType == INTERFACE }.shuffled(random)
+            val implements = interfaces.take(
+                config.classImplNumRange.random(random)
+                    .coerceAtMost(interfaces.size - 1)
+            ).map { it.type }
+            `class`(
+                containingFile = this, classType = chooseType, accessModifier = chooseModifier,
+                superType = superType?.type, implementedTypes = implements
+            ) {
 
             }
         }

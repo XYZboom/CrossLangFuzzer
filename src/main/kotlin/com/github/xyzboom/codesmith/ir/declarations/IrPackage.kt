@@ -1,8 +1,9 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
-interface IrPackage: IrDeclaration {
+interface IrPackage: IrElement {
     val name: String
     val parent: IrPackage?
     val containingModule: IrModule

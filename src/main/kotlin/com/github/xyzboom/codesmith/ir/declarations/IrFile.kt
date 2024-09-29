@@ -1,8 +1,9 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
-interface IrFile: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, IrClassContainer {
+interface IrFile: IrElement, IrFunctionContainer, IrDeclarationContainer, IrClassContainer {
     val name: String
 
     override val declarations: List<IrDeclaration>

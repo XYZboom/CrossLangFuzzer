@@ -4,12 +4,15 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.types.IrType
 
 interface IrGenerator {
     fun generate(): IrProgram
 
     fun randomName(startsWithUpper: Boolean): String
+
+    val IrModule.accessibleClasses: List<IrClass>
 
     @IrGeneratorDsl
     fun program(programCtx: IrProgram.() -> Unit = {}): IrProgram {
@@ -19,7 +22,7 @@ interface IrGenerator {
     @IrGeneratorDsl
     fun IrProgram.module(name: String = randomName(false), moduleCtx: IrModule.() -> Unit = {}): IrModule {
         // apply moduleCtx first, so we can add dependencies of this@module.modules here.
-        return IrModuleImpl(name).apply(moduleCtx).apply { this@module.modules.add(this) }
+        return IrModuleImpl(name, this).apply(moduleCtx).apply { this@module.modules.add(this) }
     }
 
     @IrGeneratorDsl
@@ -54,9 +57,11 @@ interface IrGenerator {
         containingFile: IrFile,
         classType: IrClassType = IrClassType.FINAL,
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
+        superType: IrConcreteType? = null,
+        implementedTypes: List<IrConcreteType> = emptyList(),
         functionCtx: IrClassContainer.() -> Unit = {}
     ): IrClass {
-        return IrClassImpl(name, containingFile, accessModifier, classType)
+        return IrClassImpl(name, containingFile, accessModifier, classType, superType, implementedTypes)
             .apply(functionCtx).apply { this@`class`.classes.add(this) }
     }
 

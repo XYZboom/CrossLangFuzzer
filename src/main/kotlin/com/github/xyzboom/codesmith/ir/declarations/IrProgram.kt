@@ -1,8 +1,9 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
-interface IrProgram: IrDeclaration {
+interface IrProgram: IrElement {
     val modules: MutableList<IrModule>
     var mainModule: IrModule
     val hasMainModule: Boolean

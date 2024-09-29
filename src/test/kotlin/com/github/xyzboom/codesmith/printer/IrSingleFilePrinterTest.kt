@@ -1,7 +1,6 @@
-package com.github.xyzboom.codesmith.ir.printer
+package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.generator.IrGeneratorImpl
-import com.github.xyzboom.codesmith.printer.IrPrinterToSingleFile
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals

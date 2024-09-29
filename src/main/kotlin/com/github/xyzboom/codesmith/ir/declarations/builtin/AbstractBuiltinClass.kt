@@ -12,7 +12,7 @@ abstract class AbstractBuiltinClass(
     classType: IrClassType = IrClassType.FINAL,
     implementedTypes: MutableList<IrConcreteType> = mutableListOf()
 ): IrClassImpl(
-    "<built-in: $name>", IrFileImpl.builtin, IrAccessModifier.PUBLIC,
+    name, IrFileImpl.builtin, IrAccessModifier.PUBLIC,
     classType, superType, implementedTypes
 ) {
     abstract override val type: IrConcreteType

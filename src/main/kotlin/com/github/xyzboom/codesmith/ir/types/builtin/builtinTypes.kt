@@ -6,27 +6,27 @@ import com.github.xyzboom.codesmith.ir.declarations.builtin.Function1Class
 import com.github.xyzboom.codesmith.ir.declarations.builtin.NumberClass
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.impl.IrConcreteTypeImpl
+import com.github.xyzboom.codesmith.ir.types.impl.IrFunctionTypeImpl
 import com.github.xyzboom.codesmith.ir.types.impl.IrTypeParameterImpl
 
 
 object IrBuiltinTypes {
-    private const val BUILTIN = "<built-in: %s>"
-    val ANY = IrConcreteTypeImpl(BUILTIN.format("Any"), AnyClass)
-    val NUMBER = IrConcreteTypeImpl(BUILTIN.format("Number"), AnyClass)
-    val INT = IrConcreteTypeImpl(BUILTIN.format("Int"), NumberClass)
-    val LONG = IrConcreteTypeImpl(BUILTIN.format("Long"), NumberClass)
-    val FLOAT = IrConcreteTypeImpl(BUILTIN.format("Float"), NumberClass)
-    val DOUBLE = IrConcreteTypeImpl(BUILTIN.format("Double"), NumberClass)
-    val BOOLEAN = IrConcreteTypeImpl(BUILTIN.format("Boolean"), AnyClass)
-    val NOTHING = IrConcreteTypeImpl(BUILTIN.format("Nothing"), AnyClass)
-    val FUNCTION0 = IrConcreteTypeImpl(
-        BUILTIN.format("Function0"),
+    val ANY = IrConcreteTypeImpl("Any", AnyClass)
+    val NUMBER = IrConcreteTypeImpl("Number", AnyClass)
+    val INT = IrConcreteTypeImpl("Int", NumberClass)
+    val LONG = IrConcreteTypeImpl("Long", NumberClass)
+    val FLOAT = IrConcreteTypeImpl("Float", NumberClass)
+    val DOUBLE = IrConcreteTypeImpl("Double", NumberClass)
+    val BOOLEAN = IrConcreteTypeImpl("Boolean", AnyClass)
+    val NOTHING = IrConcreteTypeImpl("Nothing", AnyClass)
+    val FUNCTION0 = IrFunctionTypeImpl(
+        "Function0",
         Function0Class,
         arguments = listOf(IrTypeParameterImpl(ANY, "R")),
         classType = IrClassType.INTERFACE
     )
-    val FUNCTION1 = IrConcreteTypeImpl(
-        BUILTIN.format("Function1"),
+    val FUNCTION1 = IrFunctionTypeImpl(
+        "Function1",
         Function1Class,
         arguments = listOf(IrTypeParameterImpl(ANY, "T"), IrTypeParameterImpl(ANY, "R")),
         classType = IrClassType.INTERFACE
