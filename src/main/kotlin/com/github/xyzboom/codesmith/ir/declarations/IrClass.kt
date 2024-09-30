@@ -8,7 +8,7 @@ import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, IrClassContainer,
     IrAccessModifierContainer {
     val name: String
-    val containingFile: IrFile
+    val containingDeclaration: IrDeclarationContainer
     val classType: IrClassType
     val type: IrConcreteType
     val superType: IrConcreteType?

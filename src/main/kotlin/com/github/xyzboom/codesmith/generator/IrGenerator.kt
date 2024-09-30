@@ -3,6 +3,8 @@ package com.github.xyzboom.codesmith.generator
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
+import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -12,18 +14,11 @@ interface IrGenerator {
 
     fun randomName(startsWithUpper: Boolean): String
 
-    /**
-     * note that inside [file#fileCtx], current file is not added into module.
-     */
     @IrGeneratorDsl
-    val IrFile.accessibleClasses: Set<IrClass>
+    fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
 
     @IrGeneratorDsl
-    val IrPackage.accessibleClasses: Set<IrClass>
-    @IrGeneratorDsl
-    val IrModule.accessibleClasses: Set<IrClass>
-    @IrGeneratorDsl
-    val IrProgram.accessibleClasses: Set<IrClass>
+    fun IrClass.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
 
     @IrGeneratorDsl
     fun program(programCtx: IrProgram.() -> Unit = {}): IrProgram {
@@ -71,10 +66,21 @@ interface IrGenerator {
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
         superType: IrConcreteType? = null,
         implementedTypes: List<IrConcreteType> = emptyList(),
-        functionCtx: IrClassContainer.() -> Unit = {}
+        classCtx: IrClass.() -> Unit = {}
     ): IrClass {
         return IrClassImpl(name, containingFile, accessModifier, classType, superType, implementedTypes)
-            .apply(functionCtx).apply { this@`class`.classes.add(this) }
+            .apply(classCtx).apply { this@`class`.classes.add(this) }
+    }
+
+    @IrGeneratorDsl
+    fun IrClass.constructor(
+        superCall: IrConstructorCallExpression,
+        accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
+        valueParameters: MutableList<IrValueParameter> = mutableListOf(),
+        constructorCtx: IrConstructor.() -> Unit = {}
+    ): IrConstructor {
+        return IrConstructorImpl(accessModifier, this, superCall, valueParameters)
+            .apply(constructorCtx).apply { this@constructor.functions.add(this) }
     }
 
     fun IrProgram.generateModuleDependencies()

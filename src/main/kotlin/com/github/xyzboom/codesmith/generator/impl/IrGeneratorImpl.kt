@@ -1,9 +1,11 @@
-package com.github.xyzboom.codesmith.generator
+package com.github.xyzboom.codesmith.generator.impl
 
-import com.github.xyzboom.codesmith.ir.IrAccessModifier.INTERNAL
-import com.github.xyzboom.codesmith.ir.IrAccessModifier.PUBLIC
+import com.github.xyzboom.codesmith.generator.*
+import com.github.xyzboom.codesmith.ir.IrAccessModifier
+import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
+import com.github.xyzboom.codesmith.ir.expressions.IrExpression
+import com.github.xyzboom.codesmith.ir.expressions.impl.IrConstructorCallExpressionImpl
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import kotlin.math.roundToInt
@@ -12,48 +14,25 @@ import kotlin.random.Random
 class IrGeneratorImpl(
     private val random: Random = Random.Default,
     private val config: GeneratorConfig = GeneratorConfig.default
-): IrGenerator {
+): IrGenerator, IAccessChecker by AccessCheckerImpl() {
 
     private val generatedNames = mutableSetOf<String>()
 
-    override val IrFile.accessibleClasses: Set<IrClass>
-        get() = mutableSetOf<IrClass>().apply {
-            addAll(BuiltinClasses.builtins)
-            addAll(declarations.filterIsInstance<IrClass>())
-            addAll(containingPackage.accessibleClasses)
-            addAll(containingPackage.containingModule.accessibleClasses)
-            addAll(containingPackage.containingModule.program.modules.flatMap { it.accessibleClasses })
-        }
+    override fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
+        val paramClass = valueParameter.type.declaration
+        if (!isAccessible(paramClass)) throw IllegalStateException()
+        val constructors = paramClass.declarations.filterIsInstance<IrConstructor>().filter { isAccessible(it) }
+        if (constructors.isEmpty()) throw IllegalStateException("No available constructor")
+        val constructor = constructors.random(random)
+        val valueArguments = constructor.valueParameters.map { generateValueArgumentFor(it) }
+        return IrConstructorCallExpressionImpl(constructor, valueArguments)
+    }
 
-    override val IrPackage.accessibleClasses: Set<IrClass>
-        get() = mutableSetOf<IrClass>().apply {
-            addAll(BuiltinClasses.builtins)
-            addAll(files.flatMap {
-                it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
-            })
-        }
-
-    override val IrModule.accessibleClasses: Set<IrClass>
-        get() = mutableSetOf<IrClass>().apply {
-            addAll(BuiltinClasses.builtins)
-            addAll(packages.flatMap { p ->
-                p.files.flatMap {
-                    it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
-                }
-            })
-        }
-
-    override val IrProgram.accessibleClasses: Set<IrClass>
-        get() = mutableSetOf<IrClass>().apply {
-            addAll(BuiltinClasses.builtins)
-            addAll(modules.flatMap { m ->
-                m.packages.flatMap { p ->
-                    p.files.flatMap {
-                        it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
-                    }
-                }
-            })
-        }
+    override fun IrClass.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
+        val paramClass = valueParameter.type.declaration
+        if (!isAccessible(paramClass)) throw IllegalStateException()
+        TODO()
+    }
 
     override fun randomName(startsWithUpper: Boolean): String {
         val length = config.nameLengthRange.random(random)
@@ -171,11 +150,36 @@ class IrGeneratorImpl(
                 containingFile = this, classType = chooseType, accessModifier = chooseModifier,
                 superType = superType?.type, implementedTypes = implements
             ) {
+                generateConstructors(config.constructorNumRange.random(random))
             }
         }
     }
 
     override fun IrClass.generateConstructors(num: Int) {
-
+        if (this.classType == INTERFACE) {
+            throw IllegalStateException("An interface should not have constructor")
+        }
+        val superType = (superType
+            ?: throw IllegalStateException("A class without super type should not call super constructors"))
+        val superTypePackage = superType.declaration.containingPackage
+        val samePackage = superTypePackage == this.containingPackage
+        val accessibleSuperConstructors = superType.declaration.functions.filterIsInstance<IrConstructor>()
+            .filter {
+                it.accessModifier == PUBLIC || it.accessModifier == PROTECTED ||
+                        (samePackage && it.accessModifier == INTERNAL)
+            }
+        if (accessibleSuperConstructors.isEmpty()) {
+            throw IllegalStateException("The class: ${superType.name} has no constructor")
+        }
+        val accessibleClasses = when (val containingDeclaration = containingDeclaration) {
+            is IrClass -> TODO()
+            is IrFile -> containingDeclaration.accessibleClasses
+        }
+        for (i in 0 until num) {
+            val superConstructor = accessibleSuperConstructors.random(random)
+            val superValueParameters = superConstructor.valueParameters
+            val chooseModifier = IrAccessModifier.entries.random(random)
+            constructor(IrConstructorCallExpressionImpl(superConstructor, emptyList()), chooseModifier)
+        }
     }
 }

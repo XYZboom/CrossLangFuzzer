@@ -22,4 +22,8 @@ interface IrModule: IrElement {
     fun dependsOn(modules: List<IrModule>) {
         dependencies.addAll(modules)
     }
+
+    fun isDependOn(module: IrModule): Boolean {
+        return dependencies.contains(module)
+    }
 }

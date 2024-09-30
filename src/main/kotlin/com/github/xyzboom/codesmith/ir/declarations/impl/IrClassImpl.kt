@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith.ir.declarations.impl
 
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
-import com.github.xyzboom.codesmith.ir.declarations.IrFile
+import com.github.xyzboom.codesmith.ir.declarations.IrDeclarationContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrFunction
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
@@ -11,7 +11,7 @@ import com.github.xyzboom.codesmith.ir.types.impl.IrConcreteTypeImpl
 
 open class IrClassImpl(
     override val name: String,
-    override val containingFile: IrFile,
+    override val containingDeclaration: IrDeclarationContainer,
     override val accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
     override val classType: IrClassType = IrClassType.FINAL,
     override val superType: IrConcreteType? = null,

@@ -1,5 +1,5 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
-interface IrFunctionContainer {
+sealed interface IrFunctionContainer {
     val functions: MutableList<IrFunction>
 }

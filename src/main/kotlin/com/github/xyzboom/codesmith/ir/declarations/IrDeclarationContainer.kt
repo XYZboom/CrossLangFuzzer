@@ -1,5 +1,5 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
-interface IrDeclarationContainer {
+sealed interface IrDeclarationContainer {
     val declarations: List<IrDeclaration>
 }
