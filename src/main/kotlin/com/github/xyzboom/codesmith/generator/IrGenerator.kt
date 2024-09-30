@@ -55,10 +55,11 @@ interface IrGenerator {
     fun IrFunctionContainer.function(
         name: String = randomName(false),
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
+        valueParameters: MutableList<IrValueParameter> = mutableListOf(),
         returnType: IrType,
         functionCtx: IrFunctionContainer.() -> Unit = {}
     ): IrFunction {
-        return IrFunctionImpl(name, this, accessModifier, returnType)
+        return IrFunctionImpl(name, this, accessModifier, valueParameters, returnType)
             .apply(functionCtx).apply { this@function.functions.add(this) }
     }
 
@@ -81,4 +82,6 @@ interface IrGenerator {
     fun IrPackage.generateFiles()
 
     fun IrFile.generateClasses()
+
+    fun IrClass.generateConstructors(num: Int)
 }

@@ -7,6 +7,7 @@ interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContai
     val name: String
     val containingDeclaration: IrFunctionContainer
     val returnType: IrType
+    val valueParameters: MutableList<IrValueParameter>
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitFunction(this, data)
 

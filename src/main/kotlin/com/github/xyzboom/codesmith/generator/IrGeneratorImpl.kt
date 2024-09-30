@@ -28,14 +28,18 @@ class IrGeneratorImpl(
     override val IrPackage.accessibleClasses: Set<IrClass>
         get() = mutableSetOf<IrClass>().apply {
             addAll(BuiltinClasses.builtins)
-            addAll(files.flatMap { it.declarations.filterIsInstance<IrClass>() })
+            addAll(files.flatMap {
+                it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
+            })
         }
 
     override val IrModule.accessibleClasses: Set<IrClass>
         get() = mutableSetOf<IrClass>().apply {
             addAll(BuiltinClasses.builtins)
             addAll(packages.flatMap { p ->
-                p.files.flatMap { it.declarations.filterIsInstance<IrClass>() }
+                p.files.flatMap {
+                    it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
+                }
             })
         }
 
@@ -44,7 +48,9 @@ class IrGeneratorImpl(
             addAll(BuiltinClasses.builtins)
             addAll(modules.flatMap { m ->
                 m.packages.flatMap { p ->
-                    p.files.flatMap { it.declarations.filterIsInstance<IrClass>() }
+                    p.files.flatMap {
+                        it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
+                    }
                 }
             })
         }
@@ -144,11 +150,15 @@ class IrGeneratorImpl(
             val chooseModifier = listOf(PUBLIC, INTERNAL).random(random)
             val accessibleClasses = accessibleClasses
             val superType = if (chooseType != INTERFACE) {
-                accessibleClasses.filter { it.classType == ABSTRACT || it.classType == OPEN }.random(random)
+                accessibleClasses.filter {
+                    it.accessModifier <= chooseModifier && (it.classType == ABSTRACT || it.classType == OPEN)
+                }.random(random)
             } else {
                 null
             }
-            val interfaces = accessibleClasses.filter { it.classType == INTERFACE }.shuffled(random)
+            val interfaces = accessibleClasses.filter {
+                it.accessModifier <= chooseModifier && it.classType == INTERFACE
+            }.shuffled(random)
             val implements = if (interfaces.isNotEmpty()) {
                 interfaces.take(
                     config.classImplNumRange.random(random)
@@ -163,5 +173,9 @@ class IrGeneratorImpl(
             ) {
             }
         }
+    }
+
+    override fun IrClass.generateConstructors(num: Int) {
+
     }
 }

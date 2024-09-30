@@ -19,4 +19,6 @@ interface IrVisitor<out R, in D> {
     fun visitClass(clazz: IrClass, data: D): R = visitDeclaration(clazz, data)
 
     fun visitFunction(function: IrFunction, data: D): R = visitDeclaration(function, data)
+
+    fun visitValueParameter(valueParameter: IrValueParameter, data: D): R = visitElement(valueParameter, data)
 }
