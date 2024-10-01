@@ -3,13 +3,14 @@ package com.github.xyzboom.codesmith.printer
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
 import com.github.xyzboom.codesmith.ir.declarations.IrModule
+import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
 import kotlin.random.Random
 
 class IrPrinterToSingleFile(
     private val filePrinters: List<IrPrinter<IrFile, String>>,
     private val random: Random = Random.Default,
-): IrTopDownVisitor<StringBuilder>, IrPrinter<IrElement, String> {
+): IrTopDownVisitor<StringBuilder>, IrPrinter<IrProgram, String> {
     private val stringBuilder = StringBuilder()
 
     init {
@@ -18,10 +19,26 @@ class IrPrinterToSingleFile(
         }
     }
 
-    override fun print(element: IrElement): String {
+    override fun print(element: IrProgram): String {
         stringBuilder.clear()
-        visitElement(element, stringBuilder)
+        visitProgram(element, stringBuilder)
         return stringBuilder.toString()
+    }
+
+    override fun visitProgram(program: IrProgram, data: StringBuilder) {
+        val processedModule = HashSet<IrModule>()
+        val notProcessedModule = HashSet<IrModule>(program.modules)
+        while (processedModule.size != program.modules.size) {
+            val currentProcessedModule = HashSet<IrModule>()
+            for (module in notProcessedModule) {
+                if (module.dependencies.all { it in processedModule }) {
+                    visitModule(module, data)
+                    processedModule.add(module)
+                    currentProcessedModule.add(module)
+                }
+            }
+            notProcessedModule.removeAll(currentProcessedModule)
+        }
     }
 
     override fun visitModule(module: IrModule, data: StringBuilder) {

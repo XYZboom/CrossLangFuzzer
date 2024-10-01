@@ -3,9 +3,10 @@ package com.github.xyzboom.codesmith.printer
 import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
-class IrSingleFilePrinterTest {
+import org.junit.jupiter.api.Assertions.*
+
+class IrPrinterToSingleFileTest {
     private val printer = IrPrinterToSingleFile(listOf(IrKtFilePrinter()))
     private val generator = IrGeneratorImpl()
 
@@ -20,6 +21,20 @@ class IrSingleFilePrinterTest {
                 mC.dependsOn(listOf(mA, mB))
             }
         }
-        assertEquals("// MODULE: A\n// MODULE: B(A)\n// MODULE: C(A,B)\n", printer.print(prog))
+        assertEquals("// MODULE: A\n// MODULE: B(A)\n// MODULE: C(A, B)\n", printer.print(prog))
+    }
+
+    @Test
+    fun visitProgram() {
+        val prog = with(generator) {
+            program {
+                val mB = module("B")
+                val mC = module("C")
+                val mA = module("A")
+                mB.dependsOn(mA)
+                mC.dependsOn(listOf(mA, mB))
+            }
+        }
+        assertEquals("// MODULE: A\n// MODULE: B(A)\n// MODULE: C(A, B)\n", printer.print(prog))
     }
 }
