@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
+import com.github.xyzboom.codesmith.generator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinterToSingleFile
@@ -9,7 +10,7 @@ import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 
 fun main() {
-    for (i in 0 until 1) {
+    for (i in 0 until 10000) {
         val prog = IrGeneratorImpl(
             config = GeneratorConfig(
                 moduleNumRange = 1..1,
@@ -28,5 +29,7 @@ fun main() {
         visitor.visitElement(prog, null)
         val result = IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), )).print(prog)
         println(result)
+        IrMutatorImpl().mutate(prog)
+        println(IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), )).print(prog))
     }
 }

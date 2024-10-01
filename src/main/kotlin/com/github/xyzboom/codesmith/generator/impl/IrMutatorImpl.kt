@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.generator.IrMutator
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
+import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import kotlin.random.Random
 
 @Suppress("Unused")
@@ -16,6 +17,9 @@ class IrMutatorImpl(
             for (`package` in module.packages.shuffled(random)) {
                 for (file in `package`.files.shuffled(random)) {
                     for (clazz in file.declarations.shuffled(random).filterIsInstance<IrClass>()) {
+                        if (clazz is AbstractBuiltinClass || clazz.superType?.declaration is AbstractBuiltinClass) {
+                            continue
+                        }
                         if (clazz.accessModifier == PUBLIC &&
                             clazz.superType?.declaration?.accessModifier == PUBLIC &&
                             clazz.superType?.declaration?.isInSamePackage(clazz) != true) {
