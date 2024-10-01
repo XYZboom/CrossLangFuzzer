@@ -36,11 +36,7 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
 
     override fun IrClass.printExtendList(): String {
         if (superType == null && implementedTypes.isEmpty()) return ""
-        val stringBuilder = if (classType == INTERFACE) {
-            StringBuilder(" implements ")
-        } else {
-            StringBuilder(" extends ")
-        }
+        val stringBuilder = StringBuilder(" extends ")
         if (superType != null) {
             stringBuilder.append(superType!!.print())
             if (implementedTypes.isNotEmpty()) {
@@ -92,8 +88,10 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
                             "package ${containingDeclaration.containingPackage.fullName};\n"
                 )
             }
-            stringBuilder.append("$indent${accessModifier.print()} ${classType.print()} $name" +
-                    "${printExtendList()} {\n")
+            stringBuilder.append(
+                "$indent${accessModifier.print()} ${classType.print()} $name" +
+                        "${printExtendList()} {\n"
+            )
         }
         super.visitClass(clazz, data)
         stringBuilder.append("$indent}\n")
