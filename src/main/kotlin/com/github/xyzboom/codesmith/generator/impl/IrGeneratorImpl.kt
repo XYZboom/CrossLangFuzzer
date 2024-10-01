@@ -16,7 +16,10 @@ class IrGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default
 ): IrGenerator, IAccessChecker by AccessCheckerImpl() {
 
-    private val generatedNames = mutableSetOf<String>()
+    private val generatedNames = mutableSetOf<String>().apply {
+        addAll(KeyWords.java)
+        addAll(KeyWords.kotlin)
+    }
 
     override fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
         val paramClass = valueParameter.type.declaration
