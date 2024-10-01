@@ -27,7 +27,7 @@ class IrPrinterToSingleFile(
     override fun visitModule(module: IrModule, data: StringBuilder) {
         data.append("// MODULE: ${module.name}")
         if (module.dependencies.isNotEmpty()) {
-            data.append("(${module.dependencies.joinToString(",") { it.name }})")
+            data.append("(${module.dependencies.joinToString(", ") { it.name }})")
         }
         data.append("\n")
         super.visitModule(module, data)
