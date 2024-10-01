@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
+import com.github.xyzboom.codesmith.ir.declarations.IrFile
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
@@ -82,6 +83,13 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
 
     override fun visitClass(clazz: IrClass, data: StringBuilder) {
         with(clazz) {
+            val containingDeclaration = clazz.containingDeclaration
+            if (accessModifier == PUBLIC && containingDeclaration is IrFile) {
+                stringBuilder.append(
+                    "// FILE: ${clazz.name}.java\n" +
+                            "package ${containingDeclaration.containingPackage.fullName};\n"
+                )
+            }
             stringBuilder.append("$indent${accessModifier.print()} ${classType.print()} $name {\n")
         }
         super.visitClass(clazz, data)
