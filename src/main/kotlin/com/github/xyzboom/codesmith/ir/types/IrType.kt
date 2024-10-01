@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
+import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 
 sealed interface IrType: IrTypeArgument {
     val name: String
@@ -12,8 +13,11 @@ sealed interface IrType: IrTypeArgument {
     fun copy(nullability: Nullability): IrType
 
     val fullName: String
-        get() = when(val typeContainer = declaration.containingDeclaration) {
+        get() = (if (declaration is AbstractBuiltinClass) {
+            name
+        } else when (val typeContainer = declaration.containingDeclaration) {
             is IrClass -> TODO()
-            is IrFile -> "${typeContainer.containingPackage.fullName}.$name"
-        }
+            is IrFile ->
+                "${typeContainer.containingPackage.fullName}.$name"
+        })
 }
