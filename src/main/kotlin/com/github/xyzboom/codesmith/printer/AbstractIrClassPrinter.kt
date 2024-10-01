@@ -28,10 +28,10 @@ abstract class AbstractIrClassPrinter(
     open fun printIrConcreteType(concreteType: IrConcreteType): String {
         with(concreteType) {
             return if (arguments.isEmpty()) {
-                name
+                fullName
             } else {
                 val stringBuilder = StringBuilder()
-                stringBuilder.append(name)
+                stringBuilder.append(fullName)
                 stringBuilder.append("<")
                 for ((index, arg) in arguments.withIndex()) {
                     stringBuilder.append(arg.print())

@@ -57,7 +57,7 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
     override fun IrTypeArgument.print(): String {
         return when (this) {
             is IrStarProjection -> "?"
-            is IrConcreteType -> print()
+            is IrConcreteType -> printIrConcreteType(this)
             is IrTypeParameter -> name
             is IrTypeProjection -> {
                 val varianceString = when (variance) {
@@ -90,7 +90,8 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
                             "package ${containingDeclaration.containingPackage.fullName};\n"
                 )
             }
-            stringBuilder.append("$indent${accessModifier.print()} ${classType.print()} $name {\n")
+            stringBuilder.append("$indent${accessModifier.print()} ${classType.print()} $name" +
+                    "${printExtendList()} {\n")
         }
         super.visitClass(clazz, data)
         stringBuilder.append("$indent}\n")

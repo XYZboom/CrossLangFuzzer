@@ -10,12 +10,12 @@ import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 
 fun main() {
-    for (i in 0 until 10000) {
+    for (i in 0 until 1) {
         val prog = IrGeneratorImpl(
             config = GeneratorConfig(
-                moduleNumRange = 1..1,
-                fileNumRange = 1..5,
-                packageNumRange = 1..1,
+                moduleNumRange = 1..5,
+                fileNumRange = 3..5,
+                packageNumRange = 1..5,
                 classNumRange = 3..5,
                 constructorNumRange = 1..1
             )
@@ -26,10 +26,10 @@ fun main() {
                 super.visitElement(element, data)
             }
         }
-        visitor.visitElement(prog, null)
-        val result = IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), )).print(prog)
+//        visitor.visitElement(prog, null)
+        val result = IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), IrKtFilePrinter())).print(prog)
         println(result)
         IrMutatorImpl().mutate(prog)
-        println(IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), )).print(prog))
+        println(IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), IrKtFilePrinter())).print(prog))
     }
 }
