@@ -131,6 +131,11 @@ class IrGeneratorImpl(
             val superType = if (chooseType != INTERFACE) {
                 accessibleClasses.filter {
                     it.accessModifier <= chooseModifier && (it.classType == ABSTRACT || it.classType == OPEN)
+                            && it.functions.filterIsInstance<IrConstructor>()
+                            .any { it1 ->
+                        it1.accessModifier == PUBLIC || it1.accessModifier == PROTECTED ||
+                                (it1.containingPackage === this.containingPackage && it1.accessModifier == INTERNAL)
+                    }
                 }.random(random)
             } else {
                 null
@@ -150,7 +155,9 @@ class IrGeneratorImpl(
                 containingFile = this, classType = chooseType, accessModifier = chooseModifier,
                 superType = superType?.type, implementedTypes = implements
             ) {
-                generateConstructors(config.constructorNumRange.random(random))
+                if (chooseType != INTERFACE) {
+                    generateConstructors(config.constructorNumRange.random(random))
+                }
             }
         }
     }

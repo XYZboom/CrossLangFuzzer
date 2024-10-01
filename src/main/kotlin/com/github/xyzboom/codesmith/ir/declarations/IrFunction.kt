@@ -9,9 +9,12 @@ interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContai
     val returnType: IrType
     val valueParameters: MutableList<IrValueParameter>
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
-        visitor.visitFunction(this, data)
+        when (this) {
+            is IrConstructor -> visitor.visitConstructor(this, data)
+            else -> visitor.visitFunction(this, data)
+        }
 
     override fun <D> acceptChildren(visitor: IrVisitor<Unit, D>, data: D) {
-
+        valueParameters.forEach { it.accept(visitor, data) }
     }
 }

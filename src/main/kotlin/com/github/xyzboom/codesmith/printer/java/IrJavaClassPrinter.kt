@@ -3,12 +3,15 @@ package com.github.xyzboom.codesmith.printer.java
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
+import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
+import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.ir.types.Variance.*
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
 
 class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount) {
+    private val stringBuilder = StringBuilder()
 
     override fun IrClassType.print(): String {
         return when (this) {
@@ -22,7 +25,7 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
     override fun IrAccessModifier.print(): String {
         return when (this) {
             PUBLIC -> "public"
-            INTERNAL -> ""
+            INTERNAL -> "/*default*/"
             PROTECTED -> "protected"
             PRIVATE -> "private"
         }
@@ -72,9 +75,52 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
     }
 
     override fun print(element: IrClass): String {
-        with(element) {
-            return "$indent${accessModifier.print()} ${classType.print()} $name {\n" +
-                    "$indent}\n"
+        stringBuilder.clear()
+        visitClass(element, stringBuilder)
+        return stringBuilder.toString()
+    }
+
+    override fun visitClass(clazz: IrClass, data: StringBuilder) {
+        with(clazz) {
+            stringBuilder.append("$indent${accessModifier.print()} ${classType.print()} $name {\n")
         }
+        super.visitClass(clazz, data)
+        stringBuilder.append("$indent}\n")
+    }
+
+    override fun visitConstructor(constructor: IrConstructor, data: StringBuilder) {
+        indentCount++
+        stringBuilder.append(indent)
+        stringBuilder.append(constructor.accessModifier.print())
+        stringBuilder.append(" ")
+        stringBuilder.append(constructor.containingDeclaration.name)
+        stringBuilder.append("() {\n")
+        indentCount++
+        super.visitConstructor(constructor, data)
+        indentCount--
+        stringBuilder.append(indent)
+        stringBuilder.append("}\n")
+        indentCount--
+    }
+
+    override fun visitConstructorCallExpression(
+        constructorCallExpression: IrConstructorCallExpression,
+        data: StringBuilder
+    ) {
+        stringBuilder.append(indent)
+        val last = elementStack.peek()
+        if (last is IrConstructor) {
+            val currentClass = elementStack.elementAt(elementStack.size - 2) as? IrClass
+                ?: throw IllegalStateException()
+            val clazz = constructorCallExpression.callTarget.containingDeclaration
+            if (currentClass === clazz) {
+                stringBuilder.append("this();\n")
+            } else if (currentClass.superType?.declaration === clazz) {
+                stringBuilder.append("super();\n")
+            } else {
+                throw IllegalStateException("A constructor call must call its super constructor or constructor in the same class")
+            }
+        }
+        super.visitConstructorCallExpression(constructorCallExpression, data)
     }
 }

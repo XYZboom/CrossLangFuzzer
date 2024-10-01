@@ -23,6 +23,8 @@ interface IrVisitor<out R, in D> {
 
     fun visitFunction(function: IrFunction, data: D): R = visitDeclaration(function, data)
 
+    fun visitConstructor(constructor: IrConstructor, data: D): R = visitDeclaration(constructor, data)
+
     fun visitValueParameter(valueParameter: IrValueParameter, data: D): R = visitElement(valueParameter, data)
 
     fun visitExpression(expression: IrExpression, data: D): R = visitElement(expression, data)
