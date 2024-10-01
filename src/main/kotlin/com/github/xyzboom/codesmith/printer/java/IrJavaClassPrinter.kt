@@ -5,10 +5,12 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
+import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.ir.types.Variance.*
+import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
 
 class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount) {
@@ -110,6 +112,13 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
         stringBuilder.append(indent)
         stringBuilder.append("}\n")
         indentCount--
+    }
+
+    override fun printIrConcreteType(concreteType: IrConcreteType): String {
+        if (concreteType === IrBuiltinTypes.ANY) {
+            return "Object"
+        }
+        return super.printIrConcreteType(concreteType)
     }
 
     override fun visitConstructorCallExpression(
