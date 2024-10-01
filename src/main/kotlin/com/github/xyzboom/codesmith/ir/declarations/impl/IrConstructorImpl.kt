@@ -9,7 +9,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.IrType
 
 class IrConstructorImpl(
-    override val accessModifier: IrAccessModifier,
+    override var accessModifier: IrAccessModifier,
     override val containingDeclaration: IrClass,
     override val superCall: IrConstructorCallExpression,
     override val valueParameters: MutableList<IrValueParameter> = mutableListOf(),

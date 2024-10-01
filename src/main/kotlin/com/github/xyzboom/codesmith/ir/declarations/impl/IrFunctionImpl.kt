@@ -9,7 +9,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 class IrFunctionImpl(
     override val name: String,
     override val containingDeclaration: IrFunctionContainer,
-    override val accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
+    override var accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
     override val valueParameters: MutableList<IrValueParameter> = mutableListOf(),
     override val returnType: IrType,
 ): IrFunction {

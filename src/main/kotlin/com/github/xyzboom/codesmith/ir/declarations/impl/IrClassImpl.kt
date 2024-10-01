@@ -12,7 +12,7 @@ import com.github.xyzboom.codesmith.ir.types.impl.IrConcreteTypeImpl
 open class IrClassImpl(
     override val name: String,
     override val containingDeclaration: IrDeclarationContainer,
-    override val accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
+    override var accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
     override val classType: IrClassType = IrClassType.FINAL,
     override val superType: IrConcreteType? = null,
     implementedTypes: List<IrConcreteType> = mutableListOf(),
