@@ -47,10 +47,12 @@ class IrGeneratorImpl(
             sb.append(lettersAndNumbers.random(random))
         }
         val result = sb.toString()
-        if (generatedNames.contains(result)) {
+        val lowercase = result.lowercase()
+        if (generatedNames.contains(lowercase)) {
             return randomName(startsWithUpper)
         }
-        return result.apply(generatedNames::add)
+        generatedNames.add(lowercase)
+        return result
     }
 
     override fun IrProgram.generateModuleDependencies() {
