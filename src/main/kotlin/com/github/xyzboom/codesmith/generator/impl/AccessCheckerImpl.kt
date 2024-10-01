@@ -35,7 +35,7 @@ class AccessCheckerImpl: IAccessChecker {
             addAll(declarations.filterIsInstance<IrClass>())
             addAll(containingPackage.accessibleClasses)
             addAll(containingPackage.containingModule.accessibleClasses)
-            addAll(containingPackage.containingModule.program.modules.flatMap { it.accessibleClasses })
+            addAll(containingPackage.containingModule.dependencies.flatMap { it.accessibleClasses })
         }
 
     override val IrPackage.accessibleClasses: Set<IrClass>
