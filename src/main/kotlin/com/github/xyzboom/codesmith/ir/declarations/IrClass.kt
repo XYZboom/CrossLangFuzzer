@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
+import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
@@ -13,6 +14,16 @@ interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, I
     val type: IrConcreteType
     val superType: IrConcreteType?
     val implementedTypes: MutableList<IrConcreteType>
+    val allSuperClasses: Set<IrClass>
+        get() = HashSet<IrClass>().apply {
+            val superType = superType
+            if (superType != null) {
+                add(superType.declaration)
+                addAll(superType.declaration.allSuperClasses)
+            }
+            addAll(implementedTypes.map { it.declaration })
+            addAll(implementedTypes.flatMap { it.declaration.allSuperClasses })
+        }
     val typeParameters: MutableList<IrTypeParameter>
     override val declarations: List<IrDeclaration>
         get() = ArrayList<IrDeclaration>(functions.size + classes.size).apply {

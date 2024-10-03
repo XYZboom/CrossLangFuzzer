@@ -35,14 +35,23 @@ class AccessCheckerImpl: IAccessChecker {
             addAll(declarations.filterIsInstance<IrClass>())
             addAll(containingPackage.accessibleClasses)
             addAll(containingPackage.containingModule.accessibleClasses)
-            addAll(containingPackage.containingModule.dependencies.flatMap { it.accessibleClasses })
+            val dependencies = containingPackage.containingModule.dependencies
+            addAll(dependencies.flatMap {
+                it.accessibleClasses.filter { it1 ->
+                    it1.allSuperClasses.all { superClass ->
+                        superClass.containingPackage.containingModule in dependencies
+                    }
+                }
+            })
         }
 
     override val IrPackage.accessibleClasses: Set<IrClass>
         get() = mutableSetOf<IrClass>().apply {
             addAll(BuiltinClasses.builtins)
             addAll(files.flatMap {
-                it.declarations.filterIsInstance<IrClass>().filter { it1 -> it1.accessModifier == PUBLIC }
+                it.declarations.filterIsInstance<IrClass>().filter { it1 ->
+                    it1.accessModifier == PUBLIC || it1.accessModifier == INTERNAL
+                }
             })
         }
 
@@ -78,13 +87,16 @@ class AccessCheckerImpl: IAccessChecker {
         return when (clazz.accessModifier) {
             PUBLIC -> when (clazzContainingDecl) {
                 is IrClass -> isAccessible(clazzContainingDecl)
-                is IrFile -> containingPackage.containingModule
-                    .isDependOn(clazzContainingDecl.containingPackage.containingModule)
+                is IrFile -> (containingPackage === clazzContainingDecl.containingPackage
+                        || containingPackage.containingModule
+                    .isDependOn(clazzContainingDecl.containingPackage.containingModule))
+                        && (clazz.superType?.declaration == null || isAccessible(clazz.superType!!.declaration))
             }
 
             INTERNAL -> when (clazzContainingDecl) {
                 is IrClass -> isAccessible(clazzContainingDecl)
                 is IrFile -> containingPackage === clazzContainingDecl.containingPackage
+                        && (clazz.superType?.declaration == null || isAccessible(clazz.superType!!.declaration))
             }
 
             else -> TODO()

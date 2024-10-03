@@ -12,7 +12,8 @@ import kotlin.random.Random
 class IrMutatorImpl(
     private val random: Random = Random.Default,
 ): IrMutator, IAccessChecker by AccessCheckerImpl() {
-    override fun mutate(program: IrProgram): IrProgram {
+    override fun mutate(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
         outer@ for (module in program.modules.shuffled(random)) {
             for (`package` in module.packages.shuffled(random)) {
                 for (file in `package`.files.shuffled(random)) {
@@ -24,12 +25,13 @@ class IrMutatorImpl(
                             clazz.superType?.declaration?.accessModifier == PUBLIC &&
                             clazz.superType?.declaration?.isInSamePackage(clazz) != true) {
                             clazz.superType?.declaration?.accessModifier = INTERNAL
+                            success = true
                             break@outer
                         }
                     }
                 }
             }
         }
-        return program
+        return program to success
     }
 }
