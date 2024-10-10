@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
-import com.github.xyzboom.codesmith.generator.impl.IrMutatorImpl
+import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
@@ -35,7 +35,7 @@ fun main() {
             )
         ).print(prog)
         println(result)
-        IrMutatorImpl().mutate(prog)
+        println(IrMutatorImpl().mutate(prog))
         println(IrPrinterToSingleFile(mapOf(
             IrFileType.JAVA to IrJavaFilePrinter(),
             IrFileType.KOTLIN to IrKtFilePrinter()

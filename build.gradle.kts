@@ -37,6 +37,7 @@ publishing {
     }
 }
 dependencies {
+    implementation(kotlin("reflect"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
     testImplementation(kotlin("test"))
 }
