@@ -8,6 +8,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.expressions.impl.IrConstructorCallExpressionImpl
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
+import com.github.xyzboom.codesmith.ir.types.IrFileType
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -124,7 +125,7 @@ class IrGeneratorImpl(
 
     override fun IrPackage.generateFiles() {
         for (i in 0 until config.fileNumRange.random(random)) {
-            file { generateClasses() }
+            file(fileType = IrFileType.entries.random(random)) { generateClasses() }
         }
     }
 

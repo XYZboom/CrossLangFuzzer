@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
+import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.types.IrType
 
 interface IrGenerator {
@@ -42,8 +43,13 @@ interface IrGenerator {
     }
 
     @IrGeneratorDsl
-    fun IrPackage.file(name: String = randomName(false), fileCtx: IrFile.() -> Unit = {}): IrFile {
-        return IrFileImpl(name, this).apply(fileCtx).apply { this@file.files.add(this) }
+    fun IrPackage.file(
+        name: String = randomName(false),
+        fileType: IrFileType,
+        fileCtx: IrFile.() -> Unit = {}
+    ): IrFile {
+        return IrFileImpl(name, this, fileType)
+            .apply(fileCtx).apply { this@file.files.add(this) }
     }
 
     @IrGeneratorDsl

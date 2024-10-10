@@ -1,13 +1,18 @@
 package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
+import com.github.xyzboom.codesmith.ir.types.IrFileType
+import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 import org.junit.jupiter.api.Test
 
 import org.junit.jupiter.api.Assertions.*
 
 class IrPrinterToSingleFileTest {
-    private val printer = IrPrinterToSingleFile(listOf(IrKtFilePrinter()))
+    private val printer = IrPrinterToSingleFile(mapOf(
+        IrFileType.JAVA to IrJavaFilePrinter(),
+        IrFileType.KOTLIN to IrKtFilePrinter()
+    ))
     private val generator = IrGeneratorImpl()
 
     @Test

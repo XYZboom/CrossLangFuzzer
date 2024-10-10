@@ -1,15 +1,13 @@
 package com.github.xyzboom.codesmith.printer
 
-import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
 import com.github.xyzboom.codesmith.ir.declarations.IrModule
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
+import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
-import kotlin.random.Random
 
 class IrPrinterToSingleFile(
-    private val filePrinters: List<IrPrinter<IrFile, String>>,
-    private val random: Random = Random.Default,
+    private val filePrinters: Map<IrFileType, IrPrinter<IrFile, String>>,
 ): IrTopDownVisitor<StringBuilder>, IrPrinter<IrProgram, String> {
     private val stringBuilder = StringBuilder()
 
@@ -51,7 +49,9 @@ class IrPrinterToSingleFile(
     }
 
     override fun visitFile(file: IrFile, data: StringBuilder) {
-        data.append(filePrinters.random(random).print(file))
+        val printer = (filePrinters[file.fileType]
+            ?: throw NullPointerException("A printer of ${file.fileType} must be provided!"))
+        data.append(printer.print(file))
         super.visitFile(file, data)
     }
 }

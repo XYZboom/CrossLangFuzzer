@@ -1,10 +1,12 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 interface IrFile: IrElement, IrFunctionContainer, IrDeclarationContainer, IrClassContainer {
     val name: String
+    val fileType: IrFileType
 
     override val declarations: List<IrDeclaration>
         get() = ArrayList<IrDeclaration>(functions.size + classes.size).apply {

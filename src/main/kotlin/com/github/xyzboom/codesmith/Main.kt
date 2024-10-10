@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
 import com.github.xyzboom.codesmith.generator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinterToSingleFile
 import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
@@ -27,9 +28,17 @@ fun main() {
             }
         }
 //        visitor.visitElement(prog, null)
-        val result = IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), IrKtFilePrinter())).print(prog)
+        val result = IrPrinterToSingleFile(
+            mapOf(
+                IrFileType.JAVA to IrJavaFilePrinter(),
+                IrFileType.KOTLIN to IrKtFilePrinter()
+            )
+        ).print(prog)
         println(result)
         IrMutatorImpl().mutate(prog)
-        println(IrPrinterToSingleFile(listOf(IrJavaFilePrinter(), IrKtFilePrinter())).print(prog))
+        println(IrPrinterToSingleFile(mapOf(
+            IrFileType.JAVA to IrJavaFilePrinter(),
+            IrFileType.KOTLIN to IrKtFilePrinter()
+        )).print(prog))
     }
 }

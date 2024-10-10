@@ -2,7 +2,6 @@ package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
-import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
@@ -10,6 +9,11 @@ interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, I
     IrAccessModifierContainer {
     val name: String
     val containingDeclaration: IrDeclarationContainer
+    val containingFile: IrFile
+        get() = when (val containingDeclaration = containingDeclaration) {
+            is IrClass -> containingDeclaration.containingFile
+            is IrFile -> containingDeclaration
+        }
     val classType: IrClassType
     val type: IrConcreteType
     val superType: IrConcreteType?

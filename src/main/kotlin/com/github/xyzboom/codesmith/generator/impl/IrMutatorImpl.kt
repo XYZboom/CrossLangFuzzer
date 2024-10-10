@@ -6,6 +6,7 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
+import com.github.xyzboom.codesmith.ir.types.IrFileType.KOTLIN
 import kotlin.random.Random
 
 @Suppress("Unused")
@@ -23,6 +24,8 @@ class IrMutatorImpl(
                         }
                         if (clazz.accessModifier == PUBLIC &&
                             clazz.superType?.declaration?.accessModifier == PUBLIC &&
+                            clazz.containingFile.fileType == KOTLIN &&
+                            clazz.superType?.declaration?.containingFile?.fileType == KOTLIN &&
                             clazz.superType?.declaration?.isInSamePackage(clazz) != true) {
                             clazz.superType?.declaration?.accessModifier = INTERNAL
                             success = true
