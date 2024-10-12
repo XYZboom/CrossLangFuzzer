@@ -20,6 +20,8 @@ class IrGeneratorImpl(
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
         addAll(KeyWords.kotlin)
+        addAll(KeyWords.builtins)
+        addAll(KeyWords.windows)
     }
 
     override fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {

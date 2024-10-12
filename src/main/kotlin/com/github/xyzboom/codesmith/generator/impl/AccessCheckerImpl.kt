@@ -27,6 +27,10 @@ class AccessCheckerImpl: IAccessChecker {
         return this.containingPackage === declaration.containingPackage
     }
 
+    override fun IrDeclaration.isInSameModule(declaration: IrDeclaration): Boolean {
+        return this.containingPackage.containingModule === declaration.containingPackage.containingModule
+    }
+
     //</editor-fold>
     //<editor-fold desc="accessible">
     override val IrFile.accessibleClasses: Set<IrClass>

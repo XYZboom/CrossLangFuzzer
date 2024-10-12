@@ -5,6 +5,8 @@ import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 abstract class IrMutator {
     abstract fun mutateKtExposeKtInternal(program: IrProgram): Pair<IrProgram, Boolean>
     abstract fun mutateJavaExposeKtInternal(program: IrProgram): Pair<IrProgram, Boolean>
+    abstract fun mutateConstructorSuperCallPrivate(program: IrProgram): Pair<IrProgram, Boolean>
+    abstract fun mutateConstructorSuperCallInternal(program: IrProgram): Pair<IrProgram, Boolean>
 
     /**
      * do a mutated on specified [program].

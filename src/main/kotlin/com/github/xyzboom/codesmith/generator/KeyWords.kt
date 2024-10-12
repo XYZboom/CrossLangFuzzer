@@ -1,5 +1,7 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes.builtinTypes
+
 object KeyWords {
 
     val java = listOf(
@@ -55,4 +57,6 @@ object KeyWords {
         "while"
     )
     val kotlin = listOf("as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when")
+    val builtins = listOf("Object") + builtinTypes.map { it.name }
+    val windows = listOf("nul")
 }

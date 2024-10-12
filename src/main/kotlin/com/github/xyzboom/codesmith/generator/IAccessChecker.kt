@@ -50,5 +50,8 @@ interface IAccessChecker {
     fun IrDeclaration.isInSamePackage(declaration: IrDeclaration): Boolean
 
     @IrGeneratorDsl
+    fun IrDeclaration.isInSameModule(declaration: IrDeclaration): Boolean
+
+    @IrGeneratorDsl
     val IrDeclaration.containingPackage: IrPackage
 }

@@ -4,9 +4,45 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.typeOf
 
 data class MutatorConfig(
+    /**
+     * ```kt
+     * internal open class A
+     * class B: A()
+     * //       ^^^
+     * // 'public' subclass exposes its 'internal' supertype A
+     * ```
+     */
     val ktExposeKtInternal: Boolean = true,
     // As there is no compilation error for this, false default.
     val javaExposeKtInternal: Boolean = false,
+    /**
+     * ```kt
+     * open class A {
+     *     private constructor()
+     * }
+     * class B: A {
+     *     constructor(): super()
+     *     //             ^^^^^^^
+     *     // Cannot access '<init>': it is private in 'A'
+     * }
+     * ```
+     */
+    val constructorSuperCallPrivate: Boolean = false,
+    /**
+     * ```kt
+     * // MODULE: a
+     * open class A {
+     *     internal constructor()
+     * }
+     * // MODULE: b(a)
+     * class B: A {
+     *     constructor(): super()
+     *     //             ^^^^^^^
+     *     // Cannot access '<init>': it is internal in 'A'
+     * }
+     * ```
+     */
+    val constructorSuperCallInternal: Boolean = false,
 ) {
     fun anyEnabled(): Boolean {
         val properties = MutatorConfig::class.memberProperties

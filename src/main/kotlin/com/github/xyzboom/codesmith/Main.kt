@@ -6,6 +6,7 @@ import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
+import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.printer.IrPrinterToSingleFile
 import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
@@ -35,7 +36,12 @@ fun main() {
             )
         ).print(prog)
         println(result)
-        println(IrMutatorImpl().mutate(prog))
+        println(IrMutatorImpl(
+            config = MutatorConfig(
+                ktExposeKtInternal = false,
+                constructorSuperCallInternal = true
+            )
+        ).mutate(prog))
         println(IrPrinterToSingleFile(mapOf(
             IrFileType.JAVA to IrJavaFilePrinter(),
             IrFileType.KOTLIN to IrKtFilePrinter()

@@ -2,15 +2,12 @@ package com.github.xyzboom.codesmith.mutator.impl
 
 import com.github.xyzboom.codesmith.generator.IAccessChecker
 import com.github.xyzboom.codesmith.generator.impl.AccessCheckerImpl
-import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import com.github.xyzboom.codesmith.ir.types.IrFileType.JAVA
 import com.github.xyzboom.codesmith.ir.types.IrFileType.KOTLIN
-import com.github.xyzboom.codesmith.mutator.ConfigBy
-import com.github.xyzboom.codesmith.mutator.MutatorConfig
-import com.github.xyzboom.codesmith.mutator.randomTraverseClasses
+import com.github.xyzboom.codesmith.mutator.*
 import kotlin.random.Random
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
@@ -33,9 +30,6 @@ class IrMutatorImpl(
     override fun mutateKtExposeKtInternal(program: IrProgram): Pair<IrProgram, Boolean> {
         var success = false
         program.randomTraverseClasses(random) {
-            if (it is AbstractBuiltinClass || it.superType?.declaration is AbstractBuiltinClass) {
-                return@randomTraverseClasses false
-            }
             if (it.accessModifier == PUBLIC &&
                 it.superType?.declaration?.accessModifier == PUBLIC &&
                 it.superType?.declaration?.containingFile?.fileType == KOTLIN &&
@@ -67,6 +61,51 @@ class IrMutatorImpl(
                 it.superType?.declaration?.accessModifier = INTERNAL
                 success = true
                 return@randomTraverseClasses true
+            }
+            false
+        }
+        return program to success
+    }
+
+    @ConfigBy("constructorSuperCallPrivate")
+    override fun mutateConstructorSuperCallPrivate(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
+        program.randomTraverseConstructors(random) {
+            if (it.containingDeclaration is AbstractBuiltinClass
+                || it.superCall.callTarget.containingDeclaration is AbstractBuiltinClass
+            ) {
+                return@randomTraverseConstructors false
+            }
+            it.superCall.callTarget.accessModifier = PRIVATE
+            success = true
+            true
+        }
+        return program to success
+    }
+
+    @ConfigBy("constructorSuperCallInternal")
+    override fun mutateConstructorSuperCallInternal(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
+        program.randomTraverseConstructors(random) {
+            if (it.containingDeclaration is AbstractBuiltinClass
+                || it.superCall.callTarget.containingDeclaration is AbstractBuiltinClass
+            ) {
+                return@randomTraverseConstructors false
+            }
+            val thisClass = it.containingDeclaration
+            val callTarget = it.superCall.callTarget
+            val superClass = callTarget.containingDeclaration
+            val superConstructorAccessModifier = callTarget.accessModifier
+            val superIsJavaAndNotInSamePackage =
+                superClass.containingFile.fileType == JAVA && !thisClass.isInSamePackage(superClass)
+            val superIsKotlinAndNotInSameModule =
+                superClass.containingFile.fileType == KOTLIN && !thisClass.isInSameModule(superClass)
+            if (superConstructorAccessModifier == PUBLIC &&
+                (superIsJavaAndNotInSamePackage || superIsKotlinAndNotInSameModule)
+            ) {
+                it.superCall.callTarget.accessModifier = INTERNAL
+                success = true
+                return@randomTraverseConstructors true
             }
             false
         }
