@@ -1,5 +1,7 @@
 package com.github.xyzboom.codesmith.generator.impl
 
+import com.github.xyzboom.codesmith.checkers.IAccessChecker
+import com.github.xyzboom.codesmith.checkers.impl.AccessCheckerImpl
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*

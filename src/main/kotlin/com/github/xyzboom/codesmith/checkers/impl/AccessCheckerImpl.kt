@@ -1,6 +1,6 @@
-package com.github.xyzboom.codesmith.generator.impl
+package com.github.xyzboom.codesmith.checkers.impl
 
-import com.github.xyzboom.codesmith.generator.IAccessChecker
+import com.github.xyzboom.codesmith.checkers.IAccessChecker
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.INTERNAL
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.PUBLIC
 import com.github.xyzboom.codesmith.ir.declarations.*

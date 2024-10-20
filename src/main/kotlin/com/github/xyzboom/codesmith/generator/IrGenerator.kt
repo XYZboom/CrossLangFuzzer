@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.CodeSmithDsl
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
@@ -15,24 +16,24 @@ interface IrGenerator {
 
     fun randomName(startsWithUpper: Boolean): String
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrClass.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun program(programCtx: IrProgram.() -> Unit = {}): IrProgram {
         return IrProgramImpl().apply(programCtx)
     }
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrProgram.module(name: String = randomName(false), moduleCtx: IrModule.() -> Unit = {}): IrModule {
         // apply moduleCtx first, so we can add dependencies of this@module.modules here.
         return IrModuleImpl(name, this).apply(moduleCtx).apply { this@module.modules.add(this) }
     }
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrModule.`package`(
         name: String = randomName(false),
         parent: IrPackage? = null,
@@ -42,7 +43,7 @@ interface IrGenerator {
             .apply(moduleCtx).apply { this@`package`.packages.add(this) }
     }
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrPackage.file(
         name: String = randomName(false),
         fileType: IrFileType,
@@ -52,7 +53,7 @@ interface IrGenerator {
             .apply(fileCtx).apply { this@file.files.add(this) }
     }
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrFunctionContainer.function(
         name: String = randomName(false),
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
@@ -64,7 +65,7 @@ interface IrGenerator {
             .apply(functionCtx).apply { this@function.functions.add(this) }
     }
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrClassContainer.`class`(
         name: String = randomName(true),
         containingFile: IrFile,
@@ -78,7 +79,7 @@ interface IrGenerator {
             .apply(classCtx).apply { this@`class`.classes.add(this) }
     }
 
-    @IrGeneratorDsl
+    @CodeSmithDsl
     fun IrClass.constructor(
         superCall: IrConstructorCallExpression,
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
