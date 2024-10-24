@@ -1,23 +1,31 @@
 package com.github.xyzboom.codesmith.generator.impl
 
+import com.github.xyzboom.codesmith.CodeSmithDsl
 import com.github.xyzboom.codesmith.checkers.IAccessChecker
+import com.github.xyzboom.codesmith.checkers.ISignatureChecker
 import com.github.xyzboom.codesmith.checkers.impl.AccessCheckerImpl
+import com.github.xyzboom.codesmith.checkers.impl.SignatureCheckerImpl
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.declarations.impl.IrConstructorImpl
+import com.github.xyzboom.codesmith.ir.declarations.impl.IrValueParameterImpl
+import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.expressions.impl.IrConstructorCallExpressionImpl
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.ir.types.IrFileType
+import com.github.xyzboom.codesmith.ir.types.Nullability
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
 class IrGeneratorImpl(
     private val random: Random = Random.Default,
     private val config: GeneratorConfig = GeneratorConfig.default
-): IrGenerator, IAccessChecker by AccessCheckerImpl() {
+): IrGenerator, IAccessChecker by AccessCheckerImpl(), ISignatureChecker by SignatureCheckerImpl() {
 
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
@@ -26,20 +34,52 @@ class IrGeneratorImpl(
         addAll(KeyWords.windows)
     }
 
-    override fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
+    private val generatedClasses = ArrayList<IrClass>(64)
+    private val subclassesCache = HashMap<IrClass, List<IrClass>>(64)
+
+    @CodeSmithDsl
+    override fun IrClass.constructor(
+        superCall: IrConstructorCallExpression,
+        accessModifier: IrAccessModifier,
+        valueParameters: MutableList<IrValueParameter>,
+        constructorCtx: IrConstructor.() -> Unit
+    ): IrConstructor {
+        return IrConstructorImpl(accessModifier, this, superCall, valueParameters)
+            .apply(constructorCtx).apply {
+                if (!this@constructor.containsSameSignature(this)) {
+                    this@constructor.functions.add(this)
+                }
+            }
+    }
+
+    //<editor-fold desc="subtyping">
+    private val IrClass.subclasses: List<IrClass>
+        get() {
+            if (subclassesCache.containsKey(this)) {
+                return subclassesCache[this]!!
+            }
+            return ArrayList<IrClass>().apply {
+                add(this@subclasses)
+                for (clazz in generatedClasses) {
+                    if (this@subclasses in clazz.allSuperClasses) {
+                        add(clazz)
+                    }
+                }
+                subclassesCache[this@subclasses] = this
+            }
+        }
+
+    //</editor-fold>
+
+    override fun IrElement.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
         val paramClass = valueParameter.type.declaration
         if (!isAccessible(paramClass)) throw IllegalStateException()
-        val constructors = paramClass.declarations.filterIsInstance<IrConstructor>().filter { isAccessible(it) }
+        val constructors = paramClass.subclasses.flatMap { it.declarations }
+            .filterIsInstance<IrConstructor>().filter { isAccessible(it) }
         if (constructors.isEmpty()) throw IllegalStateException("No available constructor")
         val constructor = constructors.random(random)
         val valueArguments = constructor.valueParameters.map { generateValueArgumentFor(it) }
         return IrConstructorCallExpressionImpl(constructor, valueArguments)
-    }
-
-    override fun IrClass.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
-        val paramClass = valueParameter.type.declaration
-        if (!isAccessible(paramClass)) throw IllegalStateException()
-        TODO()
     }
 
     override fun randomName(startsWithUpper: Boolean): String {
@@ -100,7 +140,7 @@ class IrGeneratorImpl(
     }
 
     override fun generate(): IrProgram {
-        return program {
+        val prog = program {
             for (i in 0 until config.moduleNumRange.random(random)) {
                 module()
             }
@@ -125,6 +165,14 @@ class IrGeneratorImpl(
                 dependsOn(modules)
             }
         }
+        for (clazz in generatedClasses) {
+            with(clazz) {
+                if (clazz.classType != INTERFACE) {
+                    generateConstructors(config.constructorTryNumRange.random(random))
+                }
+            }
+        }
+        return prog
     }
 
     override fun IrPackage.generateFiles() {
@@ -142,10 +190,13 @@ class IrGeneratorImpl(
                 accessibleClasses.filter {
                     it.accessModifier <= chooseModifier && (it.classType == ABSTRACT || it.classType == OPEN)
                             && it.functions.filterIsInstance<IrConstructor>()
-                            .any { it1 ->
-                        it1.accessModifier == PUBLIC || it1.accessModifier == PROTECTED ||
-                                (it1.containingPackage === this.containingPackage && it1.accessModifier == INTERNAL)
-                    }
+                        .any { it1 ->
+                            // constructor is accessible
+                            (it1.accessModifier == PUBLIC || it1.accessModifier == PROTECTED ||
+                                    (it1.containingPackage === this.containingPackage && it1.accessModifier == INTERNAL))
+                                    // all value parameter are accessible
+                                    && (it1.valueParameters.all { it2 -> isAccessible(it2.type.declaration) })
+                        }
                 }.random(random)
             } else {
                 null
@@ -165,9 +216,7 @@ class IrGeneratorImpl(
                 containingFile = this, classType = chooseType, accessModifier = chooseModifier,
                 superType = superType?.type, implementedTypes = implements
             ) {
-                if (chooseType != INTERFACE) {
-                    generateConstructors(config.constructorNumRange.random(random))
-                }
+                generatedClasses.add(this)
             }
         }
     }
@@ -195,8 +244,28 @@ class IrGeneratorImpl(
         for (i in 0 until num) {
             val superConstructor = accessibleSuperConstructors.random(random)
             val superValueParameters = superConstructor.valueParameters
+            val superValueArguments = superValueParameters.map { generateValueArgumentFor(it) }
             val chooseModifier = IrAccessModifier.entries.random(random)
-            constructor(IrConstructorCallExpressionImpl(superConstructor, emptyList()), chooseModifier)
+            val valueParameters = mutableListOf<IrValueParameter>()
+            constructor(
+                IrConstructorCallExpressionImpl(superConstructor, superValueArguments), chooseModifier,
+                valueParameters = valueParameters
+            ) {
+                for (p in 0 until config.constructorParameterNumRange.random(random)) {
+                    valueParameters.add(randomValueParameter())
+                }
+            }
         }
+    }
+
+    override fun IrFunction.randomValueParameter(): IrValueParameter {
+        val file = containingFile
+        val chooseNullability = when (file.fileType) {
+            IrFileType.KOTLIN -> if (random.nextBoolean()) Nullability.NOT_NULL else Nullability.NULLABLE
+            IrFileType.JAVA -> Nullability.entries.random(random)
+        }
+        val chooseClass = file.accessibleClasses.filter { it.accessModifier <= this.accessModifier }.random(random)
+        val chooseType = chooseClass.type.copy(chooseNullability)
+        return IrValueParameterImpl(randomName(false), chooseType)
     }
 }

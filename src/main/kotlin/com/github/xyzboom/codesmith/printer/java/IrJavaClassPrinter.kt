@@ -5,7 +5,7 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
-import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
+import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
@@ -83,60 +83,78 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
         with(clazz) {
             val containingDeclaration = clazz.containingDeclaration
             if (accessModifier == PUBLIC && containingDeclaration is IrFile) {
-                stringBuilder.append(
+                data.append(
                     "// FILE: ${clazz.name}.java\n" +
                             "package ${containingDeclaration.containingPackage.fullName};\n"
                 )
             }
-            stringBuilder.append(
+            data.append(
                 "$indent${accessModifier.print()} ${classType.print()} $name" +
                         "${printExtendList()} {\n"
             )
         }
         super.visitClass(clazz, data)
-        stringBuilder.append("$indent}\n")
+        data.append("$indent}\n")
     }
 
     override fun visitConstructor(constructor: IrConstructor, data: StringBuilder) {
         indentCount++
-        stringBuilder.append(indent)
-        stringBuilder.append(constructor.accessModifier.print())
-        stringBuilder.append(" ")
-        stringBuilder.append(constructor.containingDeclaration.name)
-        stringBuilder.append("() {\n")
+        data.append(indent)
+        data.append(constructor.accessModifier.print())
+        data.append(" ")
+        data.append(constructor.containingDeclaration.name)
+        data.append("(")
+        for ((i, valueParam) in constructor.valueParameters.withIndex()) {
+            valueParam.accept(this, data)
+            if (i != constructor.valueParameters.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append(") {\n")
         indentCount++
-        super.visitConstructor(constructor, data)
+        constructor.superCall.accept(this, data)
         indentCount--
-        stringBuilder.append(indent)
-        stringBuilder.append("}\n")
+        data.append(indent)
+        data.append("}\n")
         indentCount--
     }
 
     override fun printIrConcreteType(concreteType: IrConcreteType): String {
-        if (concreteType === IrBuiltinTypes.ANY) {
+        if (concreteType.name == IrBuiltinTypes.ANY.name) {
             return "Object"
         }
         return super.printIrConcreteType(concreteType)
+    }
+
+    override fun visitValueParameter(
+        valueParameter: IrValueParameter,
+        data: StringBuilder
+    ) {
+        data.append(valueParameter.type.print())
+        data.append(" ")
+        data.append(valueParameter.name)
+        super.visitValueParameter(valueParameter, data)
     }
 
     override fun visitConstructorCallExpression(
         constructorCallExpression: IrConstructorCallExpression,
         data: StringBuilder
     ) {
-        stringBuilder.append(indent)
+        data.append(indent)
         val last = elementStack.peek()
         if (last is IrConstructor) {
             val currentClass = elementStack.elementAt(elementStack.size - 2) as? IrClass
                 ?: throw IllegalStateException()
             val clazz = constructorCallExpression.callTarget.containingDeclaration
             if (currentClass === clazz) {
-                stringBuilder.append("this();\n")
+                data.append("this();")
             } else if (currentClass.superType?.declaration === clazz) {
-                stringBuilder.append("super();\n")
+                data.append("super();")
             } else {
                 throw IllegalStateException("A constructor call must call its super constructor or constructor in the same class")
             }
         }
+        data.append("\n")
         super.visitConstructorCallExpression(constructorCallExpression, data)
     }
 }

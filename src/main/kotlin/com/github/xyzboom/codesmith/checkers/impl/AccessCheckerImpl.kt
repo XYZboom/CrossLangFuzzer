@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.checkers.IAccessChecker
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.INTERNAL
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.PUBLIC
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
 
 class AccessCheckerImpl: IAccessChecker {
@@ -86,6 +87,7 @@ class AccessCheckerImpl: IAccessChecker {
     }
 
     override fun IrFile.isAccessible(clazz: IrClass): Boolean {
+        if (clazz is AbstractBuiltinClass) return true
         val clazzContainingDecl = clazz.containingDeclaration
         if (clazzContainingDecl === this) return true
         return when (clazz.accessModifier) {
@@ -108,6 +110,8 @@ class AccessCheckerImpl: IAccessChecker {
     }
 
     override fun IrClass.isAccessible(clazz: IrClass): Boolean {
+        if (clazz is AbstractBuiltinClass) return true
+        if (this is AbstractBuiltinClass) return true
         val myContainer = containingDeclaration
         val otherContainer = clazz.containingDeclaration
         if (this === otherContainer) return true
@@ -120,12 +124,28 @@ class AccessCheckerImpl: IAccessChecker {
                     if (myContainer.isAccessible(clazz)) return true
                     return false
                 }
+
+                else -> throw IllegalStateException()
             }
+
+            else -> throw IllegalStateException()
         }
     }
 
     override fun IrClass.isAccessible(function: IrFunction): Boolean {
-        TODO("Not yet implemented")
+        val myContainer = containingDeclaration
+        val otherContainer = function.containingDeclaration
+        if (this === otherContainer) return true
+        if (this.superType?.declaration === function) return true
+        return when (myContainer) {
+            is IrClass -> TODO()
+            is IrFile -> when (otherContainer) {
+                is IrClass -> isAccessible(otherContainer)
+                is IrFile -> myContainer.isAccessible(function)
+
+                else -> throw IllegalStateException()
+            }
+        }
     }
 
     //</editor-fold>

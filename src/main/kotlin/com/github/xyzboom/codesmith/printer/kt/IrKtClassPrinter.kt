@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
+import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
@@ -101,19 +102,36 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
     override fun visitConstructor(constructor: IrConstructor, data: StringBuilder) {
         indentCount++
         elementStack.push(constructor)
-        stringBuilder.append(indent)
-        stringBuilder.append(constructor.accessModifier.print())
-        stringBuilder.append(" constructor(")
-        constructor.valueParameters.forEach { it.accept(this, data) }
-        stringBuilder.append("): ")
+        data.append(indent)
+        data.append(constructor.accessModifier.print())
+        data.append(" constructor(")
+        for ((i, valueParam) in constructor.valueParameters.withIndex()) {
+            valueParam.accept(this, data)
+            if (i != constructor.valueParameters.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append("): ")
         constructor.superCall.accept(this, data)
-        stringBuilder.append("{")
-        stringBuilder.append("\n")
-        stringBuilder.append(indent)
-        stringBuilder.append("}\n")
+        data.append("{")
+        data.append("\n")
+        data.append(indent)
+        data.append("}\n")
         elementStack.pop()
         indentCount--
     }
+
+    override fun visitValueParameter(
+        valueParameter: IrValueParameter,
+        data: StringBuilder
+    ) {
+        data.append(valueParameter.name)
+        data.append(": ")
+        data.append(valueParameter.type.print())
+        super.visitValueParameter(valueParameter, data)
+    }
+
+
 
     override fun visitConstructorCallExpression(
         constructorCallExpression: IrConstructorCallExpression,
@@ -125,12 +143,21 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
                 ?: throw IllegalStateException()
             val clazz = constructorCallExpression.callTarget.containingDeclaration
             if (currentClass === clazz) {
-                stringBuilder.append("this() ")
+                data.append("this(")
             } else if (currentClass.superType?.declaration === clazz) {
-                stringBuilder.append("super() ")
+                data.append("super(")
             } else {
                 throw IllegalStateException("A constructor call must call its super constructor or constructor in the same class")
             }
+            for ((i, valueArgument) in constructorCallExpression.valueArguments.withIndex()) {
+                valueArgument.accept(this, data)
+                if (i != constructorCallExpression.valueArguments.lastIndex) {
+                    data.append(", ")
+                }
+            }
+            data.append(") ")
+        } else {
+            data.append("TODO()")
         }
         super.visitConstructorCallExpression(constructorCallExpression, data)
     }

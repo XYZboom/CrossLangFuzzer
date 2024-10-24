@@ -19,7 +19,7 @@ fun main() {
                 fileNumRange = 3..5,
                 packageNumRange = 1..5,
                 classNumRange = 3..5,
-                constructorNumRange = 1..1
+                constructorTryNumRange = 1..2
             )
         ).generate()
         val visitor = object: IrTopDownVisitor<Nothing?> {

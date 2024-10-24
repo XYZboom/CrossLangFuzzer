@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.CodeSmithDsl
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
@@ -17,10 +18,7 @@ interface IrGenerator {
     fun randomName(startsWithUpper: Boolean): String
 
     @CodeSmithDsl
-    fun IrFile.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
-
-    @CodeSmithDsl
-    fun IrClass.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
+    fun IrElement.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
 
     @CodeSmithDsl
     fun program(programCtx: IrProgram.() -> Unit = {}): IrProgram {
@@ -85,10 +83,7 @@ interface IrGenerator {
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
         valueParameters: MutableList<IrValueParameter> = mutableListOf(),
         constructorCtx: IrConstructor.() -> Unit = {}
-    ): IrConstructor {
-        return IrConstructorImpl(accessModifier, this, superCall, valueParameters)
-            .apply(constructorCtx).apply { this@constructor.functions.add(this) }
-    }
+    ): IrConstructor
 
     fun IrProgram.generateModuleDependencies()
 
@@ -97,4 +92,6 @@ interface IrGenerator {
     fun IrFile.generateClasses()
 
     fun IrClass.generateConstructors(num: Int)
+
+    fun IrFunction.randomValueParameter(): IrValueParameter
 }

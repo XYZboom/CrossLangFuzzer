@@ -23,7 +23,8 @@ data class GeneratorConfig(
     val fileNumRange: IntRange = 2..8,
     val classNumRange: IntRange = 1..3,
     val classImplNumRange: IntRange = 0..3,
-    val constructorNumRange: IntRange = 1..3,
+    val constructorTryNumRange: IntRange = 1..3,
+    val constructorParameterNumRange: IntRange = 0..4,
 ) {
     companion object {
         @JvmStatic

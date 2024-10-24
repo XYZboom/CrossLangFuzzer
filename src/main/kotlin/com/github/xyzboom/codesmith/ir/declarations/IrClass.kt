@@ -13,6 +13,7 @@ interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, I
         get() = when (val containingDeclaration = containingDeclaration) {
             is IrClass -> containingDeclaration.containingFile
             is IrFile -> containingDeclaration
+            else -> throw IllegalStateException()
         }
     val classType: IrClassType
     val type: IrConcreteType

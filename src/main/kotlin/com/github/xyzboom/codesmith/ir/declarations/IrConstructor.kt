@@ -6,6 +6,11 @@ import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 interface IrConstructor: IrFunction {
     override val containingDeclaration: IrClass
     val superCall: IrConstructorCallExpression
+    override fun isSameSignature(other: IrFunction): Boolean {
+        if (other !is IrConstructor) return false
+        return super.isSameSignature(other)
+    }
+
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitConstructor(this, data)
 

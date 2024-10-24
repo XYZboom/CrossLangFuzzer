@@ -10,15 +10,22 @@ open class IrConcreteTypeImpl(
     override val nullability: Nullability = Nullability.NOT_SPECIFIED,
     override val classType: IrClassType = IrClassType.FINAL
 ): IrConcreteType() {
-    override fun equals(other: Any?): Boolean {
+
+    override fun equalsIgnoreNullability(other: IrType): Boolean {
         if (this === other) return true
         if (other !is IrConcreteTypeImpl) return false
 
         if (name != other.name) return false
         if (arguments != other.arguments) return false
-        if (nullability != other.nullability) return false
         if (classType != other.classType) return false
 
+        return true
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is IrConcreteTypeImpl) return false
+        if (!equalsIgnoreNullability(other)) return false
+        if (nullability != other.nullability) return false
         return true
     }
 

@@ -20,4 +20,6 @@ sealed interface IrType: IrTypeArgument {
             is IrFile ->
                 "${typeContainer.containingPackage.fullName}.$name"
         })
+
+    fun equalsIgnoreNullability(other: IrType): Boolean
 }

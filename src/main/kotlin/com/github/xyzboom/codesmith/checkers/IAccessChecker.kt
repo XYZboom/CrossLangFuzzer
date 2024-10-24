@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.checkers
 
 import com.github.xyzboom.codesmith.CodeSmithDsl
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.*
 
 interface IAccessChecker {
@@ -18,6 +19,15 @@ interface IAccessChecker {
 
     @CodeSmithDsl
     val IrProgram.accessibleClasses: Set<IrClass>
+
+    @CodeSmithDsl
+    fun IrElement.isAccessible(declaration: IrDeclaration): Boolean {
+        return when (this) {
+            is IrClass -> isAccessible(declaration)
+            is IrFile -> isAccessible(declaration)
+            else -> throw IllegalStateException()
+        }
+    }
 
     @CodeSmithDsl
     fun IrFile.isAccessible(declaration: IrDeclaration): Boolean {

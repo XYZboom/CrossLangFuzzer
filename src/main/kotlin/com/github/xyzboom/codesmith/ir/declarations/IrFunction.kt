@@ -10,6 +10,26 @@ interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContai
     val returnType: IrType
     val valueParameters: MutableList<IrValueParameter>
     val expressions: MutableList<IrExpression>
+
+    val containingFile: IrFile
+        get() {
+            return when (val containingDeclaration = containingDeclaration) {
+                is IrClass -> containingDeclaration.containingFile
+                is IrFile -> containingDeclaration
+                is IrFunction -> containingDeclaration.containingFile
+            }
+        }
+
+    fun isSameSignature(other: IrFunction): Boolean {
+        if (other.name != name) return false
+        if (other.returnType != returnType) return false
+        if (other.valueParameters.size != valueParameters.size) return false
+        for ((myParamType, otherParamType) in valueParameters.zip(other.valueParameters)) {
+            if (!myParamType.type.equalsIgnoreNullability(otherParamType.type)) return false
+        }
+        return true
+    }
+
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         when (this) {
             is IrConstructor -> visitor.visitConstructor(this, data)
