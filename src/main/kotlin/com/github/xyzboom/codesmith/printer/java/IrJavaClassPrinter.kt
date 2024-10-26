@@ -100,9 +100,11 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
         super.visitClass(clazz, data)
         val noArg = clazz.declarations.filterIsInstance<IrConstructor>().filter { it.valueParameters.isEmpty() }
         if (clazz.classType != INTERFACE && noArg.isEmpty()) {
-            data.append("${indent}\tpublic ${clazz.name}() {" +
-                    "\n${indent}\t\tsuper();" +
-                    "\n${indent}\t}\n")
+            data.append(
+                "${indent}\t${clazz.specialConstructor!!.accessModifier.print()} ${clazz.name}() {" +
+                        "\n${indent}\t\tsuper();" +
+                        "\n${indent}\t}\n"
+            )
         }
         noArg.forEach { it.accessModifier = PUBLIC }
         data.append("$indent}\n")

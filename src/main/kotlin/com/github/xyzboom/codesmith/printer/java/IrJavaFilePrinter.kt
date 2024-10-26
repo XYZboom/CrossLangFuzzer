@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.printer.java
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrFile
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrClassImpl
+import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes
 import com.github.xyzboom.codesmith.printer.AbstractIrFilePrinter
 
 class IrJavaFilePrinter: AbstractIrFilePrinter() {
@@ -16,7 +17,7 @@ class IrJavaFilePrinter: AbstractIrFilePrinter() {
 
     override fun visitFile(file: IrFile, data: StringBuilder) {
         val fileClassName = file.name.replaceFirstChar { it.uppercaseChar() }
-        stringBuilder.append(classPrinter.print(IrClassImpl(fileClassName, file)))
+        stringBuilder.append(classPrinter.print(IrClassImpl(fileClassName, file, superType = IrBuiltinTypes.ANY)))
         super.visitFile(file, data)
     }
 

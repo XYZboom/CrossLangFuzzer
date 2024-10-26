@@ -6,8 +6,6 @@ import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 
 interface IrSpecialConstructor: IrConstructor {
     override var accessModifier: IrAccessModifier
-        get() = IrAccessModifier.PUBLIC
-        set(_) = throw UnsupportedOperationException()
     override val superCall: IrConstructorCallExpression
         get() = throw UnsupportedOperationException("superCall is not supported for this class")
     override val valueParameters: MutableList<IrValueParameter> get() = mutableListOf()

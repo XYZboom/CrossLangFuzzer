@@ -97,7 +97,10 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
         visitClass(element, data)
         val noArg = element.declarations.filterIsInstance<IrConstructor>().filter { it.valueParameters.isEmpty() }
         if (element.classType != INTERFACE && noArg.isEmpty()) {
-            data.append("${indent}\tconstructor(): super() {\n$indent\t}\n")
+            data.append(
+                "${indent}\t${element.specialConstructor!!.accessModifier.print()} constructor(): super() {" +
+                        "\n$indent\t}\n"
+            )
         }
         data.append(indent)
         data.append("}\n")

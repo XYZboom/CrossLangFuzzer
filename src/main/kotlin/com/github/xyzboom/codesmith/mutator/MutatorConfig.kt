@@ -43,6 +43,43 @@ data class MutatorConfig(
      * ```
      */
     val constructorSuperCallInternal: Boolean = false,
+    /**
+     * ```kt
+     * open class A {
+     *     private constructor()
+     * }
+     *
+     * open class B {
+     *     constructor(a: A)
+     * }
+     *
+     * class C: B {
+     *     constructor(): super(A())
+     *     //                   ^
+     *     // [INVISIBLE_MEMBER] Cannot access '<init>': it is private in 'A'
+     * }
+     * ```
+     */
+    val constructorNormalCallPrivate: Boolean = false,
+    /**
+     * ```kt
+     * // MODULE: a
+     * open class A {
+     *     internal constructor()
+     * }
+     * // MODULE: b(a)
+     * open class B {
+     *     constructor(a: A)
+     * }
+     *
+     * class C: B {
+     *     constructor(): super(A())
+     *     //                   ^
+     *     // [INVISIBLE_MEMBER] Cannot access '<init>': it is internal in 'A'
+     * }
+     * ```
+     */
+    val constructorNormalCallInternal: Boolean = false,
 ) {
     fun anyEnabled(): Boolean {
         val properties = MutatorConfig::class.memberProperties

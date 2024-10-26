@@ -12,7 +12,7 @@ import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 
 fun main() {
-    for (i in 0 until 100) {
+    for (i in 0 until 1000) {
         val prog = IrGeneratorImpl(
             config = GeneratorConfig(
                 moduleNumRange = 1..5,
@@ -35,16 +35,20 @@ fun main() {
                 IrFileType.KOTLIN to IrKtFilePrinter()
             )
         ).print(prog)
-        println(result)
-        println(IrMutatorImpl(
+        val (_, mutatedResult) = IrMutatorImpl(
             config = MutatorConfig(
                 ktExposeKtInternal = false,
-                constructorSuperCallInternal = true
+                constructorNormalCallPrivate = true
             )
-        ).mutate(prog))
-        println(IrPrinterToSingleFile(mapOf(
+        ).mutate(prog)
+        val mutated = IrPrinterToSingleFile(mapOf(
             IrFileType.JAVA to IrJavaFilePrinter(),
             IrFileType.KOTLIN to IrKtFilePrinter()
-        )).print(prog))
+        )).print(prog)
+        if (!mutatedResult.anyEnabled()) continue
+        if (result == mutated) {
+            println(result)
+            throw AssertionError()
+        }
     }
 }

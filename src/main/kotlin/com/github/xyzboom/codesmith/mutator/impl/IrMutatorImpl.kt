@@ -6,6 +6,8 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
+import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrSpecialConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.IrFileType.JAVA
 import com.github.xyzboom.codesmith.ir.types.IrFileType.KOTLIN
 import com.github.xyzboom.codesmith.mutator.*
@@ -113,6 +115,63 @@ class IrMutatorImpl(
                     .forEach { it1 -> it1.accessModifier = INTERNAL }
                 success = true
                 return@randomTraverseConstructors true
+            }
+            false
+        }
+        return program to success
+    }
+
+    @ConfigBy("constructorNormalCallPrivate")
+    override fun mutateConstructorNormalCallPrivate(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
+        program.randomTraverseConstructors(random) { constructor ->
+            constructor.superCall.valueArguments.shuffled(random).forEach { expr ->
+                if (expr is IrConstructorCallExpression) {
+                    val callTarget = expr.callTarget
+                    if (callTarget.containingClass is AbstractBuiltinClass) return@forEach
+                    if (callTarget.accessModifier < PRIVATE
+                        && constructor.containingClass !== callTarget.containingClass
+                    ) {
+                        if (expr is IrSpecialConstructorCallExpression) {
+                            callTarget.containingClass.declarations.filterIsInstance<IrConstructor>()
+                                .filter { it.valueParameters.isEmpty() }.forEach { it.accessModifier = PRIVATE }
+                        }
+                        callTarget.accessModifier = PRIVATE
+                        success = true
+                        return@randomTraverseConstructors true
+                    }
+                }
+            }
+            false
+        }
+        return program to success
+    }
+
+    @ConfigBy("constructorNormalCallInternal")
+    override fun mutateConstructorNormalCallInternal(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
+        program.randomTraverseConstructors(random) { constructor ->
+            constructor.superCall.valueArguments.shuffled(random).forEach { expr ->
+                if (expr is IrConstructorCallExpression) {
+                    val callTarget = expr.callTarget
+                    if (callTarget.containingClass is AbstractBuiltinClass) return@forEach
+                    val callingJavaAndNotInSamePackage = callTarget.containingFile.fileType == JAVA &&
+                            !constructor.containingClass.isInSamePackage(callTarget.containingClass)
+                    val callingKotlinAndNotInSameModule = constructor.containingFile.fileType == KOTLIN &&
+                            callTarget.containingFile.fileType == KOTLIN &&
+                            !constructor.containingClass.isInSameModule(callTarget.containingClass)
+                    if (callTarget.accessModifier < INTERNAL
+                        && (callingJavaAndNotInSamePackage || callingKotlinAndNotInSameModule)
+                    ) {
+                        if (expr is IrSpecialConstructorCallExpression) {
+                            callTarget.containingClass.declarations.filterIsInstance<IrConstructor>()
+                                .filter { it.valueParameters.isEmpty() }.forEach { it.accessModifier = INTERNAL }
+                        }
+                        callTarget.accessModifier = INTERNAL
+                        success = true
+                        return@randomTraverseConstructors true
+                    }
+                }
             }
             false
         }

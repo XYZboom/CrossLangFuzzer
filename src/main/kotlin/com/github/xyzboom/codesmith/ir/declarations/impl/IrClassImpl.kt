@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.ir.declarations.impl
 
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
+import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
 import com.github.xyzboom.codesmith.ir.declarations.IrDeclarationContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrFunction
 import com.github.xyzboom.codesmith.ir.types.IrClassType
@@ -16,7 +17,7 @@ open class IrClassImpl(
     override val containingDeclaration: IrDeclarationContainer,
     override var accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
     override val classType: IrClassType = IrClassType.FINAL,
-    override var superType: IrConcreteType? = null,
+    final override var superType: IrConcreteType? = null,
     implementedTypes: List<IrConcreteType> = mutableListOf(),
     override val typeParameters: MutableList<IrTypeParameter> = mutableListOf(),
 ): IrClass {
@@ -25,6 +26,13 @@ open class IrClassImpl(
     override val classes: MutableList<IrClass> = ArrayList()
     override val type: IrConcreteType
         get() = IrConcreteTypeImpl(name, this, typeParameters, classType = classType)
+    override val specialConstructor: IrConstructor? by lazy { // must be called after super is set
+        if (superType == null) {
+            null
+        } else {
+            IrSpecialConstructorImpl(this)
+        }
+    }
 
     override fun toString(): String {
         return "${accessModifier.name.lowercase(Locale.getDefault())} class $name"
