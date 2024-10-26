@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.ir.declarations.impl.IrSpecialConstructorImpl
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
@@ -17,8 +18,17 @@ interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, I
         }
     val classType: IrClassType
     val type: IrConcreteType
-    val superType: IrConcreteType?
+    var superType: IrConcreteType?
     val implementedTypes: MutableList<IrConcreteType>
+
+    /**
+     * Used for quickly generating expressions
+     */
+    val specialConstructor: IrConstructor?
+        get() {
+            if (superType == null) return null
+            return IrSpecialConstructorImpl(this)
+        }
     val allSuperClasses: Set<IrClass>
         get() = HashSet<IrClass>().apply {
             val superType = superType

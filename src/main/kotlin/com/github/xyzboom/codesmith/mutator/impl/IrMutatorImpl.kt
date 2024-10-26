@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.mutator.impl
 import com.github.xyzboom.codesmith.checkers.IAccessChecker
 import com.github.xyzboom.codesmith.checkers.impl.AccessCheckerImpl
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
+import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
 import com.github.xyzboom.codesmith.ir.declarations.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import com.github.xyzboom.codesmith.ir.types.IrFileType.JAVA
@@ -99,11 +100,17 @@ class IrMutatorImpl(
             val superIsJavaAndNotInSamePackage =
                 superClass.containingFile.fileType == JAVA && !thisClass.isInSamePackage(superClass)
             val superIsKotlinAndNotInSameModule =
-                superClass.containingFile.fileType == KOTLIN && !thisClass.isInSameModule(superClass)
+                thisClass.containingFile.fileType == KOTLIN &&
+                        superClass.containingFile.fileType == KOTLIN && !thisClass.isInSameModule(superClass)
             if (superConstructorAccessModifier == PUBLIC &&
                 (superIsJavaAndNotInSamePackage || superIsKotlinAndNotInSameModule)
             ) {
-                it.superCall.callTarget.accessModifier = INTERNAL
+                val superCallTarget = it.superCall.callTarget
+                superCallTarget.accessModifier = INTERNAL
+                // in case there are no available overload
+                superCallTarget.containingDeclaration.declarations.filterIsInstance<IrConstructor>()
+                    .filter { it1 -> it1.valueParameters.size == superCallTarget.valueParameters.size }
+                    .forEach { it1 -> it1.accessModifier = INTERNAL }
                 success = true
                 return@randomTraverseConstructors true
             }

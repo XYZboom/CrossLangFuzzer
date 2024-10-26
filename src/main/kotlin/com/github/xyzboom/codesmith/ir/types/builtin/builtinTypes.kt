@@ -1,9 +1,6 @@
 package com.github.xyzboom.codesmith.ir.types.builtin
 
-import com.github.xyzboom.codesmith.ir.declarations.builtin.AnyClass
-import com.github.xyzboom.codesmith.ir.declarations.builtin.Function0Class
-import com.github.xyzboom.codesmith.ir.declarations.builtin.Function1Class
-import com.github.xyzboom.codesmith.ir.declarations.builtin.NumberClass
+import com.github.xyzboom.codesmith.ir.declarations.builtin.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.impl.IrConcreteTypeImpl
 import com.github.xyzboom.codesmith.ir.types.impl.IrFunctionTypeImpl
@@ -17,7 +14,7 @@ object IrBuiltinTypes {
     val LONG = IrConcreteTypeImpl("Long", NumberClass)
     val FLOAT = IrConcreteTypeImpl("Float", NumberClass)
     val DOUBLE = IrConcreteTypeImpl("Double", NumberClass)
-    val BOOLEAN = IrConcreteTypeImpl("Boolean", AnyClass)
+    val BOOLEAN = IrConcreteTypeImpl("Boolean", BooleanClass)
     val NOTHING = IrConcreteTypeImpl("Nothing", AnyClass)
     val FUNCTION0 = IrFunctionTypeImpl(
         "Function0",

@@ -15,6 +15,7 @@ data class GeneratorConfig(
      * 每次从待依赖集合中选取的最高比例
      */
     val moduleDependencyMaxRate: Float = 0.5f,
+    val classHasSuperProbability: Float = 0.4f,
     /**
      * 每次从待依赖集合中剔除的比例
      */
@@ -23,7 +24,7 @@ data class GeneratorConfig(
     val fileNumRange: IntRange = 2..8,
     val classNumRange: IntRange = 1..3,
     val classImplNumRange: IntRange = 0..3,
-    val constructorTryNumRange: IntRange = 1..3,
+    val constructorNumRange: IntRange = 1..3,
     val constructorParameterNumRange: IntRange = 0..4,
 ) {
     companion object {

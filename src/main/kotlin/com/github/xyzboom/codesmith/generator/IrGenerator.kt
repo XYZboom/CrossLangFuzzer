@@ -83,15 +83,29 @@ interface IrGenerator {
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
         valueParameters: MutableList<IrValueParameter> = mutableListOf(),
         constructorCtx: IrConstructor.() -> Unit = {}
-    ): IrConstructor
+    ): IrConstructor?
 
     fun IrProgram.generateModuleDependencies()
+
+    fun generateClassInheritance()
+
+    fun topologyVisit(visitor: IrClass.() -> Unit)
 
     fun IrPackage.generateFiles()
 
     fun IrFile.generateClasses()
 
-    fun IrClass.generateConstructors(num: Int)
+    fun IrClass.generateConstructors(num: Int, accessModifier: IrAccessModifier? = null): List<IrConstructor>
+
+    /**
+     *
+     * @param superConstructor
+     * @param accessModifier specify [accessModifier] wanted
+     * @return null if class has a constructor whose signature is the same as generated constructor
+     */
+    fun IrClass.generateConstructor(
+        superConstructor: IrConstructor, accessModifier: IrAccessModifier? = null
+    ): IrConstructor?
 
     fun IrFunction.randomValueParameter(): IrValueParameter
 }

@@ -12,14 +12,14 @@ import com.github.xyzboom.codesmith.printer.java.IrJavaFilePrinter
 import com.github.xyzboom.codesmith.printer.kt.IrKtFilePrinter
 
 fun main() {
-    for (i in 0 until 1) {
+    for (i in 0 until 100) {
         val prog = IrGeneratorImpl(
             config = GeneratorConfig(
                 moduleNumRange = 1..5,
                 fileNumRange = 3..5,
                 packageNumRange = 1..5,
                 classNumRange = 3..5,
-                constructorTryNumRange = 1..2
+                constructorNumRange = 1..2
             )
         ).generate()
         val visitor = object: IrTopDownVisitor<Nothing?> {

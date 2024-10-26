@@ -2,9 +2,7 @@ package com.github.xyzboom.codesmith.ir.visitor
 
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCallExpression
+import com.github.xyzboom.codesmith.ir.expressions.*
 
 interface IrVisitor<out R, in D> {
     fun visitElement(element: IrElement, data: D): R
@@ -29,9 +27,18 @@ interface IrVisitor<out R, in D> {
 
     fun visitExpression(expression: IrExpression, data: D): R = visitElement(expression, data)
 
+    fun visitConstantExpression(constantExpression: IrConstantExpression, data: D): R =
+        visitExpression(constantExpression, data)
+
     fun visitFunctionCallExpression(functionCallExpression: IrFunctionCallExpression, data: D): R =
         visitExpression(functionCallExpression, data)
 
     fun visitConstructorCallExpression(constructorCallExpression: IrConstructorCallExpression, data: D): R =
         visitFunctionCallExpression(constructorCallExpression, data)
+
+    fun visitAnonymousObject(anonymousObject: IrAnonymousObject, data: D): R =
+        visitExpression(anonymousObject, data)
+
+    fun visitTodoExpression(todoExpression: IrTodoExpression, data: D): R =
+        visitExpression(todoExpression, data)
 }

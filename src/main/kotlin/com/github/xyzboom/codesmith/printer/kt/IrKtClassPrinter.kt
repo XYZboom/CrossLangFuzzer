@@ -5,7 +5,7 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
 import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
-import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
+import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
@@ -86,17 +86,22 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
     }
 
     override fun print(element: IrClass): String {
-        stringBuilder.clear()
+        val data = stringBuilder
+        data.clear()
         with(element) {
-            stringBuilder.append(
+            data.append(
                 "$indent${accessModifier.print()} ${classType.print()} $name" +
                         "${printTypeParameters()} ${printExtendList()} {\n"
             )
         }
-        visitClass(element, stringBuilder)
-        stringBuilder.append(indent)
-        stringBuilder.append("}\n")
-        return stringBuilder.toString()
+        visitClass(element, data)
+        val noArg = element.declarations.filterIsInstance<IrConstructor>().filter { it.valueParameters.isEmpty() }
+        if (element.classType != INTERFACE && noArg.isEmpty()) {
+            data.append("${indent}\tconstructor(): super() {\n$indent\t}\n")
+        }
+        data.append(indent)
+        data.append("}\n")
+        return data.toString()
     }
 
     override fun visitConstructor(constructor: IrConstructor, data: StringBuilder) {
@@ -113,11 +118,11 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
         }
         data.append("): ")
         constructor.superCall.accept(this, data)
-        data.append("{")
+        data.append(" {")
         data.append("\n")
         data.append(indent)
         data.append("}\n")
-        elementStack.pop()
+        assert(elementStack.pop() === constructor)
         indentCount--
     }
 
@@ -130,8 +135,6 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
         data.append(valueParameter.type.print())
         super.visitValueParameter(valueParameter, data)
     }
-
-
 
     override fun visitConstructorCallExpression(
         constructorCallExpression: IrConstructorCallExpression,
@@ -149,16 +152,51 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
             } else {
                 throw IllegalStateException("A constructor call must call its super constructor or constructor in the same class")
             }
-            for ((i, valueArgument) in constructorCallExpression.valueArguments.withIndex()) {
-                valueArgument.accept(this, data)
-                if (i != constructorCallExpression.valueArguments.lastIndex) {
-                    data.append(", ")
-                }
-            }
-            data.append(") ")
         } else {
-            data.append("TODO()")
+            data.append(printIrConcreteType(constructorCallExpression.callTarget.containingClass.type))
+            data.append("(")
         }
+        for ((i, valueArgument) in constructorCallExpression.valueArguments.withIndex()) {
+            val before = data.length
+            elementStack.push(constructorCallExpression)
+            valueArgument.accept(this, data)
+            assert(elementStack.pop() === constructorCallExpression)
+            val after = data.length
+            if (before == after) {
+                throw AssertionError()
+            }
+            if (i != constructorCallExpression.valueArguments.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append(")")
+        elementStack.push(constructorCallExpression)
         super.visitConstructorCallExpression(constructorCallExpression, data)
+        assert(elementStack.pop() === constructorCallExpression)
+    }
+
+    override fun visitAnonymousObject(anonymousObject: IrAnonymousObject, data: StringBuilder) {
+        data.append("object: ")
+        val superClass = anonymousObject.superClass
+        data.append(printIrConcreteType(superClass.type))
+        if (superClass.classType != INTERFACE) {
+            data.append("()")
+        }
+        data.append("{}")
+        super.visitAnonymousObject(anonymousObject, data)
+    }
+
+    override fun visitTodoExpression(todoExpression: IrTodoExpression, data: StringBuilder) {
+        data.append("TODO()")
+        super.visitTodoExpression(todoExpression, data)
+    }
+
+    override fun visitConstantExpression(constantExpression: IrConstantExpression, data: StringBuilder) {
+        when (constantExpression) {
+            IrConstantExpression.True -> data.append("true")
+            IrConstantExpression.False -> data.append("false")
+            is IrConstantExpression.Number -> data.append(constantExpression.value)
+        }
+        super.visitConstantExpression(constantExpression, data)
     }
 }

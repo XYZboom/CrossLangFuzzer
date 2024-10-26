@@ -94,8 +94,9 @@ class AccessCheckerImpl: IAccessChecker {
             PUBLIC -> when (clazzContainingDecl) {
                 is IrClass -> isAccessible(clazzContainingDecl)
                 is IrFile -> (containingPackage === clazzContainingDecl.containingPackage
+                        || (containingPackage.containingModule == clazzContainingDecl.containingPackage.containingModule
                         || containingPackage.containingModule
-                    .isDependOn(clazzContainingDecl.containingPackage.containingModule))
+                    .isDependOn(clazzContainingDecl.containingPackage.containingModule)))
                         && (clazz.superType?.declaration == null || isAccessible(clazz.superType!!.declaration))
             }
 

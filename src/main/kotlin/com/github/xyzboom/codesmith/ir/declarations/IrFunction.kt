@@ -11,6 +11,15 @@ interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContai
     val valueParameters: MutableList<IrValueParameter>
     val expressions: MutableList<IrExpression>
 
+    val containingClass: IrClass?
+        get() {
+            return when (val containingDeclaration = containingDeclaration) {
+                is IrClass -> containingDeclaration
+                is IrFile -> null
+                is IrFunction -> containingDeclaration.containingClass
+            }
+        }
+
     val containingFile: IrFile
         get() {
             return when (val containingDeclaration = containingDeclaration) {

@@ -7,7 +7,6 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunction
 import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
-import com.github.xyzboom.codesmith.ir.types.IrType
 
 class IrConstructorImpl(
     override var accessModifier: IrAccessModifier,
@@ -16,7 +15,4 @@ class IrConstructorImpl(
     override val valueParameters: MutableList<IrValueParameter> = mutableListOf(),
     override val functions: MutableList<IrFunction> = mutableListOf(),
     override val expressions: MutableList<IrExpression> = mutableListOf(),
-): IrConstructor {
-    override val name: String = containingDeclaration.name
-    override val returnType: IrType = containingDeclaration.type
-}
+): IrConstructor
