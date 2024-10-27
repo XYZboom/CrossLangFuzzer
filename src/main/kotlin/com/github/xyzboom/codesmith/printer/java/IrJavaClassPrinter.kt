@@ -2,10 +2,7 @@ package com.github.xyzboom.codesmith.printer.java
 
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
-import com.github.xyzboom.codesmith.ir.declarations.IrClass
-import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
-import com.github.xyzboom.codesmith.ir.declarations.IrFile
-import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.IrAnonymousObject
 import com.github.xyzboom.codesmith.ir.expressions.IrConstantExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
@@ -131,6 +128,38 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
         data.append(indent)
         data.append("}\n")
         assert(elementStack.pop() === constructor)
+        indentCount--
+    }
+
+    override fun visitFunction(function: IrFunction, data: StringBuilder) {
+        indentCount++
+        elementStack.push(function)
+        data.append(indent)
+        data.append(function.accessModifier.print())
+        data.append(" ")
+        data.append(printIrConcreteType(function.returnType))
+        data.append(" ")
+        data.append(function.name)
+        data.append("(")
+        for ((i, valueParam) in function.valueParameters.withIndex()) {
+            valueParam.accept(this, data)
+            if (i != function.valueParameters.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append(") {\n")
+        for ((i, expression) in function.expressions.withIndex()) {
+            data.append("\t")
+            data.append(indent)
+            if (i == function.expressions.lastIndex) {
+                data.append("return ")
+            }
+            expression.accept(this, data)
+            data.append(";\n")
+        }
+        data.append(indent)
+        data.append("}\n")
+        assert(elementStack.pop() === function)
         indentCount--
     }
 

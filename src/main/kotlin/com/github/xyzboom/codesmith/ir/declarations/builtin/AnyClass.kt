@@ -3,7 +3,6 @@ package com.github.xyzboom.codesmith.ir.declarations.builtin
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrFunction
-import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrConstructorImpl
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionImpl
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrValueParameterImpl
@@ -16,7 +15,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes
 import kotlin.random.Random
 
 object AnyClass: AbstractBuiltinClass("Any", classType = IrClassType.OPEN) {
-    private val constructor = IrConstructorImpl(IrAccessModifier.PUBLIC, this, anyConstructor)
+    val constructor = IrConstructorImpl(IrAccessModifier.PUBLIC, this, anyConstructor)
     override val functions: MutableList<IrFunction>
         get() = arrayListOf(
             IrFunctionImpl(
@@ -27,7 +26,7 @@ object AnyClass: AbstractBuiltinClass("Any", classType = IrClassType.OPEN) {
         )
     override val type: IrConcreteType get() = IrBuiltinTypes.ANY
     override val allSuperClasses: Set<IrClass> get() = hashSetOf()
-    override fun generateValueArgumentFor(random: Random, valueParameter: IrValueParameter): IrExpression {
+    override fun generateValueArgumentFor(random: Random, clazz: IrClass): IrExpression {
         return IrConstructorCallExpressionImpl(constructor, emptyList())
     }
 }

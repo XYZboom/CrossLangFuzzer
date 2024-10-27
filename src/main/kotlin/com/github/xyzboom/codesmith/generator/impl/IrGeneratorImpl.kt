@@ -13,14 +13,13 @@ import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AnyClass
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrConstructorImpl
+import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionImpl
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrValueParameterImpl
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.expressions.impl.*
-import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
-import com.github.xyzboom.codesmith.ir.types.IrFileType
-import com.github.xyzboom.codesmith.ir.types.Nullability
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -29,7 +28,6 @@ class IrGeneratorImpl(
     private val random: Random = Random.Default,
     private val config: GeneratorConfig = GeneratorConfig.default
 ): IrGenerator, IAccessChecker by AccessCheckerImpl(), ISignatureChecker by SignatureCheckerImpl() {
-
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
         addAll(KeyWords.kotlin)
@@ -55,6 +53,22 @@ class IrGeneratorImpl(
             }
     }
 
+    @CodeSmithDsl
+    override fun IrFunctionContainer.function(
+        name: String,
+        accessModifier: IrAccessModifier,
+        valueParameters: MutableList<IrValueParameter>,
+        returnType: IrConcreteType,
+        functionCtx: IrFunction.() -> Unit
+    ): IrFunction? {
+        return IrFunctionImpl(name, this, accessModifier, valueParameters, returnType)
+            .apply(functionCtx).apply {
+                if (!this@function.containsSameSignature(this)) {
+                    this@function.functions.add(this)
+                } else return null
+            }
+    }
+
     //<editor-fold desc="subtyping">
     private val IrClass.subclasses: List<IrClass>
         get() {
@@ -74,19 +88,18 @@ class IrGeneratorImpl(
 
     //</editor-fold>
 
-    override fun IrElement.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression {
-        val paramClass = valueParameter.type.declaration
-        if (paramClass is AbstractBuiltinClass) {
-            return paramClass.generateValueArgumentFor(random, valueParameter)
+    override fun IrElement.generateExpressionFor(clazz: IrClass): IrExpression {
+        if (clazz is AbstractBuiltinClass) {
+            return clazz.generateValueArgumentFor(random, clazz)
         }
-        if (!isAccessible(paramClass)) {
+        if (!isAccessible(clazz)) {
             return IrTodoExpressionImpl()
         }
-        if (paramClass.classType == ABSTRACT || paramClass.classType == INTERFACE) {
-            return IrAnonymousObjectImpl(paramClass)
+        if (clazz.classType == ABSTRACT || clazz.classType == INTERFACE) {
+            return IrAnonymousObjectImpl(clazz)
         }
         return IrSpecialConstructorCallExpressionImpl(
-            paramClass.specialConstructor ?: throw IllegalStateException()
+            clazz.specialConstructor ?: throw IllegalStateException()
         )
     }
 
@@ -221,11 +234,21 @@ class IrGeneratorImpl(
         generateClassInheritance()
         topologyVisit {
             generateConstructors(config.constructorNumRange.random(random))
-            generateConstructors(1, PUBLIC)
+            generateConstructors(1, PUBLIC) // generate at least 1 public constructor
         }
+        // ensure at all no arg constructors are public
         for (clazz in generatedClasses) {
             val noArg = clazz.declarations.filterIsInstance<IrConstructor>().filter { it.valueParameters.isEmpty() }
             noArg.forEach { it.accessModifier = PUBLIC }
+        }
+        for (clazz in generatedClasses) {
+            if (clazz.classType == INTERFACE) continue
+            for (i in 0 until config.functionParameterNumRange.random(random)) {
+                var generateFunction = clazz.generateFunction()
+                while (generateFunction == null) {
+                    generateFunction = clazz.generateFunction()
+                }
+            }
         }
         return prog
     }
@@ -298,7 +321,7 @@ class IrGeneratorImpl(
         superConstructor: IrConstructor, accessModifier: IrAccessModifier?
     ): IrConstructor? {
         val superValueParameters = superConstructor.valueParameters
-        val superValueArguments = superValueParameters.map { generateValueArgumentFor(it) }
+        val superValueArguments = superValueParameters.map { generateExpressionFor(it.type.declaration) }
         val chooseModifier = accessModifier ?: IrAccessModifier.entries.random(random)
         val valueParameters = mutableListOf<IrValueParameter>()
         return constructor(
@@ -306,6 +329,20 @@ class IrGeneratorImpl(
             valueParameters = valueParameters
         ) {
             for (p in 0 until config.constructorParameterNumRange.random(random)) {
+                valueParameters.add(randomValueParameter())
+            }
+        }
+    }
+
+    override fun IrClass.generateFunction(): IrFunction? {
+        val chooseAccessModifier = IrAccessModifier.entries.random(random)
+        val accessibleClasses = containingFile.accessibleClasses.filter {
+            it.accessModifier <= chooseAccessModifier
+        }
+        val chooseReturnType = accessibleClasses.random(random)
+        return function(accessModifier = chooseAccessModifier, returnType = chooseReturnType.type) {
+            expressions.add(this@generateFunction.generateExpressionFor(chooseReturnType))
+            for (p in 0 until config.functionParameterNumRange.random(random)) {
                 valueParameters.add(randomValueParameter())
             }
         }

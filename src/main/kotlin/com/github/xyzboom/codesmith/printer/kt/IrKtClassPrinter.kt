@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
+import com.github.xyzboom.codesmith.ir.declarations.IrFunction
 import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
 import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.types.*
@@ -97,10 +98,18 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
         visitClass(element, data)
         val noArg = element.declarations.filterIsInstance<IrConstructor>().filter { it.valueParameters.isEmpty() }
         if (element.classType != INTERFACE && noArg.isEmpty()) {
-            data.append(
-                "${indent}\t${element.specialConstructor!!.accessModifier.print()} constructor(): super() {" +
-                        "\n$indent\t}\n"
-            )
+            val specialConstructor = element.specialConstructor
+            if (specialConstructor != null) {
+                data.append(
+                    "${indent}\t${specialConstructor.accessModifier.print()} constructor(): super() {" +
+                            "\n$indent\t}\n"
+                )
+            } else {
+                data.append(
+                    "${indent}\tpublic constructor(): super() {" +
+                            "\n$indent\t}\n"
+                )
+            }
         }
         data.append(indent)
         data.append("}\n")
@@ -126,6 +135,39 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
         data.append(indent)
         data.append("}\n")
         assert(elementStack.pop() === constructor)
+        indentCount--
+    }
+
+    override fun visitFunction(function: IrFunction, data: StringBuilder) {
+        indentCount++
+        elementStack.push(function)
+        data.append(indent)
+        data.append(function.accessModifier.print())
+        data.append(" fun ")
+        data.append(function.name)
+        data.append("(")
+        for ((i, valueParam) in function.valueParameters.withIndex()) {
+            valueParam.accept(this, data)
+            if (i != function.valueParameters.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append("): ")
+        data.append(printIrConcreteType(function.returnType))
+        data.append(" {\n")
+        for ((i, expression) in function.expressions.withIndex()) {
+            data.append("\t")
+            data.append(indent)
+            if (i == function.expressions.lastIndex) {
+                data.append("return ")
+            }
+            expression.accept(this, data)
+        }
+        data.append(indent)
+        data.append("\n")
+        data.append(indent)
+        data.append("}\n")
+        assert(elementStack.pop() === function)
         indentCount--
     }
 

@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.ir.declarations.builtin
 
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
-import com.github.xyzboom.codesmith.ir.declarations.IrValueParameter
+import com.github.xyzboom.codesmith.ir.declarations.IrClass
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrClassImpl
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrFileImpl
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
@@ -19,5 +19,5 @@ abstract class AbstractBuiltinClass(
     classType, superType, implementedTypes
 ) {
     abstract override val type: IrConcreteType
-    abstract fun generateValueArgumentFor(random: Random, valueParameter: IrValueParameter): IrExpression
+    abstract fun generateValueArgumentFor(random: Random, clazz: IrClass): IrExpression
 }

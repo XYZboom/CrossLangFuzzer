@@ -13,6 +13,7 @@ class AccessCheckerImpl: IAccessChecker {
     override val IrDeclaration.containingPackage: IrPackage
         get() = when (this) {
             is IrClass -> when (val container = containingDeclaration) {
+                is IrCompanionObject -> container.containingPackage
                 is IrClass -> container.containingPackage
                 is IrFile -> container.containingPackage // property is in IrFile, not extension here
             }
@@ -92,6 +93,7 @@ class AccessCheckerImpl: IAccessChecker {
         if (clazzContainingDecl === this) return true
         return when (clazz.accessModifier) {
             PUBLIC -> when (clazzContainingDecl) {
+                is IrCompanionObject -> isAccessible(clazzContainingDecl)
                 is IrClass -> isAccessible(clazzContainingDecl)
                 is IrFile -> (containingPackage === clazzContainingDecl.containingPackage
                         || (containingPackage.containingModule == clazzContainingDecl.containingPackage.containingModule
@@ -101,7 +103,8 @@ class AccessCheckerImpl: IAccessChecker {
             }
 
             INTERNAL -> when (clazzContainingDecl) {
-                is IrClass -> isAccessible(clazzContainingDecl)
+                is IrCompanionObject -> isAccessible(clazzContainingDecl)
+                    is IrClass -> isAccessible(clazzContainingDecl)
                 is IrFile -> containingPackage === clazzContainingDecl.containingPackage
                         && (clazz.superType?.declaration == null || isAccessible(clazz.superType!!.declaration))
             }
@@ -139,6 +142,7 @@ class AccessCheckerImpl: IAccessChecker {
         if (this === otherContainer) return true
         if (this.superType?.declaration === function) return true
         return when (myContainer) {
+            is IrCompanionObject -> TODO()
             is IrClass -> TODO()
             is IrFile -> when (otherContainer) {
                 is IrClass -> isAccessible(otherContainer)

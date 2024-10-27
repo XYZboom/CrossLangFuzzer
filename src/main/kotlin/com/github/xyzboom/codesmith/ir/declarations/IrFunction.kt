@@ -1,13 +1,13 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
-import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContainer {
     val name: String
     val containingDeclaration: IrFunctionContainer
-    val returnType: IrType
+    val returnType: IrConcreteType
     val valueParameters: MutableList<IrValueParameter>
     val expressions: MutableList<IrExpression>
 

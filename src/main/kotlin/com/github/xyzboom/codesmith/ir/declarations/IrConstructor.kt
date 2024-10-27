@@ -1,7 +1,6 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
-import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 interface IrConstructor: IrFunction {
@@ -9,7 +8,7 @@ interface IrConstructor: IrFunction {
     override val containingClass: IrClass get() = containingDeclaration
     val superCall: IrConstructorCallExpression
     override val name: String get() = containingDeclaration.name
-    override val returnType: IrType get() = containingDeclaration.type
+    override val returnType get() = containingDeclaration.type
     override fun isSameSignature(other: IrFunction): Boolean {
         if (other !is IrConstructor) return false
         return super.isSameSignature(other)

@@ -10,7 +10,6 @@ import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.types.IrFileType
-import com.github.xyzboom.codesmith.ir.types.IrType
 
 interface IrGenerator {
     fun generate(): IrProgram
@@ -18,7 +17,7 @@ interface IrGenerator {
     fun randomName(startsWithUpper: Boolean): String
 
     @CodeSmithDsl
-    fun IrElement.generateValueArgumentFor(valueParameter: IrValueParameter): IrExpression
+    fun IrElement.generateExpressionFor(clazz: IrClass): IrExpression
 
     @CodeSmithDsl
     fun program(programCtx: IrProgram.() -> Unit = {}): IrProgram {
@@ -56,12 +55,9 @@ interface IrGenerator {
         name: String = randomName(false),
         accessModifier: IrAccessModifier = IrAccessModifier.PUBLIC,
         valueParameters: MutableList<IrValueParameter> = mutableListOf(),
-        returnType: IrType,
-        functionCtx: IrFunctionContainer.() -> Unit = {}
-    ): IrFunction {
-        return IrFunctionImpl(name, this, accessModifier, valueParameters, returnType)
-            .apply(functionCtx).apply { this@function.functions.add(this) }
-    }
+        returnType: IrConcreteType,
+        functionCtx: IrFunction.() -> Unit = {}
+    ): IrFunction?
 
     @CodeSmithDsl
     fun IrClassContainer.`class`(
@@ -106,6 +102,8 @@ interface IrGenerator {
     fun IrClass.generateConstructor(
         superConstructor: IrConstructor, accessModifier: IrAccessModifier? = null
     ): IrConstructor?
+
+    fun IrClass.generateFunction(): IrFunction?
 
     fun IrFunction.randomValueParameter(): IrValueParameter
 }
