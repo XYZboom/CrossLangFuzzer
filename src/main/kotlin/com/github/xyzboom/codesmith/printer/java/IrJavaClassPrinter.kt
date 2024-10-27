@@ -3,10 +3,7 @@ package com.github.xyzboom.codesmith.printer.java
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.expressions.IrAnonymousObject
-import com.github.xyzboom.codesmith.ir.expressions.IrConstantExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrTodoExpression
+import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.ir.types.Variance.*
@@ -223,10 +220,12 @@ class IrJavaClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCou
     }
 
     override fun visitAnonymousObject(anonymousObject: IrAnonymousObject, data: StringBuilder) {
-        data.append("new ")
         val superClass = anonymousObject.superClass
+        data.append("((")
         data.append(printIrConcreteType(superClass.type))
-        data.append("() {}")
+        data.append(") new ")
+        data.append(printIrConcreteType(superClass.type))
+        data.append("() {})")
         super.visitAnonymousObject(anonymousObject, data)
     }
 

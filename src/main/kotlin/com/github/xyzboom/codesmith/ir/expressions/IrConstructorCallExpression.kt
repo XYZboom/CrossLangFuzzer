@@ -8,8 +8,6 @@ interface IrConstructorCallExpression: IrFunctionCallExpression {
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitConstructorCallExpression(this, data)
 
-    override fun <D> acceptChildren(visitor: IrVisitor<Unit, D>, data: D) = Unit
-
     companion object {
         internal val anyConstructor = object: IrConstructorCallExpression {
             override val callTarget: IrConstructor

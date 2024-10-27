@@ -162,8 +162,10 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
                 data.append("return ")
             }
             expression.accept(this, data)
+            if (i != function.expressions.lastIndex) {
+                data.append("\n")
+            }
         }
-        data.append(indent)
         data.append("\n")
         data.append(indent)
         data.append("}\n")
@@ -221,13 +223,16 @@ class IrKtClassPrinter(indentCount: Int = 0): AbstractIrClassPrinter(indentCount
     }
 
     override fun visitAnonymousObject(anonymousObject: IrAnonymousObject, data: StringBuilder) {
-        data.append("object: ")
+        data.append("(object: ")
         val superClass = anonymousObject.superClass
         data.append(printIrConcreteType(superClass.type))
         if (superClass.classType != INTERFACE) {
             data.append("()")
         }
-        data.append("{}")
+        // add convert to call private members
+        data.append("{} as ")
+        data.append(printIrConcreteType(superClass.type))
+        data.append(")")
         super.visitAnonymousObject(anonymousObject, data)
     }
 

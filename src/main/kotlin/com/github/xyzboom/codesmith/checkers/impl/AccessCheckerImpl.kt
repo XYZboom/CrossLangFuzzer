@@ -1,8 +1,8 @@
 package com.github.xyzboom.codesmith.checkers.impl
 
 import com.github.xyzboom.codesmith.checkers.IAccessChecker
-import com.github.xyzboom.codesmith.ir.IrAccessModifier.INTERNAL
-import com.github.xyzboom.codesmith.ir.IrAccessModifier.PUBLIC
+import com.github.xyzboom.codesmith.ir.IrAccessModifier
+import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
@@ -84,7 +84,20 @@ class AccessCheckerImpl: IAccessChecker {
         }
 
     override fun IrFile.isAccessible(function: IrFunction): Boolean {
-        TODO("Not yet implemented")
+        val clazz = function.containingClass
+            ?: return when (function.accessModifier) {
+                PUBLIC -> true
+                PROTECTED -> throw IllegalStateException("Top level function cannot be protected")
+                INTERNAL -> function.containingPackage.containingModule === containingPackage.containingModule
+                PRIVATE -> false
+            }
+        if (!isAccessible(clazz)) return false
+        return when (function.accessModifier) {
+            PUBLIC -> true
+            PROTECTED -> false
+            INTERNAL -> function.containingPackage.containingModule === containingPackage.containingModule
+            PRIVATE -> false
+        }
     }
 
     override fun IrFile.isAccessible(clazz: IrClass): Boolean {
@@ -140,13 +153,14 @@ class AccessCheckerImpl: IAccessChecker {
         val myContainer = containingDeclaration
         val otherContainer = function.containingDeclaration
         if (this === otherContainer) return true
-        if (this.superType?.declaration === function) return true
         return when (myContainer) {
             is IrCompanionObject -> TODO()
             is IrClass -> TODO()
             is IrFile -> when (otherContainer) {
-                is IrClass -> isAccessible(otherContainer)
-                is IrFile -> myContainer.isAccessible(function)
+                is IrClass -> isAccessible(otherContainer) &&
+                        function.accessModifier == PUBLIC // TODO actually, protected and internal may accessible
+                is IrFile -> myContainer.isAccessible(function) &&
+                        function.accessModifier == PUBLIC // TODO actually, protected and internal may accessible
 
                 else -> throw IllegalStateException()
             }

@@ -6,6 +6,11 @@ import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 abstract class IrCompanionObject: IrClass, IrDeclarationContainer {
+    /**
+     * Companion object can not have a companion object.
+     */
+    final override val companionObject: IrCompanionObject?
+        get() = null
     abstract override val containingDeclaration: IrClass
     val containingClass: IrClass
         get() = containingDeclaration

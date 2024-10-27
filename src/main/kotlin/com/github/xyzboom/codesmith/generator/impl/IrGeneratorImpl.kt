@@ -17,6 +17,7 @@ import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionImpl
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrValueParameterImpl
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.impl.*
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
@@ -250,6 +251,13 @@ class IrGeneratorImpl(
                 }
             }
         }
+        for (clazz in generatedClasses) {
+            for (function in clazz.functions) {
+                if (function !is IrConstructor) {
+                    function.generateExpressions()
+                }
+            }
+        }
         return prog
     }
 
@@ -345,6 +353,36 @@ class IrGeneratorImpl(
             for (p in 0 until config.functionParameterNumRange.random(random)) {
                 valueParameters.add(randomValueParameter())
             }
+        }
+    }
+
+    override fun IrFunction.generateExpressions() {
+        val generators = listOf(::generateFunctionCallExpr)
+        for (i in 0 until config.functionExpressionNumRange.random(random)) {
+            val chooseGenerator = generators.random(random)
+            val expression = chooseGenerator.invoke(this)
+            expressions.add(0, expression)
+        }
+    }
+
+    override fun generateFunctionCallExpr(function: IrFunction): IrFunctionCallExpression {
+        with(function) {
+            val containingClassOrFile = containingClass ?: containingFile
+            val classes = containingFile.accessibleClasses.filter { clazz ->
+                clazz.functions.any { func -> func !is IrConstructor && containingClassOrFile.isAccessible(func) }
+            }
+            if (classes.isEmpty()) {
+                return IrConstructorCallExpressionImpl(AnyClass.constructor, emptyList())
+            }
+            val chooseClass = classes.random(random)
+            val functions = chooseClass.functions.filter { func ->
+                func !is IrConstructor && containingClassOrFile.isAccessible(func)
+            }
+            val chooseFunction = functions.random(random)
+            val receiver = containingClassOrFile.generateExpressionFor(chooseClass)
+            val args =
+                chooseFunction.valueParameters.map { containingClassOrFile.generateExpressionFor(it.type.declaration) }
+            return IrFunctionCallExpressionImpl(receiver, chooseFunction, args)
         }
     }
 

@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.printer.java
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AnyClass
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
 import com.github.xyzboom.codesmith.ir.expressions.impl.IrConstructorCallExpressionImpl
+import com.github.xyzboom.codesmith.ir.expressions.impl.IrFunctionCallExpressionImpl
 import com.github.xyzboom.codesmith.ir.types.IrFileType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -38,4 +39,32 @@ class IrJavaClassPrinterTest {
         assertEquals(expected, printer.print(myClass))
     }
 
+    @Test
+    fun testPrintFunctionWithExprInClass() {
+        val otherClass = IrClassImpl("Other", mockFile, superType = IrBuiltinTypes.ANY)
+        otherClass.functions.add(IrFunctionImpl(
+            "func", otherClass, returnType = IrBuiltinTypes.BOOLEAN
+        ))
+        val myClassName = "MyClass"
+        val myClass = IrClassImpl(myClassName, mockFile, superType = IrBuiltinTypes.ANY)
+        myClass.functions.add(IrFunctionImpl(
+            "func", myClass, returnType = IrBuiltinTypes.ANY
+        ).apply {
+            val newOther = IrConstructorCallExpressionImpl(otherClass.specialConstructor!!, emptyList())
+            expressions.add(IrFunctionCallExpressionImpl(newOther, otherClass.functions[0], emptyList()))
+            expressions.add(IrConstructorCallExpressionImpl(AnyClass.constructor, emptyList()))
+        })
+        val expected = "// FILE: MyClass.java\n" +
+                "package mockedpkg;\n" +
+                "public final class MyClass extends Object {\n" +
+                "\tpublic Object func() {\n" +
+                "\t\tnew mockedpkg.Other().func();\n" +
+                "\t\treturn new Object();\n" +
+                "\t}\n" +
+                "\tpublic MyClass() {\n" +
+                "\t\tsuper();\n" +
+                "\t}\n" +
+                "}\n"
+        assertEquals(expected, printer.print(myClass))
+    }
 }

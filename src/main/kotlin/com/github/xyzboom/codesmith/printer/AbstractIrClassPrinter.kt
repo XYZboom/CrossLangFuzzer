@@ -3,6 +3,8 @@ package com.github.xyzboom.codesmith.printer
 import com.github.xyzboom.codesmith.ir.IrAccessModifier
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.IrClass
+import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCallExpression
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
@@ -43,5 +45,37 @@ abstract class AbstractIrClassPrinter(
                 stringBuilder.toString()
             }
         }
+    }
+
+    override fun visitFunctionCallExpression(functionCallExpression: IrFunctionCallExpression, data: StringBuilder) {
+        if (functionCallExpression is IrConstructorCallExpression) {
+            return
+        }
+        val receiver = functionCallExpression.receiver
+        val callTarget = functionCallExpression.callTarget
+        val clazz = callTarget.containingClass
+        val valueArgs = functionCallExpression.valueArguments
+        if (receiver == null) {
+            if (clazz != null) {
+                data.append(printIrConcreteType(clazz.type))
+                data.append(".")
+            }
+        } else {
+            elementStack.push(functionCallExpression)
+            receiver.accept(this, data)
+            assert(elementStack.pop() === functionCallExpression)
+            data.append(".")
+        }
+        data.append(callTarget.name)
+        data.append("(")
+        for ((i, arg) in valueArgs.withIndex()) {
+            elementStack.push(functionCallExpression)
+            arg.accept(this, data)
+            assert(elementStack.pop() === functionCallExpression)
+            if (i != valueArgs.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append(")")
     }
 }

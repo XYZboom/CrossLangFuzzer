@@ -28,6 +28,7 @@ data class GeneratorConfig(
     val constructorParameterNumRange: IntRange = 0..4,
     val functionNumRange: IntRange = 1..3,
     val functionParameterNumRange: IntRange = 0..3,
+    val functionExpressionNumRange: IntRange = 2..8,
 ) {
     companion object {
         @JvmStatic

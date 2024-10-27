@@ -16,6 +16,7 @@ open class IrClassImpl(
     final override var superType: IrConcreteType? = null,
     implementedTypes: List<IrConcreteType> = mutableListOf(),
     override val typeParameters: MutableList<IrTypeParameter> = mutableListOf(),
+    override val companionObject: IrCompanionObject? = null
 ): IrClass {
     override val implementedTypes: MutableList<IrConcreteType> = implementedTypes.toMutableList()
     override val functions: MutableList<IrFunction> = ArrayList()

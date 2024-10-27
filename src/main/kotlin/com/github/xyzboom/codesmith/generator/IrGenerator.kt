@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.impl.*
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCallExpression
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrConcreteType
 import com.github.xyzboom.codesmith.ir.types.IrFileType
@@ -104,6 +105,10 @@ interface IrGenerator {
     ): IrConstructor?
 
     fun IrClass.generateFunction(): IrFunction?
+
+    fun IrFunction.generateExpressions()
+
+    fun generateFunctionCallExpr(function: IrFunction): IrFunctionCallExpression
 
     fun IrFunction.randomValueParameter(): IrValueParameter
 }

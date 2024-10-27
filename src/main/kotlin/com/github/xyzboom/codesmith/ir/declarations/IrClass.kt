@@ -9,6 +9,7 @@ import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 interface IrClass: IrDeclaration, IrFunctionContainer, IrDeclarationContainer, IrClassContainer,
     IrAccessModifierContainer {
     val name: String
+    val companionObject: IrCompanionObject?
     val containingDeclaration: IrDeclarationContainer
     val containingFile: IrFile
         get() = when (val containingDeclaration = containingDeclaration) {
