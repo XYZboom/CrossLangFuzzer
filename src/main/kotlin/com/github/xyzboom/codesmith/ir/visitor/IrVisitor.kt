@@ -25,6 +25,9 @@ interface IrVisitor<out R, in D> {
 
     fun visitValueParameter(valueParameter: IrValueParameter, data: D): R = visitElement(valueParameter, data)
 
+    fun visitCompanionObject(companionObject: IrCompanionObject, data: D): R = visitClass(companionObject, data)
+
+    //<editor-fold desc="Expression">
     fun visitExpression(expression: IrExpression, data: D): R = visitElement(expression, data)
 
     fun visitConstantExpression(constantExpression: IrConstantExpression, data: D): R =
@@ -41,4 +44,5 @@ interface IrVisitor<out R, in D> {
 
     fun visitTodoExpression(todoExpression: IrTodoExpression, data: D): R =
         visitExpression(todoExpression, data)
+    //</editor-fold>
 }
