@@ -9,6 +9,8 @@ abstract class IrMutator {
     abstract fun mutateConstructorSuperCallInternal(program: IrProgram): Pair<IrProgram, Boolean>
     abstract fun mutateConstructorNormalCallPrivate(program: IrProgram): Pair<IrProgram, Boolean>
     abstract fun mutateConstructorNormalCallInternal(program: IrProgram): Pair<IrProgram, Boolean>
+    abstract fun mutateFunctionCallPrivate(program: IrProgram): Pair<IrProgram, Boolean>
+    abstract fun mutateFunctionCallInternal(program: IrProgram): Pair<IrProgram, Boolean>
 
     /**
      * do a mutated on specified [program].

@@ -3,12 +3,10 @@ package com.github.xyzboom.codesmith.mutator.impl
 import com.github.xyzboom.codesmith.checkers.IAccessChecker
 import com.github.xyzboom.codesmith.checkers.impl.AccessCheckerImpl
 import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
-import com.github.xyzboom.codesmith.ir.declarations.IrClass
-import com.github.xyzboom.codesmith.ir.declarations.IrConstructor
-import com.github.xyzboom.codesmith.ir.declarations.IrFile
-import com.github.xyzboom.codesmith.ir.declarations.IrProgram
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
 import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCallExpression
 import com.github.xyzboom.codesmith.ir.expressions.IrSpecialConstructorCallExpression
 import com.github.xyzboom.codesmith.ir.types.IrFileType.JAVA
 import com.github.xyzboom.codesmith.ir.types.IrFileType.KOTLIN
@@ -208,9 +206,83 @@ class IrMutatorImpl(
                     }
                 }
             }
-            function.expressions.forEach {expr ->
+            function.expressions.forEach { expr ->
                 if (expr is IrConstructorCallExpression) {
                     if (tryMutateConstructorNormalCallPrivate(expr, function.containingClass)) {
+                        success = true
+                        return@randomTraverseFunctions true
+                    }
+                }
+            }
+            false
+        }
+        return program to success
+    }
+
+    private fun tryMutateFunctionCallPrivate(
+        expr: IrFunctionCallExpression,
+        exprContainingClass: IrClass?
+    ): Boolean {
+        val callTarget = expr.callTarget
+        val targetClass = callTarget.containingClass
+        if (targetClass is AbstractBuiltinClass) return false
+        if (callTarget.accessModifier < PRIVATE
+            && exprContainingClass !== targetClass
+        ) {
+            callTarget.accessModifier = PRIVATE
+            return true
+        }
+        return false
+    }
+
+    @ConfigBy("functionCallPrivate")
+    override fun mutateFunctionCallPrivate(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
+        program.randomTraverseFunctions(random) { function ->
+            if (function is IrConstructor) return@randomTraverseFunctions false
+            function.expressions.forEach { expr ->
+                if (expr is IrFunctionCallExpression && expr !is IrConstructorCallExpression) {
+                    if (tryMutateFunctionCallPrivate(expr, function.containingClass)) {
+                        success = true
+                        return@randomTraverseFunctions true
+                    }
+                }
+            }
+            false
+        }
+        return program to success
+    }
+
+    private fun tryMutateFunctionCallInternal(
+        expr: IrFunctionCallExpression,
+        exprContainingFile: IrFile
+    ): Boolean {
+        val callTarget = expr.callTarget
+        val targetClass = callTarget.containingClass
+        if (targetClass is AbstractBuiltinClass) return false
+        val targetPackage: IrPackage = targetClass?.containingPackage ?: callTarget.containingFile.containingPackage
+        val callingJavaAndNotInSamePackage = callTarget.containingFile.fileType == JAVA &&
+                exprContainingFile.containingPackage !== targetPackage
+        val callingKotlinAndNotInSameModule = exprContainingFile.fileType == KOTLIN &&
+                callTarget.containingFile.fileType == KOTLIN &&
+                exprContainingFile.containingPackage.containingModule !== targetPackage.containingModule
+        if (callTarget.accessModifier < INTERNAL
+            && (callingJavaAndNotInSamePackage || callingKotlinAndNotInSameModule)
+        ) {
+            callTarget.accessModifier = INTERNAL
+            return true
+        }
+        return false
+    }
+
+    @ConfigBy("functionCallInternal")
+    override fun mutateFunctionCallInternal(program: IrProgram): Pair<IrProgram, Boolean> {
+        var success = false
+        program.randomTraverseFunctions(random) { function ->
+            if (function is IrConstructor) return@randomTraverseFunctions false
+            function.expressions.forEach { expr ->
+                if (expr is IrFunctionCallExpression && expr !is IrConstructorCallExpression) {
+                    if (tryMutateFunctionCallInternal(expr, function.containingFile)) {
                         success = true
                         return@randomTraverseFunctions true
                     }

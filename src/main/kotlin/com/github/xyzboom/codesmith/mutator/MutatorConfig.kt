@@ -80,6 +80,24 @@ data class MutatorConfig(
      * ```
      */
     val constructorNormalCallInternal: Boolean = false,
+    /**
+     * ```kt
+     * class A {
+     *     private fun func() {
+     *     }
+     * }
+     *
+     * class B {
+     *     fun func() {
+     *         A().func()
+     *         //  ^^^^
+     *         // [INVISIBLE_MEMBER] Cannot access 'func': it is private in 'A'
+     *     }
+     * }
+     * ```
+     */
+    val functionCallPrivate: Boolean = false,
+    val functionCallInternal: Boolean = false,
 ) {
     fun anyEnabled(): Boolean {
         val properties = MutatorConfig::class.memberProperties
