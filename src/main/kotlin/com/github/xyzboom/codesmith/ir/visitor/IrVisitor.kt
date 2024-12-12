@@ -30,6 +30,8 @@ interface IrVisitor<out R, in D> {
     //<editor-fold desc="Expression">
     fun visitExpression(expression: IrExpression, data: D): R = visitElement(expression, data)
 
+    fun visitBinaryExpression(expression: IrBinaryExpression, data: D): R = visitExpression(expression, data)
+
     fun visitConstantExpression(constantExpression: IrConstantExpression, data: D): R =
         visitExpression(constantExpression, data)
 

@@ -37,6 +37,8 @@ publishing {
     }
 }
 dependencies {
+    // For coverage usage
+    implementation("org.jacoco:org.jacoco.core:0.8.12")
     implementation(kotlin("reflect"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
     testImplementation(kotlin("test"))

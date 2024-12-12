@@ -330,7 +330,7 @@ class IrGeneratorImpl(
     ): IrConstructor? {
         val superValueParameters = superConstructor.valueParameters
         val superValueArguments = superValueParameters.map { generateExpressionFor(it.type.declaration) }
-        val chooseModifier = accessModifier ?: IrAccessModifier.entries.random(random)
+        val chooseModifier = accessModifier ?: PUBLIC
         val valueParameters = mutableListOf<IrValueParameter>()
         return constructor(
             IrConstructorCallExpressionImpl(superConstructor, superValueArguments), chooseModifier,
@@ -343,7 +343,7 @@ class IrGeneratorImpl(
     }
 
     override fun IrClass.generateFunction(): IrFunction? {
-        val chooseAccessModifier = IrAccessModifier.entries.random(random)
+        val chooseAccessModifier = PUBLIC
         val accessibleClasses = containingFile.accessibleClasses.filter {
             it.accessModifier <= chooseAccessModifier
         }
