@@ -2,8 +2,8 @@ package com.github.xyzboom.codesmith.checkers.impl
 
 import com.github.xyzboom.codesmith.CodeSmithDsl
 import com.github.xyzboom.codesmith.checkers.ISignatureChecker
-import com.github.xyzboom.codesmith.ir.declarations.IrFunction
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionContainer
+import com.github.xyzboom.codesmith.irOld.declarations.IrFunction
+import com.github.xyzboom.codesmith.irOld.declarations.IrFunctionContainer
 
 class SignatureCheckerImpl: ISignatureChecker {
     @CodeSmithDsl

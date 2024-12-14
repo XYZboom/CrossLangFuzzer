@@ -1,5 +1,7 @@
 package com.github.xyzboom.codesmith.runner
 
+import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.runner.CompilerRunner.kotlincFile
 import org.jacoco.core.analysis.Analyzer
 import org.jacoco.core.analysis.CoverageBuilder
@@ -7,6 +9,7 @@ import org.jacoco.core.analysis.ICounter
 import org.jacoco.core.tools.ExecFileLoader
 import java.io.File
 import java.io.FileNotFoundException
+import java.nio.file.Paths
 
 object CoverageRunner {
 
@@ -32,7 +35,7 @@ object CoverageRunner {
         val tempFile = File.createTempFile("jacoco", ".exec")
         val tempPath = tempFile.absoluteFile
         val jacocoAgent4Kotlinc = "\"-J-javaagent:$jacocoAgentPath=destfile=$tempPath,inclnolocationclasses=true\""
-        CompilerRunner.compile(jacocoAgent4Kotlinc, projectPath)
+        CompilerRunner.compile(jacocoAgent4Kotlinc, projectPath, "-d", Paths.get(projectPath, "out.jar").toString())
         val execFileLoader = ExecFileLoader()
         execFileLoader.load(tempFile)
         val coverageBuilder = CoverageBuilder()
@@ -48,5 +51,10 @@ object CoverageRunner {
         val counter = getCoverageCounter(args[0])
         println(counter.totalCount)
         println(counter.coveredCount)
+        val prog = IrGeneratorImpl().genProgram()
+        IrProgramPrinter().saveTo(args[1], prog)
+        val counter1 = getCoverageCounter(args[1])
+        println(counter1.totalCount)
+        println(counter1.coveredCount)
     }
 }

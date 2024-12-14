@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltinTypes.builtinTypes
+import com.github.xyzboom.codesmith.irOld.types.builtin.IrBuiltinTypes.builtinTypes
 
 object KeyWords {
 

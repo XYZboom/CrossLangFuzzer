@@ -2,14 +2,14 @@ package com.github.xyzboom.codesmith.mutator.impl
 
 import com.github.xyzboom.codesmith.checkers.IAccessChecker
 import com.github.xyzboom.codesmith.checkers.impl.AccessCheckerImpl
-import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
-import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
-import com.github.xyzboom.codesmith.ir.expressions.IrConstructorCallExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCallExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrSpecialConstructorCallExpression
-import com.github.xyzboom.codesmith.ir.types.IrFileType.JAVA
-import com.github.xyzboom.codesmith.ir.types.IrFileType.KOTLIN
+import com.github.xyzboom.codesmith.irOld.IrAccessModifier.*
+import com.github.xyzboom.codesmith.irOld.declarations.*
+import com.github.xyzboom.codesmith.irOld.declarations.builtin.AbstractBuiltinClass
+import com.github.xyzboom.codesmith.irOld.expressions.IrConstructorCallExpression
+import com.github.xyzboom.codesmith.irOld.expressions.IrFunctionCallExpression
+import com.github.xyzboom.codesmith.irOld.expressions.IrSpecialConstructorCallExpression
+import com.github.xyzboom.codesmith.irOld.types.IrFileType.JAVA
+import com.github.xyzboom.codesmith.irOld.types.IrFileType.KOTLIN
 import com.github.xyzboom.codesmith.mutator.*
 import kotlin.random.Random
 import kotlin.reflect.KFunction

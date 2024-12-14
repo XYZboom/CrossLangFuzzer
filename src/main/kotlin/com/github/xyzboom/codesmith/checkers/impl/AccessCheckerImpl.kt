@@ -1,11 +1,10 @@
 package com.github.xyzboom.codesmith.checkers.impl
 
 import com.github.xyzboom.codesmith.checkers.IAccessChecker
-import com.github.xyzboom.codesmith.ir.IrAccessModifier
-import com.github.xyzboom.codesmith.ir.IrAccessModifier.*
-import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.declarations.builtin.AbstractBuiltinClass
-import com.github.xyzboom.codesmith.ir.declarations.builtin.BuiltinClasses
+import com.github.xyzboom.codesmith.irOld.IrAccessModifier.*
+import com.github.xyzboom.codesmith.irOld.declarations.*
+import com.github.xyzboom.codesmith.irOld.declarations.builtin.AbstractBuiltinClass
+import com.github.xyzboom.codesmith.irOld.declarations.builtin.BuiltinClasses
 
 class AccessCheckerImpl: IAccessChecker {
     //<editor-fold desc="same container">

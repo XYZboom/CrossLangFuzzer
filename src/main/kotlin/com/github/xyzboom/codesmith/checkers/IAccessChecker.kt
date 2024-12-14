@@ -1,8 +1,8 @@
 package com.github.xyzboom.codesmith.checkers
 
 import com.github.xyzboom.codesmith.CodeSmithDsl
-import com.github.xyzboom.codesmith.ir.IrElement
-import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.irOld.IrElement
+import com.github.xyzboom.codesmith.irOld.declarations.*
 
 interface IAccessChecker {
     /**

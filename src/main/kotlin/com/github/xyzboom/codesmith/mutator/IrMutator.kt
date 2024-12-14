@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.mutator
 
-import com.github.xyzboom.codesmith.ir.declarations.IrProgram
+import com.github.xyzboom.codesmith.irOld.declarations.IrProgram
 
 abstract class IrMutator {
     abstract fun mutateKtExposeKtInternal(program: IrProgram): Pair<IrProgram, Boolean>
