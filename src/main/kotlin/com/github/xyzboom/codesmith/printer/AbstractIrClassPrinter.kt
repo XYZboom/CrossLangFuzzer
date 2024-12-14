@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
 import java.util.*
 
@@ -16,4 +17,6 @@ abstract class AbstractIrClassPrinter(
     }
 
     val indent get() = "\t".repeat(indentCount)
+
+    abstract fun printIrClassType(irClassType: IrClassType): String
 }

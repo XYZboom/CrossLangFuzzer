@@ -2,6 +2,8 @@ package com.github.xyzboom.codesmith.printer.java
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
 
 class JavaIrClassPrinter: AbstractIrClassPrinter() {
@@ -11,9 +13,19 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
         return data.toString()
     }
 
+    override fun printIrClassType(irClassType: IrClassType): String {
+        return when (irClassType) {
+            ABSTRACT -> "abstract class "
+            INTERFACE -> "interface "
+            OPEN -> "class "
+            FINAL -> "final class "
+        }
+    }
+
     override fun visitClass(clazz: IrClassDeclaration, data: StringBuilder) {
         data.append(indent)
-        data.append("public class ")
+        data.append("public ")
+        data.append(printIrClassType(clazz.classType))
         data.append(clazz.name)
         data.append(" {\n")
 

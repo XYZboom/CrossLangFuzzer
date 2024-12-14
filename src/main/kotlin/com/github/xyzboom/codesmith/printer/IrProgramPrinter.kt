@@ -23,6 +23,7 @@ class IrProgramPrinter: IrPrinter<IrProgram, Map<String, String>> {
             }
             result[fileName] = content
         }
+        result["main.kt"] = "fun main(args: Array<String>) {\n}"
         return result
     }
 

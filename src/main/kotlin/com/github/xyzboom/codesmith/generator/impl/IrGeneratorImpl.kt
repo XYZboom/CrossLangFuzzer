@@ -3,9 +3,12 @@ package com.github.xyzboom.codesmith.generator.impl
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.container.IrClassContainer
+import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
+import com.github.xyzboom.codesmith.ir.types.IrClassType
 import kotlin.random.Random
 
 class IrGeneratorImpl(
@@ -45,30 +48,37 @@ class IrGeneratorImpl(
         return IrInt(random.nextInt())
     }
 
+    fun randomClassType(): IrClassType {
+        return IrClassType.entries.random(random)
+    }
+
     override fun genProgram(): IrProgram {
         return IrProgram().apply {
             for (i in 0 until config.classNumRange.random(random)) {
-                classes.add(genClass())
+                genClass(this)
             }
         }
     }
 
-    override fun genClass(name: String): IrClassDeclaration {
-        return IrClassDeclaration(name).apply {
+    override fun genClass(context: IrClassContainer, name: String): IrClassDeclaration {
+        val classType = randomClassType()
+        return IrClassDeclaration(name, classType).apply {
             language = if (random.nextFloat() < config.javaRatio) {
                 Language.JAVA
             } else {
                 Language.KOTLIN
             }
+            context.classes.add(this)
             for (i in 0 until config.functionNumRange.random(random)) {
-                functions.add(genFunction(language = language))
+                genFunction(this, language = language)
             }
         }
     }
 
-    override fun genFunction(name: String, language: Language): IrFunctionDeclaration {
+    override fun genFunction(context: IrFunctionContainer, name: String, language: Language): IrFunctionDeclaration {
         return IrFunctionDeclaration(name).apply {
             this.language = language
+            context.functions.add(this)
         }
     }
 }
