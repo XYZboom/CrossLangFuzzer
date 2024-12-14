@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import kotlin.random.Random
 
@@ -52,13 +53,22 @@ class IrGeneratorImpl(
         }
     }
 
-    override fun genClass(): IrClassDeclaration {
-        return IrClassDeclaration(randomName(true)).apply {
+    override fun genClass(name: String): IrClassDeclaration {
+        return IrClassDeclaration(name).apply {
             language = if (random.nextFloat() < config.javaRatio) {
                 Language.JAVA
             } else {
                 Language.KOTLIN
             }
+            for (i in 0 until config.functionNumRange.random(random)) {
+                functions.add(genFunction(language = language))
+            }
+        }
+    }
+
+    override fun genFunction(name: String, language: Language): IrFunctionDeclaration {
+        return IrFunctionDeclaration(name).apply {
+            this.language = language
         }
     }
 }
