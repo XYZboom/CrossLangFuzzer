@@ -7,15 +7,18 @@ import com.github.xyzboom.codesmith.ir.container.IrClassContainer
 import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
+import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import kotlin.random.Random
 
 class IrGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     private val random: Random = Random.Default,
 ): IrGenerator {
-    private val nameLengthRange = 3..8
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
         addAll(KeyWords.kotlin)
@@ -24,7 +27,7 @@ class IrGeneratorImpl(
     }
 
     override fun randomName(startsWithUpper: Boolean): String {
-        val length = nameLengthRange.random(random)
+        val length = config.nameLengthRange.random(random)
         val sb = StringBuilder(
             if (startsWithUpper) {
                 "${upperLetters.random(random)}"
@@ -48,14 +51,63 @@ class IrGeneratorImpl(
         return IrInt(random.nextInt())
     }
 
-    fun randomClassType(): IrClassType {
+    override fun randomClassType(): IrClassType {
         return IrClassType.entries.random(random)
+    }
+
+    override fun randomType(from: IrClassContainer, filter: (IrClassDeclaration) -> Boolean): IrType? {
+        val filtered = from.allClasses.filter(filter)
+        if (filtered.isEmpty()) return null
+        return filtered.random(random).type
     }
 
     override fun genProgram(): IrProgram {
         return IrProgram().apply {
             for (i in 0 until config.classNumRange.random(random)) {
                 genClass(this)
+            }
+        }
+    }
+
+    override fun IrClassDeclaration.genSuperTypes(context: IrClassContainer) {
+        val classType = classType
+        if (classType != IrClassType.INTERFACE) {
+            val superType = randomType(context) {
+                (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it !== this
+            }
+            this.superType = superType ?: IrAny
+        }
+        val chosenIntf = mutableSetOf<IrClassDeclaration>()
+        val willAdd = mutableListOf<IrType>()
+        for (i in 0 until config.classImplNumRange.random(random)) {
+            val now = randomType(context) {
+                it.classType == IrClassType.INTERFACE && it !in chosenIntf && it !== this
+            } as? IrClassifier?
+            if (now == null) break
+            chosenIntf.add(now.classDecl)
+            willAdd.add(now)
+        }
+        implementedTypes.addAll(willAdd)
+        genOverrides()
+    }
+
+    private fun IrClassDeclaration.genOverrides() {
+        val superDecls = ArrayList(implementedTypes)
+        if (superType != null) {
+            superDecls += superType
+        }
+        if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
+            // TODO 递归收集，父类为抽象类时，需要去父类的父类或接口中找没有实现的方法
+            val mustOverride = mutableListOf<IrFunctionDeclaration>()
+
+            for (superType in superDecls) {
+                superType as? IrClassifier ?: continue
+                val functions = superType.classDecl.functions.filter { it.body == null }
+                mustOverride.addAll(functions)
+            }
+
+            for (function in mustOverride) {
+                genOverrideFunction(this, function, this.language)
             }
         }
     }
@@ -69,16 +121,45 @@ class IrGeneratorImpl(
                 Language.KOTLIN
             }
             context.classes.add(this)
+            if (random.nextFloat() < config.classHasSuperProbability) {
+                genSuperTypes(context)
+            }
             for (i in 0 until config.functionNumRange.random(random)) {
-                genFunction(this, language = language)
+                genFunction(
+                    this,
+                    classType == IrClassType.ABSTRACT,
+                    classType == IrClassType.INTERFACE,
+                    language = language
+                )
             }
         }
     }
 
-    override fun genFunction(context: IrFunctionContainer, name: String, language: Language): IrFunctionDeclaration {
+    override fun genFunction(
+        context: IrFunctionContainer,
+        inAbstract: Boolean,
+        inIntf: Boolean,
+        name: String,
+        language: Language
+    ): IrFunctionDeclaration {
         return IrFunctionDeclaration(name).apply {
             this.language = language
             context.functions.add(this)
+            if (!inIntf && (!inAbstract || random.nextBoolean())) {
+                body = IrBlock()
+            }
         }
+    }
+
+    override fun IrClassDeclaration.genOverrideFunction(
+        context: IrFunctionContainer,
+        from: IrFunctionDeclaration,
+        language: Language
+    ) {
+        functions.add(IrFunctionDeclaration(from.name).apply {
+            this.language = language
+            isOverride = true
+            body = IrBlock()
+        })
     }
 }

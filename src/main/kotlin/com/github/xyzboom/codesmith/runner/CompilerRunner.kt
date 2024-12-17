@@ -30,7 +30,8 @@ object CompilerRunner {
         val exitValue = process.exitValue()
         println(exitValue)
         println(process.inputStream.reader().readText())
-        println(process.errorStream.reader().readText())
+        val error = process.errorStream.reader().readText()
+        System.err.println(error)
     }
 
     @JvmStatic
