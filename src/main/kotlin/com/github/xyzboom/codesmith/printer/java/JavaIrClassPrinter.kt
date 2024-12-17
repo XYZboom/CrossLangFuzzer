@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.printer.java
 
+import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
@@ -90,10 +91,18 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
     }
 
     override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
+        if (function.isOverrideStub) {
+            return super.visitFunction(function, data)
+        }
+        val functionContainer: IrElement = elementStack.peek()
         data.append(indent)
         data.append("public ")
         if (function.body == null) {
             data.append("abstract ")
+        } else {
+            if (functionContainer is IrClassDeclaration && functionContainer.classType == INTERFACE) {
+                data.append("default ")
+            }
         }
         data.append("void") // todo: change to real return type
         data.append(" ")
@@ -101,7 +110,7 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
         data.append("(")
         data.append(")")
         if (function.body != null) {
-            data.append("{\n")
+            data.append(" {\n")
             indentCount++
             super.visitFunction(function, data)
             indentCount--

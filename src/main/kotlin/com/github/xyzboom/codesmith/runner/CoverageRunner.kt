@@ -1,18 +1,14 @@
 package com.github.xyzboom.codesmith.runner
 
-import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
-import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.runner.CompilerRunner.kotlincFile
-import org.jacoco.core.analysis.Analyzer
-import org.jacoco.core.analysis.CoverageBuilder
-import org.jacoco.core.analysis.IBundleCoverage
-import org.jacoco.core.analysis.ICounter
+import org.jacoco.core.analysis.*
 import org.jacoco.core.data.ExecutionDataReader
 import org.jacoco.core.data.ExecutionDataStore
 import org.jacoco.core.data.SessionInfoStore
 import org.jacoco.core.tools.ExecFileLoader
 import java.io.File
 import java.io.FileNotFoundException
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.nio.file.Paths
 import kotlin.time.measureTime
@@ -50,6 +46,29 @@ object CoverageRunner {
         agentClass.getDeclaredMethod("getExecutionData", Boolean::class.java).apply { isAccessible = true }
     }
 
+    private class AllowDupCoverageBuilder : CoverageBuilder() {
+        companion object {
+            private val cbClass: Class<CoverageBuilder> by lazy { CoverageBuilder::class.java }
+            private val cbClasses: Field by lazy {
+                cbClass.getDeclaredField("classes").also { it.isAccessible = true }
+            }
+        }
+
+        override fun visitCoverage(coverage: IClassCoverage) {
+            @Suppress("UNCHECKED_CAST")
+            val classes = cbClasses.get(this) as MutableMap<String, IClassCoverage>
+            if (classes.contains(coverage.name)) {
+                val dup = classes[coverage.name]!!
+                if (dup.id == coverage.id) {
+                    return super.visitCoverage(coverage)
+                } else {
+                    return
+                }
+            }
+            return super.visitCoverage(coverage)
+        }
+    }
+
     fun getJacocoRuntimeData(clear: Boolean = true): ExecutionDataStore {
         val data = agentClassGetExecutionDataMethod.invoke(agent, clear) as ByteArray
         val reader = ExecutionDataReader(data.inputStream())
@@ -64,9 +83,9 @@ object CoverageRunner {
     fun getBundleCoverage(
         executionDataStore: ExecutionDataStore,
         analyzePaths: List<String>,
-        classFileFilter: (File) -> Boolean
+        classFileFilter: (File) -> Boolean = { true }
     ): IBundleCoverage {
-        val builder = CoverageBuilder()
+        val builder = AllowDupCoverageBuilder()
         val analyzer = Analyzer(executionDataStore, builder)
         for (analyzePath in analyzePaths) {
             val walker = File(analyzePath).walkTopDown().iterator()
@@ -87,21 +106,25 @@ object CoverageRunner {
     fun getCoverageCounter(projectPath: String): ICounter {
         val tempFile = File.createTempFile("jacoco", ".exec")
         val tempPath = tempFile.absoluteFile
-        val jacocoAgent4Kotlinc = "\"-J-javaagent:$jacocoAgentPath=destfile=$tempPath," +
+        var jacocoAgent4Kotlinc = "-J-javaagent:$jacocoAgentPath=destfile=$tempPath," +
                 "inclnolocationclasses=true," +
-                "exclclassloader=*.reflect.DelegatingClassLoader\""
+                "exclclassloader=*.reflect.DelegatingClassLoader"
+        if (OsName.contains("win")) {
+            jacocoAgent4Kotlinc = "\"${jacocoAgent4Kotlinc}\""
+        }
         val compileTime = measureTime {
             CompilerRunner.compile(
-                jacocoAgent4Kotlinc, projectPath,
+                projectPath,
                 "-d", Paths.get(projectPath, "out").toString(),
+                jacocoAgent4Kotlinc,
                 "-Xuse-javac",
                 "-Xcompile-java",
-                "\"-Xjavac-arguments=-encoding UTF-8\""
+//                "\"-Xjavac-arguments=-encoding UTF-8\""
             )
         }
         val execFileLoader = ExecFileLoader()
         execFileLoader.load(tempFile)
-        val coverageBuilder = CoverageBuilder()
+        val coverageBuilder = AllowDupCoverageBuilder()
         val analyzer = Analyzer(execFileLoader.executionDataStore, coverageBuilder)
         analyzer.analyzeAll(kotlinCompilerJarFile)
         val bundle = coverageBuilder.getBundle("temp")

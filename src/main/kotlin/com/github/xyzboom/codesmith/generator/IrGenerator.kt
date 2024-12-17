@@ -29,9 +29,18 @@ interface IrGenerator {
     fun randomClassType(): IrClassType
     fun randomType(from: IrClassContainer, filter: (IrClassDeclaration) -> Boolean): IrType?
     fun IrClassDeclaration.genSuperTypes(context: IrClassContainer)
+
+    /**
+     * Generate an override function.
+     * @param stillAbstract true if override but still abstract
+     * @param isStub true if generate an override stub for [IrClassDeclaration],
+     *               no source will be print for this function
+     */
     fun IrClassDeclaration.genOverrideFunction(
         context: IrFunctionContainer,
         from: IrFunctionDeclaration,
+        stillAbstract: Boolean,
+        isStub: Boolean,
         language: Language
     )
 }

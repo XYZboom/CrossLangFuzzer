@@ -19,10 +19,9 @@ object CompilerRunner {
         }
     }
 
-    private val os = System.getProperty("os.name").lowercase(Locale.getDefault())
-
     @JvmStatic
     fun compile(vararg args: String) {
+        println("run compiler with args: ${args.joinToString(" ")}")
         val process = ProcessBuilder(kotlincPath, *args).apply {
             environment()["JAVA_HOME"] = System.getProperty("java.home")
         }.start()

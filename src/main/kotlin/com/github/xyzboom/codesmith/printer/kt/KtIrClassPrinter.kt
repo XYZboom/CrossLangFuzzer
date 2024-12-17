@@ -92,6 +92,9 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
     }
 
     override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
+        if (function.isOverrideStub) {
+            return super.visitFunction(function, data)
+        }
         data.append(indent)
         if (function.body == null) {
             data.append("abstract ")

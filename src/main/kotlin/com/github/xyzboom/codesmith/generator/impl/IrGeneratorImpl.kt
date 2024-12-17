@@ -18,7 +18,7 @@ import kotlin.random.Random
 class IrGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     private val random: Random = Random.Default,
-): IrGenerator {
+) : IrGenerator {
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
         addAll(KeyWords.kotlin)
@@ -96,18 +96,31 @@ class IrGeneratorImpl(
         if (superType != null) {
             superDecls += superType
         }
-        if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
-            // TODO 递归收集，父类为抽象类时，需要去父类的父类或接口中找没有实现的方法
-            val mustOverride = mutableListOf<IrFunctionDeclaration>()
+        val canOverrides = mutableListOf<IrFunctionDeclaration>()
 
-            for (superType in superDecls) {
-                superType as? IrClassifier ?: continue
-                val functions = superType.classDecl.functions.filter { it.body == null }
-                mustOverride.addAll(functions)
+        for (superType in superDecls) {
+            superType as? IrClassifier ?: continue
+            val functions = superType.classDecl.functions.filter { it.body == null }
+            canOverrides.addAll(functions)
+        }
+
+        for (function in canOverrides) {
+            val stillAbstract = if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
+                false
+            } else {
+                random.nextBoolean()
             }
-
-            for (function in mustOverride) {
-                genOverrideFunction(this, function, this.language)
+            val isStub = if (stillAbstract) {
+                if (classType == IrClassType.INTERFACE) {
+                    false
+                } else {
+                    random.nextBoolean()
+                }
+            } else {
+                false
+            }
+            if (functions.all { !it.signatureEquals(function) }) {
+                genOverrideFunction(this, function, stillAbstract, isStub, this.language)
             }
         }
     }
@@ -154,12 +167,18 @@ class IrGeneratorImpl(
     override fun IrClassDeclaration.genOverrideFunction(
         context: IrFunctionContainer,
         from: IrFunctionDeclaration,
+        stillAbstract: Boolean,
+        isStub: Boolean,
         language: Language
     ) {
         functions.add(IrFunctionDeclaration(from.name).apply {
             this.language = language
             isOverride = true
-            body = IrBlock()
+            isOverrideStub = isStub
+            override = from
+            if (!stillAbstract) {
+                body = IrBlock()
+            }
         })
     }
 }
