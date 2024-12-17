@@ -91,36 +91,54 @@ class IrGeneratorImpl(
         genOverrides()
     }
 
-    private fun IrClassDeclaration.genOverrides() {
+    override fun IrClassDeclaration.genOverrides() {
         val superDecls = ArrayList(implementedTypes)
         if (superType != null) {
             superDecls += superType
         }
-        val canOverrides = mutableListOf<IrFunctionDeclaration>()
+        val mustOverrides = mutableListOf<List<IrFunctionDeclaration>>()
+        val visited = mutableMapOf<IrFunctionDeclaration.Signature, MutableList<IrFunctionDeclaration>>()
 
         for (superType in superDecls) {
             superType as? IrClassifier ?: continue
-            val functions = superType.classDecl.functions.filter { it.body == null }
-            canOverrides.addAll(functions)
+            for (func in superType.classDecl.functions) {
+                val signature = func.signature
+                visited.getOrPut(signature) { mutableListOf() }.add(func)
+            }
         }
 
-        for (function in canOverrides) {
+        for ((_, functions) in visited) {
+            if (functions.isEmpty()) {
+                continue
+            }
+            val nonAbstractCount = functions.count { it.body != null }
+            if (nonAbstractCount != 1) {
+                mustOverrides.add(functions)
+            } else if (functions.size != 1) {
+                val containerClass = functions.single { it.body != null }.container as IrClassDeclaration
+                // An abstract method in super class will shadow the one in interface
+                if (containerClass.classType == IrClassType.INTERFACE) {
+                    mustOverrides.add(functions)
+                }
+            }
+        }
+
+        for (functions in mustOverrides) {
             val stillAbstract = if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
                 false
             } else {
-                random.nextBoolean()
+                !config.overrideOnlyMustOnes && random.nextBoolean()
             }
             val isStub = if (stillAbstract) {
-                if (classType == IrClassType.INTERFACE) {
-                    false
-                } else {
-                    random.nextBoolean()
-                }
+                // if stillAbstract is true, that means config.overrideOnlyMustOnes is already false
+                // So no more judgment is needed.
+                random.nextBoolean()
             } else {
                 false
             }
-            if (functions.all { !it.signatureEquals(function) }) {
-                genOverrideFunction(this, function, stillAbstract, isStub, this.language)
+            val first = functions.first()
+            if (this.functions.all { !it.signatureEquals(first) }) {
+                genOverrideFunction(this, functions, stillAbstract, isStub, this.language)
             }
         }
     }
@@ -155,7 +173,7 @@ class IrGeneratorImpl(
         name: String,
         language: Language
     ): IrFunctionDeclaration {
-        return IrFunctionDeclaration(name).apply {
+        return IrFunctionDeclaration(name, context).apply {
             this.language = language
             context.functions.add(this)
             if (!inIntf && (!inAbstract || random.nextBoolean())) {
@@ -166,16 +184,16 @@ class IrGeneratorImpl(
 
     override fun IrClassDeclaration.genOverrideFunction(
         context: IrFunctionContainer,
-        from: IrFunctionDeclaration,
+        from: List<IrFunctionDeclaration>,
         stillAbstract: Boolean,
         isStub: Boolean,
         language: Language
     ) {
-        functions.add(IrFunctionDeclaration(from.name).apply {
+        functions.add(IrFunctionDeclaration(from.first().name, context).apply {
             this.language = language
             isOverride = true
             isOverrideStub = isStub
-            override = from
+            override += from
             if (!stillAbstract) {
                 body = IrBlock()
             }

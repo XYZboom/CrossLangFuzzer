@@ -13,7 +13,7 @@ class KtIrClassPrinterTest {
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
-        val func = IrFunctionDeclaration(funcName)
+        val func = IrFunctionDeclaration(funcName, clazz)
         clazz.functions.add(func)
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +

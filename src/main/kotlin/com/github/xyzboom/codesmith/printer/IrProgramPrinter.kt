@@ -11,7 +11,7 @@ import java.io.File
  * Key of result is file name and value is file content.
  */
 @Suppress("unused")
-class IrProgramPrinter: IrPrinter<IrProgram, Map<String, String>> {
+class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
     private val javaClassPrinter = JavaIrClassPrinter()
     private val ktClassPrinter = KtIrClassPrinter()
 
@@ -47,7 +47,12 @@ class IrProgramPrinter: IrPrinter<IrProgram, Map<String, String>> {
 
     fun printToSingle(element: IrProgram): String {
         val map = print(element)
-        val sb = StringBuilder()
+        val sb = StringBuilder(
+            "// JVM_DEFAULT_MODE: all\n" +
+                    "// TARGET_BACKEND: JVM\n" +
+                    "// WITH_JDK\n" +
+                    "// JVM_TARGET: 1.8\n"
+        )
         for ((key, value) in map) {
             sb.append("// FILE: $key\n")
             sb.append(value)

@@ -2,7 +2,6 @@ package com.github.xyzboom.codesmith.runner
 
 import java.io.File
 import java.io.FileNotFoundException
-import java.util.*
 
 object CompilerRunner {
     private val kotlincPath: String = (System.getProperty("kotlincPath")

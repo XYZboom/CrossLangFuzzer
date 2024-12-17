@@ -38,9 +38,11 @@ interface IrGenerator {
      */
     fun IrClassDeclaration.genOverrideFunction(
         context: IrFunctionContainer,
-        from: IrFunctionDeclaration,
+        from: List<IrFunctionDeclaration>,
         stillAbstract: Boolean,
         isStub: Boolean,
         language: Language
     )
+
+    fun IrClassDeclaration.genOverrides()
 }

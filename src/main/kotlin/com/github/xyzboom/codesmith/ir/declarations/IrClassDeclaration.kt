@@ -25,4 +25,8 @@ class IrClassDeclaration(
         fields.forEach { it.accept(visitor, data) }
         functions.forEach { it.accept(visitor, data) }
     }
+
+    override fun toString(): String {
+        return "class $name"
+    }
 }
