@@ -102,6 +102,9 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
         if (function.isOverride) {
             data.append("override ")
         }
+        if (!function.isFinal) {
+            data.append("open ")
+        }
         data.append("fun ")
         data.append(function.name)
         data.append("(")

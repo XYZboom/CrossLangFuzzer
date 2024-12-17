@@ -13,6 +13,7 @@ class IrFunctionDeclaration(
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
     var override = mutableListOf<IrFunctionDeclaration>()
+    var isFinal = false
     val parameters = mutableListOf<IrParameter>()
 
     class Signature(

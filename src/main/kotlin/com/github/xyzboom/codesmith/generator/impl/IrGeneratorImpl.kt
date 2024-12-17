@@ -97,6 +97,7 @@ class IrGeneratorImpl(
             superDecls += superType
         }
         val mustOverrides = mutableListOf<List<IrFunctionDeclaration>>()
+        val canOverride = mutableListOf<List<IrFunctionDeclaration>>()
         val visited = mutableMapOf<IrFunctionDeclaration.Signature, MutableList<IrFunctionDeclaration>>()
 
         for (superType in superDecls) {
@@ -112,18 +113,34 @@ class IrGeneratorImpl(
                 continue
             }
             val nonAbstractCount = functions.count { it.body != null }
+            var addedToMust = false
             if (nonAbstractCount != 1) {
                 mustOverrides.add(functions)
+                addedToMust = true
             } else if (functions.size != 1) {
                 val containerClass = functions.single { it.body != null }.container as IrClassDeclaration
                 // An abstract method in super class will shadow the one in interface
                 if (containerClass.classType == IrClassType.INTERFACE) {
                     mustOverrides.add(functions)
+                    addedToMust = true
                 }
+            }
+            if (!addedToMust && functions.all { !it.isFinal }) {
+                canOverride.add(functions)
             }
         }
 
         for (functions in mustOverrides) {
+            val first = functions.first()
+            if (this.functions.all { !it.signatureEquals(first) }) {
+                genOverrideFunction(
+                    this, functions,
+                    stillAbstract = false, isStub = false, language = this.language
+                )
+            }
+        }
+
+        for (functions in canOverride) {
             val stillAbstract = if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
                 false
             } else {
@@ -179,6 +196,7 @@ class IrGeneratorImpl(
             if (!inIntf && (!inAbstract || random.nextBoolean())) {
                 body = IrBlock()
             }
+            isFinal = random.nextBoolean()
         }
     }
 
@@ -197,6 +215,7 @@ class IrGeneratorImpl(
             if (!stillAbstract) {
                 body = IrBlock()
             }
+            isFinal = random.nextBoolean()
         })
     }
 }
