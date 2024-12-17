@@ -10,6 +10,7 @@ import java.io.File
  * Printer for whole program.
  * Key of result is file name and value is file content.
  */
+@Suppress("unused")
 class IrProgramPrinter: IrPrinter<IrProgram, Map<String, String>> {
     private val javaClassPrinter = JavaIrClassPrinter()
     private val ktClassPrinter = KtIrClassPrinter()
@@ -23,7 +24,11 @@ class IrProgramPrinter: IrPrinter<IrProgram, Map<String, String>> {
             }
             result[fileName] = content
         }
-        result["main.kt"] = "fun main(args: Array<String>) {\n}"
+        result["main.kt"] = "fun box(): String {\n" +
+                "\treturn \"OK\"" +
+                "}\n" +
+                "fun main(args: Array<String>) {\n" +
+                "}"
         return result
     }
 
@@ -38,5 +43,16 @@ class IrProgramPrinter: IrPrinter<IrProgram, Map<String, String>> {
             file.createNewFile()
             file.writeText(content)
         }
+    }
+
+    fun printToSingle(element: IrProgram): String {
+        val map = print(element)
+        val sb = StringBuilder()
+        for ((key, value) in map) {
+            sb.append("// FILE: $key\n")
+            sb.append(value)
+            sb.append("\n")
+        }
+        return sb.toString()
     }
 }

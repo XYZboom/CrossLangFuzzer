@@ -7,4 +7,7 @@ interface IrClassContainer {
      * Top-level classes
      */
     val classes: MutableList<IrClassDeclaration>
+    val superContainer: IrClassContainer?
+    val allClasses: List<IrClassDeclaration>
+        get() = classes + (superContainer?.classes ?: emptyList())
 }

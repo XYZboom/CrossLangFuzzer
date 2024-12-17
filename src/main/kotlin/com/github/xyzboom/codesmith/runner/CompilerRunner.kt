@@ -19,10 +19,9 @@ object CompilerRunner {
         }
     }
 
-    private val os = System.getProperty("os.name").lowercase(Locale.getDefault())
-
     @JvmStatic
     fun compile(vararg args: String) {
+        println("run compiler with args: ${args.joinToString(" ")}")
         val process = ProcessBuilder(kotlincPath, *args).apply {
             environment()["JAVA_HOME"] = System.getProperty("java.home")
         }.start()
@@ -30,7 +29,8 @@ object CompilerRunner {
         val exitValue = process.exitValue()
         println(exitValue)
         println(process.inputStream.reader().readText())
-        println(process.errorStream.reader().readText())
+        val error = process.errorStream.reader().readText()
+        System.err.println(error)
     }
 
     @JvmStatic
