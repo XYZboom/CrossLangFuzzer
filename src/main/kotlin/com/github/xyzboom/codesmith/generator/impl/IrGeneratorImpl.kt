@@ -151,7 +151,7 @@ class IrGeneratorImpl(
                 // So no more judgment is needed.
                 random.nextBoolean()
             } else {
-                false
+                true
             }
             val first = functions.first()
             if (this.functions.all { !it.signatureEquals(first) }) {
@@ -212,7 +212,7 @@ class IrGeneratorImpl(
             isOverride = true
             isOverrideStub = isStub
             override += from
-            if (!stillAbstract) {
+            if (!stillAbstract && !isStub) {
                 body = IrBlock()
             }
             isFinal = random.nextBoolean()

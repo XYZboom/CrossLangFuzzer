@@ -17,7 +17,7 @@ data class GeneratorConfig(
      * Such as: there are unimplemented functions in super types;
      * there are conflict functions in super types;
      */
-    val overrideOnlyMustOnes: Boolean = false
+    val overrideOnlyMustOnes: Boolean = false,
 ) {
     companion object {
         @JvmStatic

@@ -140,4 +140,55 @@ class IrGeneratorImplTest {
             shouldHasBody = true, shouldBeStub = false
         )
     }
+
+    @Test
+    fun testShouldOverrideWhenSuperSuperShadowDefaultImplInIntf() {
+        val generator = IrGeneratorImpl(
+            GeneratorConfig(overrideOnlyMustOnes = true)
+        )
+        val superName = "GrandParent"
+        val superClass = IrClassDeclaration(superName, IrClassType.ABSTRACT)
+        val functionName = "func"
+        val function = IrFunctionDeclaration(functionName, superClass)
+        function.body = IrBlock()
+        superClass.functions.add(function)
+
+        val subClass = IrClassDeclaration("Parent", IrClassType.FINAL)
+        subClass.superType = superClass.type
+        with(generator) {
+            subClass.genOverrides()
+        }
+        assertEquals(
+            1, subClass.functions.size,
+            "An stub override function should be generate for subtype when overrideOnlyMustOnes is true"
+        )
+        subClass.functions.single().assertIsOverride(
+            listOf(function),
+            shouldHasBody = false,
+            shouldBeStub = true
+        )
+
+        val intfName = "I0"
+        val intfClass = IrClassDeclaration(intfName, IrClassType.INTERFACE)
+        val functionInIntf = IrFunctionDeclaration(functionName, intfClass)
+        functionInIntf.body = IrBlock()
+        intfClass.functions.add(functionInIntf)
+
+        val subSubName = "Child"
+        val subSubClass = IrClassDeclaration(subSubName, IrClassType.ABSTRACT)
+        subSubClass.superType = subClass.type
+        subSubClass.implementedTypes.add(intfClass.type)
+        with(generator) {
+            subSubClass.genOverrides()
+        }
+        assertEquals(
+            1, subSubClass.functions.size,
+            "An override function should be generate for subSubtype!"
+        )
+        subSubClass.functions.single().assertIsOverride(
+            listOf(function),
+            shouldHasBody = true,
+            shouldBeStub = false
+        )
+    }
 }
