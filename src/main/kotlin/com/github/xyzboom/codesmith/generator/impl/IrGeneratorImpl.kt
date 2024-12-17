@@ -13,17 +13,31 @@ import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
 class IrGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     private val random: Random = Random.Default,
 ) : IrGenerator {
+
+    private val logger = KotlinLogging.logger {}
+
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
         addAll(KeyWords.kotlin)
         addAll(KeyWords.builtins)
         addAll(KeyWords.windows)
+    }
+
+    private fun StringBuilder.traceFunction(function: IrFunctionDeclaration) {
+        append(function.toString())
+        append(" from ")
+        val container = function.container
+        if (container is IrClassDeclaration) {
+            append("class ")
+            append(container.name)
+        }
     }
 
     override fun randomName(startsWithUpper: Boolean): String {
@@ -62,10 +76,12 @@ class IrGeneratorImpl(
     }
 
     override fun genProgram(): IrProgram {
+        logger.trace { "start gen program" }
         return IrProgram().apply {
             for (i in 0 until config.classNumRange.random(random)) {
                 genClass(this)
             }
+            logger.trace { "finish gen program" }
         }
     }
 
@@ -92,6 +108,7 @@ class IrGeneratorImpl(
     }
 
     override fun IrClassDeclaration.genOverrides() {
+        logger.trace { "start gen overrides for: ${this.name}" }
         val superDecls = ArrayList(implementedTypes)
         if (superType != null) {
             superDecls += superType
@@ -108,9 +125,21 @@ class IrGeneratorImpl(
             }
         }
 
-        for ((_, functions) in visited) {
+        for ((signature, functions) in visited) {
             if (functions.isEmpty()) {
                 continue
+            }
+            logger.trace { "signature: ${signature.name}(${signature.parameterTypes.joinToString(", ")})" }
+            logger.trace {
+                val sb = StringBuilder()
+                sb.append("functions: \n")
+
+                for (function in functions) {
+                    sb.append("\t\t")
+                    sb.traceFunction(function)
+                    sb.append("\n")
+                }
+                sb.toString()
             }
             val nonAbstractCount = functions.count { it.body != null }
             var addedToMust = false
@@ -125,19 +154,20 @@ class IrGeneratorImpl(
                     addedToMust = true
                 }
             }
+            logger.trace { "must override: $addedToMust" }
             if (!addedToMust && functions.all { !it.isFinal }) {
                 canOverride.add(functions)
+                logger.trace { "can override" }
             }
         }
 
         for (functions in mustOverrides) {
             val first = functions.first()
-            if (this.functions.all { !it.signatureEquals(first) }) {
-                genOverrideFunction(
-                    this, functions,
-                    stillAbstract = false, isStub = false, language = this.language
-                )
-            }
+            require(this.functions.all { !it.signatureEquals(first) })
+            genOverrideFunction(
+                this, functions,
+                stillAbstract = false, isStub = false, language = this.language
+            )
         }
 
         for (functions in canOverride) {
@@ -190,6 +220,16 @@ class IrGeneratorImpl(
         name: String,
         language: Language
     ): IrFunctionDeclaration {
+        logger.trace {
+            val sb = StringBuilder("gen function $name for ")
+            if (context is IrClassDeclaration) {
+                sb.append("class ")
+                sb.append(context.name)
+            } else {
+                sb.append("program.")
+            }
+            sb.toString()
+        }
         return IrFunctionDeclaration(name, context).apply {
             this.language = language
             context.functions.add(this)
@@ -207,6 +247,15 @@ class IrGeneratorImpl(
         isStub: Boolean,
         language: Language
     ) {
+        logger.trace {
+            val sb = StringBuilder("gen override for class: $name\n")
+            for (func in from) {
+                sb.append("\t\t")
+                sb.traceFunction(func)
+                sb.append("\n")
+            }
+            sb.toString()
+        }
         functions.add(IrFunctionDeclaration(from.first().name, context).apply {
             this.language = language
             isOverride = true

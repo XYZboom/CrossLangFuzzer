@@ -104,6 +104,9 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
                 data.append("default ")
             }
         }
+        if (function.isFinal) {
+            data.append("final ")
+        }
         data.append("void") // todo: change to real return type
         data.append(" ")
         data.append(function.name)

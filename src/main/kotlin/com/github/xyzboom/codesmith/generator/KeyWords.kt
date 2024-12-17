@@ -54,9 +54,13 @@ object KeyWords {
         "try",
         "void",
         "volatile",
-        "while"
+        "while",
+        "Object"
     )
-    val kotlin = listOf("as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when")
+    val kotlin = listOf(
+        "as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when",
+        "Unit"
+    )
     val builtins = listOf("Object") + builtinTypes.map { it.name }
     val windows = listOf("nul")
 }

@@ -55,6 +55,7 @@ class IrFunctionDeclaration(
     }
 
     override fun toString(): String {
-        return "${if (body == null) "abstract " else ""}fun $name"
+        return "${if (body == null) "abstract " else ""}fun $name [" +
+                "isOverride=$isOverride, isOverrideStub=$isOverrideStub, isFinal=$isFinal]"
     }
 }
