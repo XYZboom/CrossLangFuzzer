@@ -43,7 +43,11 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
     }
 
     override fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String {
-        val sb = StringBuilder()
+        val sb = if (superType != null || implList.isNotEmpty()) {
+            StringBuilder(" ")
+        } else {
+            StringBuilder()
+        }
         if (superType != null || implList.isNotEmpty()) {
             sb.append(": ")
         }
@@ -79,7 +83,6 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
         data.append("public ")
         data.append(printIrClassType(clazz.classType))
         data.append(clazz.name)
-        data.append(" ")
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
         data.append(" {\n")
 
@@ -93,7 +96,10 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
 
     override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
         if (function.isOverrideStub) {
-            return super.visitFunction(function, data)
+            data.append(indent)
+            data.append("// stub\n")
+            data.append(indent)
+            data.append("/*\n")
         }
         data.append(indent)
         if (function.body == null) {
@@ -119,5 +125,9 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
             data.append("}")
         }
         data.append("\n")
+        if (function.isOverrideStub) {
+            data.append(indent)
+            data.append("*/\n")
+        }
     }
 }

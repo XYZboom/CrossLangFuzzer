@@ -15,7 +15,8 @@ class IrGeneratorImplTest {
     private fun IrFunctionDeclaration.assertIsOverride(
         shouldFrom: List<IrFunctionDeclaration>,
         shouldHasBody: Boolean,
-        shouldBeStub: Boolean
+        shouldBeStub: Boolean,
+        shouldBeFinal: Boolean = false
     ) {
         assertTrue(isOverride)
         for (func in shouldFrom) {
@@ -23,14 +24,24 @@ class IrGeneratorImplTest {
         }
         assertEquals(shouldFrom.size, override.size)
         assertContentEquals(shouldFrom.sortedBy { it.hashCode() }, override.sortedBy { it.hashCode() })
-        assertEquals(shouldHasBody, body != null)
-        assertEquals(shouldBeStub, isOverrideStub)
+        assertEquals(
+            shouldHasBody, body != null,
+            "$name should ${if (shouldHasBody) "" else "not "}have a body"
+        )
+        assertEquals(
+            shouldBeStub, isOverrideStub,
+            "$name should ${if (shouldBeStub) "" else "not "}be a stub"
+        )
+        assertEquals(
+            shouldBeFinal, isFinal,
+            "$name should ${if (shouldBeFinal) "" else "not "}be final"
+        )
     }
 
     @Test
     fun testGenOverrideFromAbstractSuperAndAnInterface0() {
         val generator = IrGeneratorImpl(
-            GeneratorConfig(overrideOnlyMustOnes = true)
+            GeneratorConfig.test
         )
         val superName = "Parent"
         val superClass = IrClassDeclaration(superName, IrClassType.ABSTRACT)
@@ -58,7 +69,7 @@ class IrGeneratorImplTest {
     @Test
     fun testGenOverrideWhenSuperFunctionsAreConflict() {
         val generator = IrGeneratorImpl(
-            GeneratorConfig(overrideOnlyMustOnes = true)
+            GeneratorConfig.test
         )
         val superName = "Parent"
         val superClass = IrClassDeclaration(superName, IrClassType.ABSTRACT)
@@ -88,7 +99,7 @@ class IrGeneratorImplTest {
     @Test
     fun testGenOverrideForAbstractWhenSuperFunctionsAreConflict() {
         val generator = IrGeneratorImpl(
-            GeneratorConfig(overrideOnlyMustOnes = true)
+            GeneratorConfig.test
         )
         val superName = "Parent"
         val superClass = IrClassDeclaration(superName, IrClassType.ABSTRACT)
@@ -118,7 +129,7 @@ class IrGeneratorImplTest {
     @Test
     fun testShouldOverrideWhenSuperAbstractShadowDefaultImplInIntf() {
         val generator = IrGeneratorImpl(
-            GeneratorConfig(overrideOnlyMustOnes = true)
+            GeneratorConfig.test
         )
         val superName = "Parent"
         val superClass = IrClassDeclaration(superName, IrClassType.ABSTRACT)
@@ -147,7 +158,7 @@ class IrGeneratorImplTest {
     @Test
     fun testShouldOverrideWhenSuperSuperShadowDefaultImplInIntf() {
         val generator = IrGeneratorImpl(
-            GeneratorConfig(overrideOnlyMustOnes = true)
+            GeneratorConfig.test
         )
         val superName = "GrandParent"
         val superClass = IrClassDeclaration(superName, IrClassType.ABSTRACT)
@@ -168,7 +179,7 @@ class IrGeneratorImplTest {
         val funcInSub = subClass.functions.single()
         funcInSub.assertIsOverride(
             listOf(function),
-            shouldHasBody = false,
+            shouldHasBody = true,
             shouldBeStub = true
         )
 
@@ -199,7 +210,7 @@ class IrGeneratorImplTest {
     @Test
     fun testGenOverrideComplex() {
         val generator = IrGeneratorImpl(
-            GeneratorConfig(overrideOnlyMustOnes = true)
+            GeneratorConfig.test
         )
 
         /**
@@ -247,7 +258,7 @@ class IrGeneratorImplTest {
         val funcInAbsP = absP.functions.single()
         funcInAbsP.assertIsOverride(
             listOf(funcInGrandP),
-            shouldHasBody = false,
+            shouldHasBody = true,
             shouldBeStub = true
         )
 
@@ -256,7 +267,7 @@ class IrGeneratorImplTest {
         }
         assertEquals(
             1, openC.functions.size,
-            "An stub override function should be generate for absP when overrideOnlyMustOnes is true"
+            "An override function should be generate for openC when overrideOnlyMustOnes is true"
         )
         openC.functions.single().assertIsOverride(
             listOf(funcInAbsP, funcInI1),
@@ -264,4 +275,156 @@ class IrGeneratorImplTest {
             shouldBeStub = false
         )
     }
+
+    @Test
+    fun testStubForFinalIsStillFinal() {
+        val generator = IrGeneratorImpl(
+            GeneratorConfig.test
+        )
+        val superClass = IrClassDeclaration("P", IrClassType.OPEN)
+        val childClass = IrClassDeclaration("C", IrClassType.FINAL)
+        childClass.superType = superClass.type
+
+        val funcInSuper = IrFunctionDeclaration("func", superClass)
+        funcInSuper.body = IrBlock()
+        funcInSuper.isFinal = true
+        superClass.functions.add(funcInSuper)
+
+        with(generator) {
+            childClass.genOverrides()
+        }
+
+        assertEquals(1, childClass.functions.size)
+        val function = childClass.functions.single()
+        function.assertIsOverride(
+            listOf(funcInSuper),
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = true
+        )
+    }
+
+    @Test
+    fun testStubForFinalStubIsStillFinal() {
+        val generator = IrGeneratorImpl(
+            GeneratorConfig.test
+        )
+        val superClass = IrClassDeclaration("P", IrClassType.OPEN)
+        val childClass = IrClassDeclaration("C", IrClassType.OPEN)
+        childClass.superType = superClass.type
+
+        val funcInSuper = IrFunctionDeclaration("func", superClass)
+        funcInSuper.body = null
+        funcInSuper.isOverrideStub = true
+        funcInSuper.isOverride = true
+        funcInSuper.isFinal = true
+        superClass.functions.add(funcInSuper)
+
+        with(generator) {
+            childClass.genOverrides()
+        }
+
+        assertEquals(1, childClass.functions.size)
+        val function = childClass.functions.single()
+        function.assertIsOverride(
+            listOf(funcInSuper),
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = true
+        )
+    }
+
+    @Test
+    fun testChildAbstractInIntfShouldShadowParentIntf() {
+        val generator = IrGeneratorImpl(GeneratorConfig.test)
+
+        val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
+        val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
+        i1.implementedTypes.add(i0.type)
+
+        val funcInI0 = IrFunctionDeclaration("func", i0)
+        funcInI0.body = IrBlock()
+        val funcInI1 = IrFunctionDeclaration("func", i1)
+        funcInI1.override.add(funcInI0)
+        funcInI1.isOverride = true
+
+        i0.functions.add(funcInI0)
+        i1.functions.add(funcInI1)
+
+        val clazz = IrClassDeclaration("C", IrClassType.FINAL)
+        clazz.implementedTypes.add(i0.type)
+        clazz.implementedTypes.add(i1.type)
+
+        with(generator) {
+            clazz.genOverrides()
+        }
+
+        assertEquals(1, clazz.functions.size)
+        clazz.functions.single().assertIsOverride(
+            listOf(funcInI1),
+            shouldHasBody = true,
+            shouldBeStub = false,
+            shouldBeFinal = false
+        )
+    }
+
+    @Test
+    fun testMustOverrideWhenSuperStubConflictWithIntf() {
+        val generator = IrGeneratorImpl(GeneratorConfig.test)
+
+        /**
+         * I0&
+         * I1: I0#
+         * I2: I0#
+         * P: I2^
+         * C: P, I1
+         * conflict in C from I1 and I2
+         * & means abstract function
+         * # means implement function
+         * ^ means stub function
+         */
+        val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
+        val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
+        val i2 = IrClassDeclaration("I2", IrClassType.INTERFACE)
+        val p = IrClassDeclaration("P", IrClassType.OPEN)
+        val c = IrClassDeclaration("C", IrClassType.FINAL)
+        i1.implementedTypes.add(i0.type)
+        i2.implementedTypes.add(i0.type)
+        p.implementedTypes.add(i2.type)
+        c.superType = p.type
+        c.implementedTypes.add(i1.type)
+
+        val funcInI0 = IrFunctionDeclaration("func", i0).apply {
+            i0.functions.add(this)
+        }
+        val funcInI1 = IrFunctionDeclaration("func", i1).apply {
+            body = IrBlock()
+            isOverride = true
+            override.add(funcInI0)
+            i1.functions.add(this)
+        }
+        val funcInI2 = IrFunctionDeclaration("func", i2).apply {
+            body = IrBlock()
+            isOverride = true
+            override.add(funcInI0)
+            i2.functions.add(this)
+        }
+        val funcInP = IrFunctionDeclaration("func", p).apply {
+            body = IrBlock()
+            isOverride = true
+            isOverrideStub = true
+            override.add(funcInI2)
+            p.functions.add(this)
+        }
+        with(generator) {
+            c.genOverrides()
+        }
+        c.functions.single().assertIsOverride(
+            listOf(funcInP, funcInI1),
+            shouldHasBody = true,
+            shouldBeStub = false,
+            shouldBeFinal = false
+        )
+    }
+
 }

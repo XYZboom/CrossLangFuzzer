@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrClassContainer
 import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
+import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
@@ -32,17 +33,18 @@ interface IrGenerator {
 
     /**
      * Generate an override function.
-     * @param stillAbstract true if override but still abstract
+     * @param makeAbstract true if override but still abstract
      * @param isStub true if generate an override stub for [IrClassDeclaration],
      *               no source will be print for this function
      */
     fun IrClassDeclaration.genOverrideFunction(
-        context: IrFunctionContainer,
         from: List<IrFunctionDeclaration>,
-        stillAbstract: Boolean,
+        makeAbstract: Boolean,
         isStub: Boolean,
+        isFinal: Boolean?,
         language: Language
     )
 
     fun IrClassDeclaration.genOverrides()
+    fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap
 }

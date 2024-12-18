@@ -1,5 +1,7 @@
 package com.github.xyzboom.codesmith.generator
 
+import org.jetbrains.annotations.TestOnly
+
 data class GeneratorConfig(
     val nameLengthRange: IntRange = 3..8,
     /**
@@ -18,9 +20,17 @@ data class GeneratorConfig(
      * there are conflict functions in super types;
      */
     val overrideOnlyMustOnes: Boolean = false,
+    val noFinalFunction: Boolean = false
 ) {
     companion object {
         @JvmStatic
         val default = GeneratorConfig()
+
+        @JvmStatic
+        @get:TestOnly
+        val test = GeneratorConfig(
+            overrideOnlyMustOnes = true,
+            noFinalFunction = true
+        )
     }
 }

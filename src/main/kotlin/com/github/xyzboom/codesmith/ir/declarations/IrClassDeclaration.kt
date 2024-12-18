@@ -7,12 +7,18 @@ import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
+typealias SuperAndIntfFunctions = Pair<IrFunctionDeclaration?, MutableList<IrFunctionDeclaration>>
+//                                ^^^^^^^^^^^^^^^^^^^^^ decl in super
+//                                functions in interfaces ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+typealias FunctionSignatureMap = Map<IrFunctionDeclaration.Signature, SuperAndIntfFunctions>
+
+
 class IrClassDeclaration(
     name: String,
     var classType: IrClassType,
     val fields: MutableList<IrFieldDeclaration> = mutableListOf(),
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
-): IrDeclaration(name), IrFunctionContainer {
+) : IrDeclaration(name), IrFunctionContainer {
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
     val type: IrClassifier = IrSimpleClassifier(this)

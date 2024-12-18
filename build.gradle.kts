@@ -49,6 +49,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
+    systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
 }
 kotlin {
     jvmToolchain(8)

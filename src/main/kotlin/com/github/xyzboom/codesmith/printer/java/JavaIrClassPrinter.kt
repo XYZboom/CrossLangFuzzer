@@ -13,7 +13,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
 
-class JavaIrClassPrinter: AbstractIrClassPrinter() {
+class JavaIrClassPrinter : AbstractIrClassPrinter() {
     companion object {
         private val builtInNames = buildMap {
             put(IrAny, "Object")
@@ -51,7 +51,11 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
     }
 
     override fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String {
-        val sb = StringBuilder()
+        val sb = if (superType != null || implList.isNotEmpty()) {
+            StringBuilder(" ")
+        } else {
+            StringBuilder()
+        }
         if (superType != null) {
             sb.append("extends ")
             sb.append(printType(superType))
@@ -78,7 +82,6 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
         data.append("public ")
         data.append(printIrClassType(clazz.classType))
         data.append(clazz.name)
-        data.append(" ")
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
         data.append(" {\n")
 
@@ -92,7 +95,10 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
 
     override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
         if (function.isOverrideStub) {
-            return super.visitFunction(function, data)
+            data.append(indent)
+            data.append("// stub\n")
+            data.append(indent)
+            data.append("/*\n")
         }
         val functionContainer: IrElement = elementStack.peek()
         data.append(indent)
@@ -123,5 +129,9 @@ class JavaIrClassPrinter: AbstractIrClassPrinter() {
             data.append(";")
         }
         data.append("\n")
+        if (function.isOverrideStub) {
+            data.append(indent)
+            data.append("*/\n")
+        }
     }
 }
