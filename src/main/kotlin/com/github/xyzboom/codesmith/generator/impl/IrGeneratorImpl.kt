@@ -109,24 +109,26 @@ class IrGeneratorImpl(
         genOverrides()
     }
 
+    private fun IrFunctionDeclaration.traverseOverride(visitor: (IrFunctionDeclaration) -> Unit) {
+        logger.trace {
+            val sb = StringBuilder("start traverse: ")
+            sb.traceFunction(this)
+            sb.toString()
+        }
+        override.forEach {
+            visitor(it)
+            it.traverseOverride(visitor)
+        }
+        logger.trace {
+            val sb = StringBuilder("end traverse: ")
+            sb.traceFunction(this)
+            sb.toString()
+        }
+    }
+
     override fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
 
-        fun IrFunctionDeclaration.traverse(visitor: (IrFunctionDeclaration) -> Unit) {
-            logger.trace {
-                val sb = StringBuilder("start traverse: ")
-                sb.traceFunction(this)
-                sb.toString()
-            }
-            override.forEach {
-                visitor(it)
-                it.traverse(visitor)
-            }
-            logger.trace {
-                val sb = StringBuilder("end traverse: ")
-                sb.traceFunction(this)
-                sb.toString()
-            }
-        }
+
 
         logger.trace { "start collectFunctionSignatureMap for class: $name" }
         val result = mutableMapOf<IrFunctionDeclaration.Signature,
@@ -145,7 +147,7 @@ class IrGeneratorImpl(
             val willRemove = mutableListOf<IrFunctionDeclaration>()
             for (func in funcs) {
                 var found = false
-                func.traverse {
+                func.traverseOverride {
                     if (it in funcs) {
                         found = true
                         logger.trace {
@@ -222,23 +224,56 @@ class IrGeneratorImpl(
                     mustOverrides.add(pair)
                     notMustOverride = false
                 }
-            } else {
-                if (superFunction.isFinal) {
-                    if (nonAbstractCount > 0) {
-                        logger.trace { "final conflict and could not override, change to Java" }
-                        language = Language.JAVA
+            } else if (superFunction.isFinal) {
+                if (nonAbstractCount > 0) {
+                    logger.trace { "final conflict and could not override, change to Java" }
+                    language = Language.JAVA
+                }
+                stubOverride.add(pair)
+                notMustOverride = false
+            } else if (superFunction.body == null) {
+                mustOverrides.add(pair)
+                notMustOverride = false
+            } else if (nonAbstractCount > 0) {
+                logger.debug { "must override because super and intf is conflict and no final" }
+                mustOverrides.add(pair)
+                notMustOverride = false
+            } else if (superFunction.isOverrideStub) {
+                /**
+                 * handle such situation:
+                 * ```kotlin
+                 * interface I0 {
+                 *     fun func() {}
+                 * }
+                 * interface I1: I0 {
+                 *     abstract override fun func()
+                 * }
+                 * class P: I0
+                 * class C: P(), I1
+                 * ```
+                 * A stub of 'func' will be generated in class 'P',
+                 * but 'func' in I1 actually override it, so we should do a must override for 'func'.
+                 */
+                val superNonStubDeepOverrides = mutableListOf<IrFunctionDeclaration>()
+                superFunction.traverseOverride {
+                    if (!it.isOverrideStub) {
+                        superNonStubDeepOverrides.add(it)
                     }
-                    stubOverride.add(pair)
-                    notMustOverride = false
-                } else if (superFunction.body == null) {
-                    mustOverrides.add(pair)
-                    notMustOverride = false
-                } else if (nonAbstractCount > 0) {
-                    logger.debug { "must override because super and intf is conflict and no final" }
+                }
+
+                for (func in functions) {
+                    func.traverseOverride {
+                        if (it in superNonStubDeepOverrides) {
+                            superNonStubDeepOverrides.remove(it)
+                        }
+                    }
+                }
+                if (superNonStubDeepOverrides.isEmpty()) {
                     mustOverrides.add(pair)
                     notMustOverride = false
                 }
             }
+
             logger.trace { "not must override: $notMustOverride" }
             if (notMustOverride) {
                 require(pair.first?.isFinal != true)
