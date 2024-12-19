@@ -28,7 +28,7 @@ data class GeneratorConfig(
 
         @JvmStatic
         @get:TestOnly
-        val test = GeneratorConfig(
+        val testDefault = GeneratorConfig(
             overrideOnlyMustOnes = true,
             noFinalFunction = true
         )

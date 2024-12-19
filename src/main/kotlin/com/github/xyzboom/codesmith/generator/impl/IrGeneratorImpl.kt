@@ -219,7 +219,9 @@ class IrGeneratorImpl(
             logger.debug { "nonAbstractCount: $nonAbstractCount" }
             var notMustOverride = true
             if (superFunction == null) {
-                if (nonAbstractCount != 1) {
+                if (functions.size > 1 || nonAbstractCount != 1) {
+                    //             ^^^ conflict in intf
+                    //                    abstract in intf ^^^^
                     logger.debug { "must override because [conflict or all abstract] and no final" }
                     mustOverrides.add(pair)
                     notMustOverride = false

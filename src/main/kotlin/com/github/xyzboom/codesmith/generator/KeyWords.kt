@@ -59,7 +59,7 @@ object KeyWords {
     )
     val kotlin = listOf(
         "as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when",
-        "Unit"
+        "Unit", "Any"
     )
     val builtins = listOf("Object") + builtinTypes.map { it.name }
     val windows = listOf("nul")
