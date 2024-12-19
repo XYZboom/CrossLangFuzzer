@@ -6,7 +6,8 @@ sealed class IrBuiltInType: IrType() {
     companion object {
         val ALL_BUILTINS = listOf(
             IrAny,
-            IrNothing
+            IrNothing,
+            IrUnit
         )
     }
 }

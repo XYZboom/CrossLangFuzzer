@@ -28,6 +28,8 @@ class IrGeneratorImpl(
         addAll(KeyWords.windows)
     }
 
+    private val subTypeMap = hashMapOf<String, MutableList<IrClassDeclaration>>()
+
     private fun StringBuilder.traceFunction(function: IrFunctionDeclaration) {
         append(function.toString())
         append(" from ")
@@ -89,6 +91,10 @@ class IrGeneratorImpl(
             val superType = randomType(context) {
                 (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it !== this
             }
+            if (superType != null) {
+                val superName = (superType as IrClassifier).classDecl.name
+                subTypeMap.getOrPut(superName) { mutableListOf() }.add(this)
+            }
             this.superType = superType ?: IrAny
         }
         val chosenIntf = mutableSetOf<IrClassDeclaration>()
@@ -98,6 +104,7 @@ class IrGeneratorImpl(
                 it.classType == IrClassType.INTERFACE && it !in chosenIntf && it !== this
             } as? IrClassifier?
             if (now == null) break
+            subTypeMap.getOrPut(now.classDecl.name) { mutableListOf() }.add(this)
             chosenIntf.add(now.classDecl)
             willAdd.add(now)
         }
@@ -383,6 +390,7 @@ class IrGeneratorImpl(
             for (i in 0 until config.functionParameterNumRange.random(random)) {
                 parameterList.parameters.add(genFunctionParameter(classContainer))
             }
+            genFunctionReturnType(classContainer, this)
         }
     }
 
@@ -410,6 +418,7 @@ class IrGeneratorImpl(
             isOverrideStub = isStub
             override += from
             parameterList = first.parameterList.copyForOverride()
+            returnType = first.returnType
             if (!makeAbstract) {
                 body = IrBlock()
 
@@ -432,6 +441,23 @@ class IrGeneratorImpl(
         name: String
     ): IrParameter {
         val chooseType = randomType(classContainer) { true } ?: IrAny
-        return  IrParameter(name, chooseType)
+        logger.trace { "gen parameter: $name, $chooseType" }
+        return IrParameter(name, chooseType)
+    }
+
+    fun genFunctionReturnType(
+        classContainer: IrContainer,
+        target: IrFunctionDeclaration
+    ) {
+        val chooseType = randomType(classContainer) { true }
+        logger.trace {
+            val sb = StringBuilder("gen return type for: ")
+            sb.traceFunction(target)
+            sb.append(". return type is: $chooseType")
+            sb.toString()
+        }
+        if (chooseType != null) {
+            target.returnType = chooseType
+        }
     }
 }

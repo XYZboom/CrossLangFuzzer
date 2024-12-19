@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.printer.kt
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
@@ -11,6 +12,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
 
 class KtIrClassPrinter : AbstractIrClassPrinter() {
@@ -19,6 +21,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         private val builtInNames = buildMap {
             put(IrAny, "Any")
             put(IrNothing, "Nothing")
+            put(IrUnit, "Unit")
         }
     }
 
@@ -117,7 +120,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         data.append("(")
         visitParameterList(function.parameterList, data)
         data.append("): ")
-        data.append("Unit") // todo: change to real return type
+        data.append(printType(function.returnType))
         val body = function.body
         if (body != null) {
             data.append(" {\n")
@@ -144,5 +147,9 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(", ")
             }
         }
+    }
+
+    override fun visitBlock(block: IrBlock, data: StringBuilder) {
+        data.append("throw RuntimeException()\n")
     }
 }

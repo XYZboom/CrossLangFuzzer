@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 class IrFunctionDeclaration(
@@ -16,6 +17,7 @@ class IrFunctionDeclaration(
     var override = mutableListOf<IrFunctionDeclaration>()
     var isFinal = false
     var parameterList = IrParameterList()
+    var returnType: IrType = IrUnit
 
     class Signature(
         val name: String,
