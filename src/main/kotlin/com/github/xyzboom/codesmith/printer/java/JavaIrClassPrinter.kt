@@ -154,6 +154,6 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
-        data.append("throw new RuntimeException();\n")
+        data.append("${indent}throw new RuntimeException();\n")
     }
 }
