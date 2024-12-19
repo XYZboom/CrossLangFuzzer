@@ -150,6 +150,6 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
-        data.append("throw RuntimeException()\n")
+        data.append("${indent}throw RuntimeException()\n")
     }
 }

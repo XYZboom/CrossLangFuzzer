@@ -523,4 +523,50 @@ class IrGeneratorImplTest {
             shouldBeFinal = false
         )
     }
+
+    @Test
+    fun testMustOverrideWhenConflictInIntf2() {
+        /**
+         * I0#
+         * I1&
+         * P: I0^
+         * C: P, I1
+         *
+         * & means abstract function
+         * # means implement function
+         * ^ means stub function
+         */
+        val generator = IrGeneratorImpl(GeneratorConfig.testDefault)
+        val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
+        val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
+        val p = IrClassDeclaration("P", IrClassType.OPEN)
+        p.implementedTypes.add(i0.type)
+        val c = IrClassDeclaration("C", IrClassType.FINAL)
+        c.superType = p.type
+        c.implementedTypes.add(i1.type)
+
+        val funcInI0 = IrFunctionDeclaration("func", i0).apply {
+            body = IrBlock()
+            i0.functions.add(this)
+        }
+        val funcInI1 = IrFunctionDeclaration("func", i1).apply {
+            i1.functions.add(this)
+        }
+        val funcInP = IrFunctionDeclaration("func", p).apply {
+            body = IrBlock()
+            isOverride = true
+            isOverrideStub = true
+            override.add(funcInI0)
+            p.functions.add(this)
+        }
+        with(generator) {
+            c.genOverrides()
+        }
+        c.functions.single().assertIsOverride(
+            listOf(funcInI1, funcInP),
+            shouldHasBody = true,
+            shouldBeStub = false,
+            shouldBeFinal = false
+        )
+    }
 }
