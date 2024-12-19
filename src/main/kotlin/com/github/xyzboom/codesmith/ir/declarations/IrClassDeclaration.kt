@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
-import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
+import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
@@ -18,10 +18,13 @@ class IrClassDeclaration(
     var classType: IrClassType,
     val fields: MutableList<IrFieldDeclaration> = mutableListOf(),
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
-) : IrDeclaration(name), IrFunctionContainer {
+) : IrDeclaration(name), IrContainer {
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
     val type: IrClassifier = IrSimpleClassifier(this)
+
+    override val classes: MutableList<IrClassDeclaration> = mutableListOf()
+    override var superContainer: IrContainer? = null
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R {
         return visitor.visitClass(this, data)

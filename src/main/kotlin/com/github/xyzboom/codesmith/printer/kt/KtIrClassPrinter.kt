@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.printer.kt
 
+import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrClassType
@@ -12,7 +13,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
 
-class KtIrClassPrinter: AbstractIrClassPrinter() {
+class KtIrClassPrinter : AbstractIrClassPrinter() {
 
     companion object {
         private val builtInNames = buildMap {
@@ -114,12 +115,14 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
         data.append("fun ")
         data.append(function.name)
         data.append("(")
+        visitParameterList(function.parameterList, data)
         data.append("): ")
         data.append("Unit") // todo: change to real return type
-        if (function.body != null) {
+        val body = function.body
+        if (body != null) {
             data.append(" {\n")
             indentCount++
-            super.visitFunction(function, data)
+            visitBlock(body, data)
             indentCount--
             data.append(indent)
             data.append("}")
@@ -128,6 +131,18 @@ class KtIrClassPrinter: AbstractIrClassPrinter() {
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("*/\n")
+        }
+    }
+
+    override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
+        val parameters = parameterList.parameters
+        for ((index, parameter) in parameters.withIndex()) {
+            data.append(parameter.name)
+            data.append(": ")
+            data.append(printType(parameter.type))
+            if (index != parameters.lastIndex) {
+                data.append(", ")
+            }
         }
     }
 }

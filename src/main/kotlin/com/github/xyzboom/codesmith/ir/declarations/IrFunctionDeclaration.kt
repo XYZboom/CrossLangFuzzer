@@ -1,20 +1,21 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
-import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
+import com.github.xyzboom.codesmith.ir.IrParameterList
+import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 class IrFunctionDeclaration(
     name: String,
-    var container: IrFunctionContainer
+    var container: IrContainer
 ) : IrDeclaration(name) {
     var body: IrBlock? = null
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
     var override = mutableListOf<IrFunctionDeclaration>()
     var isFinal = false
-    val parameters = mutableListOf<IrParameter>()
+    var parameterList = IrParameterList()
 
     class Signature(
         val name: String,
@@ -39,7 +40,7 @@ class IrFunctionDeclaration(
 
     val signature: Signature
         get() {
-            return Signature(name, parameters.map { it.type })
+            return Signature(name, parameterList.parameters.map { it.type })
         }
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R {
@@ -47,11 +48,13 @@ class IrFunctionDeclaration(
     }
 
     override fun <D> acceptChildren(visitor: IrVisitor<Unit, D>, data: D) {
+        parameterList.accept(visitor, data)
         body?.accept(visitor, data)
     }
 
     fun signatureEquals(other: IrFunctionDeclaration): Boolean {
-        return name == other.name && parameters.map { it.type } == other.parameters.map { it.type }
+        return name == other.name &&
+                parameterList.parameters.map { it.type } == other.parameterList.parameters.map { it.type }
     }
 
     override fun toString(): String {

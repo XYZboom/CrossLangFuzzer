@@ -7,6 +7,11 @@ class IrParameter(
     name: String,
     val type: IrType
 ) : IrDeclaration(name) {
+    fun copyForOverride(): IrParameter {
+        // no need to copy type for now
+        return IrParameter(name, type)
+    }
+
     var defaultValue: IrExpression? = null
 
 }

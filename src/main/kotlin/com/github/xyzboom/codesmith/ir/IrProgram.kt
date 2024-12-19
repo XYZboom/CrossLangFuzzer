@@ -1,12 +1,11 @@
 package com.github.xyzboom.codesmith.ir
 
-import com.github.xyzboom.codesmith.ir.container.IrClassContainer
-import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
+import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 
-class IrProgram: IrElement(), IrClassContainer, IrFunctionContainer {
+class IrProgram: IrElement(), IrContainer {
     /**
      * Top-level functions
      */
@@ -22,5 +21,5 @@ class IrProgram: IrElement(), IrClassContainer, IrFunctionContainer {
      */
     val properties = mutableListOf<IrPropertyDeclaration>()
 
-    override val superContainer: IrClassContainer? = null
+    override var superContainer: IrContainer? = null
 }

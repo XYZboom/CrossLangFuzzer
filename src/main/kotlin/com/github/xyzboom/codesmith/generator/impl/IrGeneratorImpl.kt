@@ -3,12 +3,8 @@ package com.github.xyzboom.codesmith.generator.impl
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.container.IrClassContainer
-import com.github.xyzboom.codesmith.ir.container.IrFunctionContainer
-import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.SuperAndIntfFunctions
+import com.github.xyzboom.codesmith.ir.container.IrContainer
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
@@ -71,7 +67,7 @@ class IrGeneratorImpl(
         return IrClassType.entries.random(random)
     }
 
-    override fun randomType(from: IrClassContainer, filter: (IrClassDeclaration) -> Boolean): IrType? {
+    override fun randomType(from: IrContainer, filter: (IrClassDeclaration) -> Boolean): IrType? {
         val filtered = from.allClasses.filter(filter)
         if (filtered.isEmpty()) return null
         return filtered.random(random).type
@@ -87,7 +83,7 @@ class IrGeneratorImpl(
         }
     }
 
-    override fun IrClassDeclaration.genSuperTypes(context: IrClassContainer) {
+    override fun IrClassDeclaration.genSuperTypes(context: IrContainer) {
         val classType = classType
         if (classType != IrClassType.INTERFACE) {
             val superType = randomType(context) {
@@ -127,9 +123,6 @@ class IrGeneratorImpl(
     }
 
     override fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
-
-
-
         logger.trace { "start collectFunctionSignatureMap for class: $name" }
         val result = mutableMapOf<IrFunctionDeclaration.Signature,
                 Pair<IrFunctionDeclaration?, MutableList<IrFunctionDeclaration>>>()
@@ -334,7 +327,7 @@ class IrGeneratorImpl(
         }
     }
 
-    override fun genClass(context: IrClassContainer, name: String): IrClassDeclaration {
+    override fun genClass(context: IrContainer, name: String): IrClassDeclaration {
         val classType = randomClassType()
         return IrClassDeclaration(name, classType).apply {
             language = if (random.nextFloat() < config.javaRatio) {
@@ -348,6 +341,7 @@ class IrGeneratorImpl(
             }
             for (i in 0 until config.functionNumRange.random(random)) {
                 genFunction(
+                    context,
                     this,
                     classType == IrClassType.ABSTRACT,
                     classType == IrClassType.INTERFACE,
@@ -358,7 +352,8 @@ class IrGeneratorImpl(
     }
 
     override fun genFunction(
-        context: IrFunctionContainer,
+        classContainer: IrContainer,
+        funcContainer: IrContainer,
         inAbstract: Boolean,
         inIntf: Boolean,
         name: String,
@@ -366,24 +361,27 @@ class IrGeneratorImpl(
     ): IrFunctionDeclaration {
         logger.trace {
             val sb = StringBuilder("gen function $name for ")
-            if (context is IrClassDeclaration) {
+            if (funcContainer is IrClassDeclaration) {
                 sb.append("class ")
-                sb.append(context.name)
+                sb.append(funcContainer.name)
             } else {
                 sb.append("program.")
             }
             sb.toString()
         }
-        return IrFunctionDeclaration(name, context).apply {
+        return IrFunctionDeclaration(name, funcContainer).apply {
             this.language = language
-            context.functions.add(this)
+            funcContainer.functions.add(this)
             if (!inIntf && (!inAbstract || random.nextBoolean())) {
                 body = IrBlock()
-                isFinal = if (context is IrClassDeclaration && context.classType != IrClassType.INTERFACE) {
+                isFinal = if (funcContainer is IrClassDeclaration && funcContainer.classType != IrClassType.INTERFACE) {
                     !config.noFinalFunction && random.nextBoolean()
                 } else {
                     false
                 }
+            }
+            for (i in 0 until config.functionParameterNumRange.random(random)) {
+                parameterList.parameters.add(genFunctionParameter(classContainer))
             }
         }
     }
@@ -405,11 +403,13 @@ class IrGeneratorImpl(
             sb.append("\t\tstillAbstract: $makeAbstract, isStub: $isStub, isFinal: $isFinal")
             sb.toString()
         }
-        functions.add(IrFunctionDeclaration(from.first().name, this).apply {
+        val first = from.first()
+        functions.add(IrFunctionDeclaration(first.name, this).apply {
             this.language = language
             isOverride = true
             isOverrideStub = isStub
             override += from
+            parameterList = first.parameterList.copyForOverride()
             if (!makeAbstract) {
                 body = IrBlock()
 
@@ -425,5 +425,13 @@ class IrGeneratorImpl(
             }
             require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
         })
+    }
+
+    override fun genFunctionParameter(
+        classContainer: IrContainer,
+        name: String
+    ): IrParameter {
+        val chooseType = randomType(classContainer) { true } ?: IrAny
+        return  IrParameter(name, chooseType)
     }
 }

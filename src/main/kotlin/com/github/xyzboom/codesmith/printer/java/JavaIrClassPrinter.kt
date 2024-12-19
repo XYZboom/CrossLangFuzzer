@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.printer.java
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
@@ -117,11 +118,13 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         data.append(" ")
         data.append(function.name)
         data.append("(")
+        visitParameterList(function.parameterList, data)
         data.append(")")
-        if (function.body != null) {
+        val body = function.body
+        if (body != null) {
             data.append(" {\n")
             indentCount++
-            super.visitFunction(function, data)
+            visitBlock(body, data)
             indentCount--
             data.append(indent)
             data.append("}")
@@ -132,6 +135,18 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("*/\n")
+        }
+    }
+
+    override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
+        val parameters = parameterList.parameters
+        for ((index, parameter) in parameters.withIndex()) {
+            data.append(printType(parameter.type))
+            data.append(" ")
+            data.append(parameter.name)
+            if (index != parameters.lastIndex) {
+                data.append(", ")
+            }
         }
     }
 }
