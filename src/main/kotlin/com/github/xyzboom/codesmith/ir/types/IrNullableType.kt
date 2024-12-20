@@ -10,4 +10,18 @@ class IrNullableType private constructor(val innerType: IrType): IrType() {
             return IrNullableType(type)
         }
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrNullableType) return false
+
+        if (innerType != other.innerType) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return innerType.hashCode()
+    }
+
 }

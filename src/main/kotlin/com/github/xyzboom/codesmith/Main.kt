@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.impl.IrGeneratorImpl
+import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.runner.CoverageRunner
 import org.apache.log4j.BasicConfigurator
@@ -14,7 +14,7 @@ fun main() {
     val temp = System.getProperty("java.io.tmpdir")
     val printer = IrProgramPrinter()
     for (i in 0 until 100) {
-        val prog = IrGeneratorImpl(
+        val prog = IrDeclGeneratorImpl(
             GeneratorConfig(
                 classNumRange = 5..9
             )

@@ -10,7 +10,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class IrGeneratorImplTest {
+class IrDeclGeneratorImplTest {
 
     private fun IrFunctionDeclaration.assertIsOverride(
         shouldFrom: List<IrFunctionDeclaration>,
@@ -40,7 +40,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testGenOverrideFromAbstractSuperAndAnInterface0() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -68,7 +68,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testGenOverrideWhenSuperFunctionsAreConflict() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -98,7 +98,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testGenOverrideForAbstractWhenSuperFunctionsAreConflict() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -128,7 +128,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testShouldOverrideWhenSuperAbstractShadowDefaultImplInIntf() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -157,7 +157,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testShouldOverrideWhenSuperSuperShadowDefaultImplInIntf() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superName = "GrandParent"
@@ -209,7 +209,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testGenOverrideComplex() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
 
@@ -278,7 +278,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testStubForFinalIsStillFinal() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superClass = IrClassDeclaration("P", IrClassType.OPEN)
@@ -306,7 +306,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testStubForFinalStubIsStillFinal() {
-        val generator = IrGeneratorImpl(
+        val generator = IrDeclGeneratorImpl(
             GeneratorConfig.testDefault
         )
         val superClass = IrClassDeclaration("P", IrClassType.OPEN)
@@ -336,7 +336,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testChildAbstractInIntfShouldShadowParentIntf() {
-        val generator = IrGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
 
         val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
         val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
@@ -370,7 +370,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testMustOverrideWhenSuperStubConflictWithIntf() {
-        val generator = IrGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
 
         /**
          * I0&
@@ -429,7 +429,7 @@ class IrGeneratorImplTest {
 
     @Test
     fun testMustOverrideWhenOverrideOfSuperStubWasOverrideByIntf() {
-        val generator = IrGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
 
         /**
          * I0#
@@ -490,7 +490,7 @@ class IrGeneratorImplTest {
          * # means implement function
          * ^ means stub function
          */
-        val generator = IrGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
         val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
         val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
         i1.implementedTypes.add(i0.type)
@@ -536,7 +536,7 @@ class IrGeneratorImplTest {
          * # means implement function
          * ^ means stub function
          */
-        val generator = IrGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
         val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
         val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
         val p = IrClassDeclaration("P", IrClassType.OPEN)

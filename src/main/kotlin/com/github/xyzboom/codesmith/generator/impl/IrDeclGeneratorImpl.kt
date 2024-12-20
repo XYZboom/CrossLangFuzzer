@@ -6,19 +6,23 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.IrExpression
+import com.github.xyzboom.codesmith.ir.expressions.IrExpressionContainer
+import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
-class IrGeneratorImpl(
+class IrDeclGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     private val random: Random = Random.Default,
-) : IrGenerator {
+) : IrDeclGenerator {
 
     private val logger = KotlinLogging.logger {}
 
@@ -29,7 +33,8 @@ class IrGeneratorImpl(
         addAll(KeyWords.windows)
     }
 
-    private val subTypeMap = hashMapOf<String, MutableList<IrClassDeclaration>>()
+    private val subTypeMap = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
+    private val functionReturnMap = hashMapOf<IrType, MutableList<IrFunctionDeclaration>>()
 
     private fun StringBuilder.traceFunction(function: IrFunctionDeclaration) {
         append(function.toString())
@@ -85,9 +90,33 @@ class IrGeneratorImpl(
     override fun genProgram(): IrProgram {
         logger.trace { "start gen program" }
         return IrProgram().apply {
+            logger.trace { "start gen classes" }
             for (i in 0 until config.classNumRange.random(random)) {
                 genClass(this)
             }
+            logger.trace { "finish gen classes" }
+
+            logger.trace { "start gen member functions" }
+            for (topClass in classes) {
+                val classType = topClass.classType
+                for (i in 0 until config.functionNumRange.random(random)) {
+                    genFunction(
+                        this,
+                        this,
+                        classType == IrClassType.ABSTRACT,
+                        classType == IrClassType.INTERFACE,
+                        language = topClass.language
+                    )
+                }
+            }
+            logger.trace { "end gen member functions" }
+
+            logger.trace { "start gen overrides" }
+            traverseClassesTopologically {
+                it.genOverrides()
+            }
+            logger.trace { "finish gen overrides" }
+
             logger.trace { "finish gen program" }
         }
     }
@@ -98,9 +127,8 @@ class IrGeneratorImpl(
             val superType = randomType(context) {
                 (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it !== this
             }
-            if (superType != null) {
-                val superName = (superType as IrClassifier).classDecl.name
-                subTypeMap.getOrPut(superName) { mutableListOf() }.add(this)
+            if (superType is IrClassifier) {
+                subTypeMap.getOrPut(superType.classDecl) { mutableListOf() }.add(this)
             }
             this.superType = superType ?: IrAny
         }
@@ -111,16 +139,15 @@ class IrGeneratorImpl(
                 it.classType == IrClassType.INTERFACE && it !in chosenIntf && it !== this
             } as? IrClassifier?
             if (now == null) break
-            subTypeMap.getOrPut(now.classDecl.name) { mutableListOf() }.add(this)
+            subTypeMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
             chosenIntf.add(now.classDecl)
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
-        if (random.nextFloat() < config.printJavaNullableAnnotationProbability) {
+        if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
             logger.trace { "make $name print nullable annotations" }
             printNullableAnnotations = true
         }
-        genOverrides()
     }
 
     private fun IrFunctionDeclaration.traverseOverride(visitor: (IrFunctionDeclaration) -> Unit) {
@@ -368,24 +395,13 @@ class IrGeneratorImpl(
     override fun genClass(context: IrContainer, name: String): IrClassDeclaration {
         val classType = randomClassType()
         return IrClassDeclaration(name, classType).apply {
-            language = if (random.nextFloat() < config.javaRatio) {
+            language = if (random.nextBoolean(config.javaRatio)) {
                 Language.JAVA
             } else {
                 Language.KOTLIN
             }
             context.classes.add(this)
-            if (random.nextFloat() < config.classHasSuperProbability) {
-                genSuperTypes(context)
-            }
-            for (i in 0 until config.functionNumRange.random(random)) {
-                genFunction(
-                    context,
-                    this,
-                    classType == IrClassType.ABSTRACT,
-                    classType == IrClassType.INTERFACE,
-                    language = language
-                )
-            }
+            genSuperTypes(context)
         }
     }
 
@@ -473,7 +489,7 @@ class IrGeneratorImpl(
     ): IrParameter {
         val chooseType = randomType(classContainer) { true } ?: IrAny
         logger.trace { "gen parameter: $name, $chooseType" }
-        val makeNullableType = if (random.nextFloat() < config.functionParameterNullableProbability) {
+        val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)) {
             IrNullableType.nullableOf(chooseType)
         } else {
             chooseType
@@ -493,12 +509,37 @@ class IrGeneratorImpl(
             sb.toString()
         }
         if (chooseType != null) {
-            val makeNullableType = if (random.nextFloat() < config.functionReturnTypeNullableProbability) {
+            val makeNullableType = if (random.nextBoolean(config.functionReturnTypeNullableProbability)) {
                 IrNullableType.nullableOf(chooseType)
             } else {
                 chooseType
             }
             target.returnType = makeNullableType
+            functionReturnMap.getOrPut(makeNullableType) { mutableListOf() }.add(target)
         }
     }
+
+    //<editor-fold desc="Expression">
+    fun genExpression(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrContainer,
+        type: IrType? = null,
+        allowSubType: Boolean = false
+    ): IrExpression {
+        val chooseType = type ?: randomType(context) { true } ?: IrAny
+        val generator = config.randomExpressionGenerator(this, random)
+        return generator.invoke(block, functionContext, context, chooseType, allowSubType)
+    }
+
+    override fun genNewExpression(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrContainer,
+        type: IrType,
+        allowSubType: Boolean
+    ): IrNew {
+        return IrNew(type)
+    }
+    //</editor-fold>
 }

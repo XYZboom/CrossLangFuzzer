@@ -1,4 +1,6 @@
 package com.github.xyzboom.codesmith.ir.expressions
 
-class IrNew: IrExpression() {
+import com.github.xyzboom.codesmith.ir.types.IrType
+
+class IrNew(val createType: IrType) : IrExpression() {
 }

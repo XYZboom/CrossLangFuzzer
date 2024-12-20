@@ -7,11 +7,13 @@ import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.expressions.IrExpressionContainer
+import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrType
 
-interface IrGenerator {
+interface IrDeclGenerator {
     fun randomName(startsWithUpper: Boolean): String
 
     fun randomIrInt(): IrInt
@@ -61,4 +63,12 @@ interface IrGenerator {
         classContainer: IrContainer,
         target: IrFunctionDeclaration
     )
+
+    fun genNewExpression(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrContainer,
+        type: IrType,
+        allowSubType: Boolean
+    ): IrNew
 }

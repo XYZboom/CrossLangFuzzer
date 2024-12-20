@@ -47,7 +47,13 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun printType(irType: IrType): String {
         val typeStr = when (irType) {
-            is IrNullableType -> printType(irType.innerType)
+            is IrNullableType -> {
+                val store = noNullableAnnotation
+                noNullableAnnotation = true
+                val result = printType(irType.innerType)
+                noNullableAnnotation = store
+                result
+            }
 
             is IrBuiltInType -> return builtInNames[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
@@ -61,7 +67,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         }
         val annotationStr = if (printNullableAnnotation && !noNullableAnnotation) {
             if (irType is IrNullableType) "@Nullable "
-            else "@NotNull"
+            else "@NotNull "
         } else ""
         return "$annotationStr $typeStr"
     }

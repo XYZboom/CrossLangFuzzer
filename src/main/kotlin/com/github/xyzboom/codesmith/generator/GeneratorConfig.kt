@@ -1,13 +1,15 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.utils.rouletteSelection
 import org.jetbrains.annotations.TestOnly
+import kotlin.random.Random
 
 data class GeneratorConfig(
     val nameLengthRange: IntRange = 3..8,
     /**
      * Probability that a class or interface has a super class or interface
      */
-    val classHasSuperProbability: Float = 0.4f,
+    val classHasSuperProbability: Float = 0.3f,
     val javaRatio: Float = 0.5f,
     val classNumRange: IntRange = 5..9,
     val classImplNumRange: IntRange = 0..3,
@@ -17,6 +19,7 @@ data class GeneratorConfig(
     val functionParameterNullableProbability: Float = 0.4f,
     val functionReturnTypeNullableProbability: Float = 0.4f,
     val printJavaNullableAnnotationProbability: Float = 0.4f,
+    val newExpressionWeight: Int = 1,
     /**
      * If true, override functions will only be generated for situations that must override.
      * Such as: there are unimplemented functions in super types;
@@ -25,6 +28,19 @@ data class GeneratorConfig(
     val overrideOnlyMustOnes: Boolean = false,
     val noFinalFunction: Boolean = false
 ) {
+    fun randomExpressionGenerator(
+        declGenerator: IrDeclGenerator,
+        random: Random = Random.Default
+    ): IrExpressionGenerator {
+        val generators = listOf(
+            declGenerator::genNewExpression
+        )
+        val weights = listOf(
+            newExpressionWeight
+        )
+        return rouletteSelection(generators, weights, random)
+    }
+
     companion object {
         @JvmStatic
         val default = GeneratorConfig()
