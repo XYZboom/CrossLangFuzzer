@@ -9,6 +9,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -115,6 +116,10 @@ class IrGeneratorImpl(
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
+        if (random.nextFloat() < config.printJavaNullableAnnotationProbability) {
+            logger.trace { "make $name print nullable annotations" }
+            printNullableAnnotations = true
+        }
         genOverrides()
     }
 
@@ -468,10 +473,15 @@ class IrGeneratorImpl(
     ): IrParameter {
         val chooseType = randomType(classContainer) { true } ?: IrAny
         logger.trace { "gen parameter: $name, $chooseType" }
-        return IrParameter(name, chooseType)
+        val makeNullableType = if (random.nextFloat() < config.functionParameterNullableProbability) {
+            IrNullableType.nullableOf(chooseType)
+        } else {
+            chooseType
+        }
+        return IrParameter(name, makeNullableType)
     }
 
-    fun genFunctionReturnType(
+    override fun genFunctionReturnType(
         classContainer: IrContainer,
         target: IrFunctionDeclaration
     ) {
@@ -483,7 +493,12 @@ class IrGeneratorImpl(
             sb.toString()
         }
         if (chooseType != null) {
-            target.returnType = chooseType
+            val makeNullableType = if (random.nextFloat() < config.functionReturnTypeNullableProbability) {
+                IrNullableType.nullableOf(chooseType)
+            } else {
+                chooseType
+            }
+            target.returnType = makeNullableType
         }
     }
 }

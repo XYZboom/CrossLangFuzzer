@@ -4,11 +4,8 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
-import com.github.xyzboom.codesmith.ir.types.IrClassifier
-import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
-import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
@@ -34,6 +31,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun printType(irType: IrType): String {
         return when (irType) {
+            is IrNullableType -> return "${printType(irType.innerType)}?"
             is IrBuiltInType -> return builtInNames[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 

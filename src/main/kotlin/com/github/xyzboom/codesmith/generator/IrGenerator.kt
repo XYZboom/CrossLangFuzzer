@@ -56,4 +56,9 @@ interface IrGenerator {
         classContainer: IrContainer,
         name: String = randomName(false)
     ): IrParameter
+
+    fun genFunctionReturnType(
+        classContainer: IrContainer,
+        target: IrFunctionDeclaration
+    )
 }

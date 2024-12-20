@@ -14,6 +14,9 @@ data class GeneratorConfig(
     val functionNumRange: IntRange = 1..3,
     val functionParameterNumRange: IntRange = 0..3,
     val functionExpressionNumRange: IntRange = 2..8,
+    val functionParameterNullableProbability: Float = 0.4f,
+    val functionReturnTypeNullableProbability: Float = 0.4f,
+    val printJavaNullableAnnotationProbability: Float = 0.4f,
     /**
      * If true, override functions will only be generated for situations that must override.
      * Such as: there are unimplemented functions in super types;

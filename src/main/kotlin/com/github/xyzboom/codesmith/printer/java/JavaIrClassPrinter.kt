@@ -5,11 +5,8 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.types.IrClassifier
-import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
-import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
-import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
@@ -23,10 +20,18 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             put(IrNothing, "Void")
             put(IrUnit, "void")
         }
+
+        private const val IMPORTS =
+            "import org.jetbrains.annotations.NotNull;\n" +
+                    "import org.jetbrains.annotations.Nullable;\n"
     }
 
+    private var printNullableAnnotation = false
+    private var noNullableAnnotation = false
+
     override fun print(element: IrClassDeclaration): String {
-        val data = StringBuilder()
+        val data = StringBuilder(IMPORTS)
+        printNullableAnnotation = element.printNullableAnnotations
         visitClass(element, data)
         return data.toString()
     }
@@ -41,7 +46,9 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun printType(irType: IrType): String {
-        return when (irType) {
+        val typeStr = when (irType) {
+            is IrNullableType -> printType(irType.innerType)
+
             is IrBuiltInType -> return builtInNames[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 
@@ -52,9 +59,15 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
             else -> throw NoWhenBranchMatchedException()
         }
+        val annotationStr = if (printNullableAnnotation && !noNullableAnnotation) {
+            if (irType is IrNullableType) "@Nullable "
+            else "@NotNull"
+        } else ""
+        return "$annotationStr $typeStr"
     }
 
     override fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String {
+        noNullableAnnotation = true
         val sb = if (superType != null || implList.isNotEmpty()) {
             StringBuilder(" ")
         } else {
@@ -78,6 +91,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                 }
             }
         }
+        noNullableAnnotation = false
         return sb.toString()
     }
 

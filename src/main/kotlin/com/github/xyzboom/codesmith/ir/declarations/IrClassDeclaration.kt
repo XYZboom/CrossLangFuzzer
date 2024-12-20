@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
@@ -19,6 +20,10 @@ class IrClassDeclaration(
     val fields: MutableList<IrFieldDeclaration> = mutableListOf(),
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
 ) : IrDeclaration(name), IrContainer {
+    /**
+     * only available when [language] is [Language.JAVA]
+     */
+    var printNullableAnnotations: Boolean = false
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
     val type: IrClassifier = IrSimpleClassifier(this)
