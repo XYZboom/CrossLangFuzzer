@@ -75,6 +75,12 @@ class IrGeneratorImpl(
         return filtered.random(random).type
     }
 
+    private val IrFunctionDeclaration.fromClassType: IrClassType
+        get() {
+            val clazz = container as IrClassDeclaration? ?: throw IllegalArgumentException()
+            return clazz.classType
+        }
+
     override fun genProgram(): IrProgram {
         logger.trace { "start gen program" }
         return IrProgram().apply {
@@ -132,19 +138,19 @@ class IrGeneratorImpl(
     override fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
         logger.trace { "start collectFunctionSignatureMap for class: $name" }
         val result = mutableMapOf<IrFunctionDeclaration.Signature,
-                Pair<IrFunctionDeclaration?, MutableList<IrFunctionDeclaration>>>()
+                Pair<IrFunctionDeclaration?, MutableSet<IrFunctionDeclaration>>>()
         //           ^^^^^^^^^^^^^^^^^^^^^ decl in super
         //           functions in interfaces ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         for (superType in implementedTypes) {
             superType as? IrClassifier ?: continue
             for (func in superType.classDecl.functions) {
                 val signature = func.signature
-                result.getOrPut(signature) { null to mutableListOf() }.second.add(func)
+                result.getOrPut(signature) { null to mutableSetOf() }.second.add(func)
             }
         }
         for ((_, pair) in result) {
             val (_, funcs) = pair
-            val willRemove = mutableListOf<IrFunctionDeclaration>()
+            val willRemove = mutableSetOf<IrFunctionDeclaration>()
             for (func in funcs) {
                 var found = false
                 func.traverseOverride {
@@ -174,7 +180,7 @@ class IrGeneratorImpl(
                 val signature = function.signature
                 val pair = result[signature]
                 if (pair == null) {
-                    result[signature] = function to mutableListOf()
+                    result[signature] = function to mutableSetOf()
                 } else {
                     result[signature] = function to pair.second
                 }
@@ -254,23 +260,43 @@ class IrGeneratorImpl(
                  * class C: P(), I1
                  * ```
                  * A stub of 'func' will be generated in class 'P',
-                 * but 'func' in I1 actually override it, so we should do a must override for 'func'.
+                 * but 'func' in 'I1' actually override it, so we should do a must override for 'func'.
+                 * And this situation:
+                 * ```kotlin
+                 * interface I0 {
+                 *     fun func() {}
+                 * }
+                 * open class P: I0
+                 * interface I1 {
+                 *     fun func()
+                 * }
+                 * class C: P(), I1
+                 * ```
+                 * A stub of 'func' will be generated in class 'P',
+                 * but 'func' in 'I1' conflict with the one in 'P'(actually 'I0'),
+                 * so we should do a must override for 'func'.
                  */
-                val superNonStubDeepOverrides = mutableListOf<IrFunctionDeclaration>()
+                val nonStubOverrides = mutableSetOf<IrFunctionDeclaration>()
+                // collect all non stubs
                 superFunction.traverseOverride {
                     if (!it.isOverrideStub) {
-                        superNonStubDeepOverrides.add(it)
+                        nonStubOverrides.add(it)
                     }
                 }
 
                 for (func in functions) {
-                    func.traverseOverride {
-                        if (it in superNonStubDeepOverrides) {
-                            superNonStubDeepOverrides.remove(it)
+                    if (!func.isOverrideStub) {
+                        nonStubOverrides.add(func)
+                    } else {
+                        func.traverseOverride {
+                            if (!it.isOverrideStub) {
+                                nonStubOverrides.add(it)
+                            }
                         }
                     }
                 }
-                if (superNonStubDeepOverrides.isEmpty()) {
+                val nonStubNonAbstractCount = nonStubOverrides.count { it.body != null }
+                if (nonStubNonAbstractCount > 0) {
                     mustOverrides.add(pair)
                     notMustOverride = false
                 }
@@ -292,7 +318,7 @@ class IrGeneratorImpl(
             require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "must override" }
             genOverrideFunction(
-                superAndIntf, makeAbstract = false,
+                superAndIntf.toList(), makeAbstract = false,
                 isStub = false, superFunc?.isFinal, language = this.language
             )
         }
@@ -305,7 +331,7 @@ class IrGeneratorImpl(
             require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "stub override" }
             genOverrideFunction(
-                superAndIntf, makeAbstract = false,
+                superAndIntf.toList(), makeAbstract = false,
                 isStub = true, superFunc?.isFinal, language = this.language
             )
         }
@@ -330,7 +356,7 @@ class IrGeneratorImpl(
             val first = superFunc ?: intfFunc.first()
             require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "can override" }
-            genOverrideFunction(superAndIntf, makeAbstract, !doOverride, isFinal, this.language)
+            genOverrideFunction(superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language)
         }
     }
 
