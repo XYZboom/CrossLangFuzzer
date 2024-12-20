@@ -7,9 +7,9 @@ import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
-typealias SuperAndIntfFunctions = Pair<IrFunctionDeclaration?, MutableList<IrFunctionDeclaration>>
-//                                ^^^^^^^^^^^^^^^^^^^^^ decl in super
-//                                functions in interfaces ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+typealias SuperAndIntfFunctions = Pair<IrFunctionDeclaration?, MutableSet<IrFunctionDeclaration>>
+//                                     ^^^^^^^^^^^^^^^^^^^^^ decl in super
+//                                     functions in interfaces ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 typealias FunctionSignatureMap = Map<IrFunctionDeclaration.Signature, SuperAndIntfFunctions>
 
 
