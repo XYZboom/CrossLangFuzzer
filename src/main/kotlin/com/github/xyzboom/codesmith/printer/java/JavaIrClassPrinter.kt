@@ -1,7 +1,9 @@
 package com.github.xyzboom.codesmith.printer.java
 
+import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
@@ -24,6 +26,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         private const val IMPORTS =
             "import org.jetbrains.annotations.NotNull;\n" +
                     "import org.jetbrains.annotations.Nullable;\n"
+        const val TOP_LEVEL_CONTAINER_CLASS_NAME = "JavaTopLevelContainer"
     }
 
     private var printNullableAnnotation = false
@@ -31,8 +34,21 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun print(element: IrClassDeclaration): String {
         val data = StringBuilder(IMPORTS)
-        printNullableAnnotation = element.printNullableAnnotations
         visitClass(element, data)
+        return data.toString()
+    }
+
+    override fun printTopLevelFunctions(program: IrProgram): String {
+        val data = StringBuilder(IMPORTS)
+        data.append("public final class $TOP_LEVEL_CONTAINER_CLASS_NAME {")
+        indentCount++
+        elementStack.push(program)
+        for (function in program.functions.filter { it.language == Language.JAVA }) {
+            visitFunction(function, data)
+        }
+        indentCount--
+        data.append("}")
+        require(elementStack.pop() === program)
         return data.toString()
     }
 
@@ -69,7 +85,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             if (irType is IrNullableType) "@Nullable "
             else "@NotNull "
         } else ""
-        return "$annotationStr $typeStr"
+        return "$annotationStr$typeStr"
     }
 
     override fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String {
@@ -118,6 +134,8 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
+        val store = noNullableAnnotation
+        noNullableAnnotation = function.printNullableAnnotations
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
@@ -135,7 +153,11 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             }
         }
         if (function.isFinal) {
-            data.append("final ")
+            if (function.topLevel) {
+                data.append("static ")
+            } else {
+                data.append("final ")
+            }
         }
         data.append(printType(function.returnType))
         data.append(" ")
@@ -159,6 +181,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             data.append(indent)
             data.append("*/\n")
         }
+        noNullableAnnotation = store
     }
 
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {

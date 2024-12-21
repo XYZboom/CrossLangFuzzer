@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith.printer.kt
 
+import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrParameterList
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
@@ -20,12 +22,27 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
             put(IrNothing, "Nothing")
             put(IrUnit, "Unit")
         }
+
+        /**
+         * For java interaction
+         */
+        const val TOP_LEVEL_CONTAINER_CLASS_NAME = "MainKt"
     }
 
 
     override fun print(element: IrClassDeclaration): String {
         val data = StringBuilder()
         visitClass(element, data)
+        return data.toString()
+    }
+
+    override fun printTopLevelFunctions(program: IrProgram): String {
+        val data = StringBuilder()
+        elementStack.push(program)
+        for (function in program.functions.filter { it.language == Language.KOTLIN }) {
+            visitFunction(function, data)
+        }
+        require(elementStack.pop() === program)
         return data.toString()
     }
 
@@ -110,7 +127,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         if (function.isOverride) {
             data.append("override ")
         }
-        if (!function.isFinal) {
+        if (!function.isFinal && !function.topLevel) {
             data.append("open ")
         }
         data.append("fun ")

@@ -11,7 +11,9 @@ data class GeneratorConfig(
      */
     val classHasSuperProbability: Float = 0.3f,
     val javaRatio: Float = 0.5f,
-    val classNumRange: IntRange = 5..9,
+    val topLevelDeclRange: IntRange = 8..15,
+    val topLevelClassWeight: Int = 3,
+    val topLevelFunctionWeight: Int = 1,
     val classImplNumRange: IntRange = 0..3,
     val functionNumRange: IntRange = 1..3,
     val functionParameterNumRange: IntRange = 0..3,
@@ -28,6 +30,22 @@ data class GeneratorConfig(
     val overrideOnlyMustOnes: Boolean = false,
     val noFinalFunction: Boolean = false
 ) {
+
+    fun randomTopLevelDeclGenerator(
+        declGenerator: IrDeclGenerator,
+        random: Random = Random.Default
+    ): IrTopLevelDeclGenerator {
+        val generators = listOf(
+            declGenerator::genTopLevelClass,
+            declGenerator::genTopLevelFunction
+        )
+        val weights = listOf(
+            topLevelClassWeight,
+            topLevelFunctionWeight
+        )
+        return rouletteSelection(generators, weights, random)
+    }
+
     fun randomExpressionGenerator(
         declGenerator: IrDeclGenerator,
         random: Random = Random.Default

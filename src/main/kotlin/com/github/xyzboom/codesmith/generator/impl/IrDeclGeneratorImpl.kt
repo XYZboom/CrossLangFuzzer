@@ -90,33 +90,14 @@ class IrDeclGeneratorImpl(
     override fun genProgram(): IrProgram {
         logger.trace { "start gen program" }
         return IrProgram().apply {
-            logger.trace { "start gen classes" }
-            for (i in 0 until config.classNumRange.random(random)) {
-                genClass(this)
+            for (i in 0 until config.topLevelDeclRange.random(random)) {
+                val generator = config.randomTopLevelDeclGenerator(this@IrDeclGeneratorImpl, random)
+                generator(this, if (random.nextBoolean(config.javaRatio)) {
+                    Language.JAVA
+                } else {
+                    Language.KOTLIN
+                })
             }
-            logger.trace { "finish gen classes" }
-
-            logger.trace { "start gen member functions" }
-            for (topClass in classes) {
-                val classType = topClass.classType
-                for (i in 0 until config.functionNumRange.random(random)) {
-                    genFunction(
-                        this,
-                        this,
-                        classType == IrClassType.ABSTRACT,
-                        classType == IrClassType.INTERFACE,
-                        language = topClass.language
-                    )
-                }
-            }
-            logger.trace { "end gen member functions" }
-
-            logger.trace { "start gen overrides" }
-            traverseClassesTopologically {
-                it.genOverrides()
-            }
-            logger.trace { "finish gen overrides" }
-
             logger.trace { "finish gen program" }
         }
     }
@@ -144,10 +125,6 @@ class IrDeclGeneratorImpl(
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
-        if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
-            logger.trace { "make $name print nullable annotations" }
-            printNullableAnnotations = true
-        }
     }
 
     private fun IrFunctionDeclaration.traverseOverride(visitor: (IrFunctionDeclaration) -> Unit) {
@@ -392,16 +369,22 @@ class IrDeclGeneratorImpl(
         }
     }
 
-    override fun genClass(context: IrContainer, name: String): IrClassDeclaration {
+    override fun genClass(context: IrContainer, name: String, language: Language): IrClassDeclaration {
         val classType = randomClassType()
         return IrClassDeclaration(name, classType).apply {
-            language = if (random.nextBoolean(config.javaRatio)) {
-                Language.JAVA
-            } else {
-                Language.KOTLIN
-            }
+            this.language = language
             context.classes.add(this)
             genSuperTypes(context)
+            for (i in 0 until config.functionNumRange.random(random)) {
+                genFunction(
+                    context,
+                    this,
+                    classType == IrClassType.ABSTRACT,
+                    classType == IrClassType.INTERFACE,
+                    language = language
+                )
+            }
+            genOverrides()
         }
     }
 
@@ -413,6 +396,7 @@ class IrDeclGeneratorImpl(
         name: String,
         language: Language
     ): IrFunctionDeclaration {
+        val topLevel = funcContainer is IrProgram
         logger.trace {
             val sb = StringBuilder("gen function $name for ")
             if (funcContainer is IrClassDeclaration) {
@@ -426,18 +410,24 @@ class IrDeclGeneratorImpl(
         return IrFunctionDeclaration(name, funcContainer).apply {
             this.language = language
             funcContainer.functions.add(this)
-            if (!inIntf && (!inAbstract || random.nextBoolean())) {
+            if ((!inIntf && (!inAbstract || random.nextBoolean())) || topLevel) {
                 body = IrBlock()
-                isFinal = if (funcContainer is IrClassDeclaration && funcContainer.classType != IrClassType.INTERFACE) {
-                    !config.noFinalFunction && random.nextBoolean()
-                } else {
-                    false
+                isFinal = when {
+                    topLevel -> true
+                    funcContainer is IrClassDeclaration && funcContainer.classType != IrClassType.INTERFACE ->
+                        !config.noFinalFunction && random.nextBoolean()
+
+                    else -> false
                 }
             }
             for (i in 0 until config.functionParameterNumRange.random(random)) {
                 parameterList.parameters.add(genFunctionParameter(classContainer))
             }
             genFunctionReturnType(classContainer, this)
+            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
+                logger.trace { "make $name print nullable annotations" }
+                printNullableAnnotations = true
+            }
         }
     }
 
@@ -480,6 +470,10 @@ class IrDeclGeneratorImpl(
                 }
             }
             require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
+            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
+                logger.trace { "make $name print nullable annotations" }
+                printNullableAnnotations = true
+            }
         })
     }
 

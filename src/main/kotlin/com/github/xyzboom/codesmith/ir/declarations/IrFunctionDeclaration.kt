@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrParameterList
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -11,11 +13,16 @@ class IrFunctionDeclaration(
     name: String,
     var container: IrContainer
 ) : IrDeclaration(name) {
+    /**
+     * only available when [language] is [Language.JAVA]
+     */
+    var printNullableAnnotations: Boolean = false
     var body: IrBlock? = null
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
     var override = mutableListOf<IrFunctionDeclaration>()
     var isFinal = false
+    val topLevel: Boolean get() = container is IrProgram
     var parameterList = IrParameterList()
     var returnType: IrType = IrUnit
 

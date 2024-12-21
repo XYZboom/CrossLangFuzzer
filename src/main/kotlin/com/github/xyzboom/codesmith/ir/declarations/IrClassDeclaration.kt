@@ -20,10 +20,6 @@ class IrClassDeclaration(
     val fields: MutableList<IrFieldDeclaration> = mutableListOf(),
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
 ) : IrDeclaration(name), IrContainer {
-    /**
-     * only available when [language] is [Language.JAVA]
-     */
-    var printNullableAnnotations: Boolean = false
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
     val type: IrClassifier = IrSimpleClassifier(this)

@@ -20,7 +20,20 @@ interface IrDeclGenerator {
 
     fun genProgram(): IrProgram
 
-    fun genClass(context: IrContainer, name: String = randomName(true)): IrClassDeclaration
+    fun genTopLevelClass(context: IrProgram, language: Language): IrClassDeclaration {
+        return genClass(context, language = language)
+    }
+
+    fun genTopLevelFunction(context: IrProgram, language: Language): IrFunctionDeclaration {
+        return genFunction(context, context, inAbstract = false, inIntf = false, language = language)
+    }
+
+    fun genClass(
+        context: IrContainer,
+        name: String = randomName(true),
+        language: Language
+    ): IrClassDeclaration
+
     fun genFunction(
         classContainer: IrContainer,
         funcContainer: IrContainer,

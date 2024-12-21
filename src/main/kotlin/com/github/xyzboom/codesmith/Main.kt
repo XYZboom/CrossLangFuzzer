@@ -16,7 +16,7 @@ fun main() {
     for (i in 0 until 100) {
         val prog = IrDeclGeneratorImpl(
             GeneratorConfig(
-                classNumRange = 5..9
+                topLevelDeclRange = 5..9
             )
         ).genProgram()
         val fileContent = printer.printToSingle(prog)
