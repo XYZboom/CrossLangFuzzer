@@ -5,10 +5,7 @@ import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.expressions.IrExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrExpressionContainer
-import com.github.xyzboom.codesmith.ir.expressions.IrNew
+import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrClassType
@@ -40,6 +37,16 @@ class IrDeclGeneratorImpl(
         append(function.toString())
         append(" from ")
         val container = function.container
+        if (container is IrClassDeclaration) {
+            append("class ")
+            append(container.name)
+        }
+    }
+
+    private fun StringBuilder.traceProperty(property: IrPropertyDeclaration) {
+        append(property.name)
+        append(" from ")
+        val container = property.container
         if (container is IrClassDeclaration) {
             append("class ")
             append(container.name)
@@ -81,22 +88,64 @@ class IrDeclGeneratorImpl(
         return filtered.random(random).type
     }
 
+    fun randomLanguage(): Language {
+        if (random.nextBoolean(config.javaRatio)) {
+            return Language.JAVA
+        }
+        return Language.KOTLIN
+    }
+
+    /**
+     * @return true if [this] is subtype of [parent]
+     */
+    fun IrClassDeclaration.isSubtypeOf(parent: IrClassDeclaration): Boolean {
+        var result = false
+        traverseSuper {
+            if (it === parent) {
+                result = true
+                return@traverseSuper false
+            }
+            true
+        }
+        return result
+    }
+
     private val IrFunctionDeclaration.fromClassType: IrClassType
         get() {
             val clazz = container as IrClassDeclaration? ?: throw IllegalArgumentException()
             return clazz.classType
         }
 
+    fun searchFunction(
+        context: IrContainer,
+        returnType: IrType,
+        allowSubType: Boolean
+    ): IrFunctionDeclaration? {
+        val matched = context.functions.filter { it.returnType == returnType }
+        return matched.randomOrNull(random)
+    }
+
+    @Suppress("unused")
+    fun shuffleLanguage(prog: IrProgram) {
+        for (clazz in prog.classes) {
+            clazz.language = randomLanguage()
+        }
+        for (func in prog.functions) {
+            func.language = randomLanguage()
+        }
+        for (property in prog.properties) {
+            property.language = randomLanguage()
+        }
+    }
+
     override fun genProgram(): IrProgram {
         logger.trace { "start gen program" }
         return IrProgram().apply {
             for (i in 0 until config.topLevelDeclRange.random(random)) {
                 val generator = config.randomTopLevelDeclGenerator(this@IrDeclGeneratorImpl, random)
-                generator(this, if (random.nextBoolean(config.javaRatio)) {
-                    Language.JAVA
-                } else {
-                    Language.KOTLIN
-                })
+                generator(
+                    this, randomLanguage()
+                )
             }
             logger.trace { "finish gen program" }
         }
@@ -125,6 +174,23 @@ class IrDeclGeneratorImpl(
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
+    }
+
+    /**
+     * @param [visitor] return false in [visitor] if want stop
+     */
+    private fun IrClassDeclaration.traverseSuper(visitor: (IrClassDeclaration) -> Boolean) {
+        val superType = superType
+        if (superType is IrClassifier) {
+            if (!visitor(superType.classDecl)) return
+            superType.classDecl.traverseSuper(visitor)
+        }
+        for (intf in implementedTypes) {
+            if (intf is IrClassifier) {
+                if (!visitor(intf.classDecl)) return
+                intf.classDecl.traverseSuper(visitor)
+            }
+        }
     }
 
     private fun IrFunctionDeclaration.traverseOverride(visitor: (IrFunctionDeclaration) -> Unit) {
@@ -375,13 +441,21 @@ class IrDeclGeneratorImpl(
             this.language = language
             context.classes.add(this)
             genSuperTypes(context)
-            for (i in 0 until config.functionNumRange.random(random)) {
-                genFunction(
+
+            for (i in 0 until config.classMemberNumRange.random(random)) {
+                val generator: IrClassMemberGenerator = if (classType != IrClassType.INTERFACE) {
+                    config.randomClassMemberGenerator(this@IrDeclGeneratorImpl, random)
+                } else {
+                    this@IrDeclGeneratorImpl::genFunction
+                }
+                generator(
                     context,
                     this,
                     classType == IrClassType.ABSTRACT,
                     classType == IrClassType.INTERFACE,
-                    language = language
+                    null,
+                    randomName(false),
+                    language
                 )
             }
             genOverrides()
@@ -393,6 +467,7 @@ class IrDeclGeneratorImpl(
         funcContainer: IrContainer,
         inAbstract: Boolean,
         inIntf: Boolean,
+        returnType: IrType?,
         name: String,
         language: Language
     ): IrFunctionDeclaration {
@@ -477,6 +552,47 @@ class IrDeclGeneratorImpl(
         })
     }
 
+    override fun genProperty(
+        classContainer: IrContainer,
+        propContainer: IrContainer,
+        inAbstract: Boolean,
+        inIntf: Boolean,
+        type: IrType?,
+        name: String,
+        language: Language
+    ): IrPropertyDeclaration {
+        val topLevel = propContainer is IrProgram
+        logger.trace {
+            val sb = StringBuilder("gen property $name for ")
+            if (propContainer is IrClassDeclaration) {
+                sb.append("class ")
+                sb.append(propContainer.name)
+            } else {
+                sb.append("program.")
+            }
+            sb.toString()
+        }
+        return IrPropertyDeclaration(name, propContainer).apply {
+            this.language = language
+            propContainer.properties.add(this)
+            if ((!inIntf && (!inAbstract || random.nextBoolean())) || topLevel) {
+                isFinal = when {
+                    topLevel -> true
+                    propContainer is IrClassDeclaration && propContainer.classType != IrClassType.INTERFACE ->
+                        !config.noFinalFunction && random.nextBoolean()
+
+                    else -> false
+                }
+            }
+            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
+                logger.trace { "make $name print nullable annotations" }
+                printNullableAnnotations = true
+            }
+            readonly = random.nextBoolean()
+            genPropertyType(classContainer, this)
+        }
+    }
+
     override fun genFunctionParameter(
         classContainer: IrContainer,
         name: String
@@ -513,13 +629,35 @@ class IrDeclGeneratorImpl(
         }
     }
 
+    fun genPropertyType(
+        classContainer: IrContainer,
+        target: IrPropertyDeclaration
+    ) {
+        val chooseType = randomType(classContainer) { true }
+        logger.trace {
+            val sb = StringBuilder("gen type for property: ")
+            sb.traceProperty(target)
+            sb.append(". type is: $chooseType")
+            sb.toString()
+        }
+        if (chooseType != null) {
+            val makeNullableType = if (random.nextBoolean(config.functionReturnTypeNullableProbability)) {
+                IrNullableType.nullableOf(chooseType)
+            } else {
+                chooseType
+            }
+            target.type = makeNullableType
+        }
+    }
+
     //<editor-fold desc="Expression">
     fun genExpression(
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
-        context: IrContainer,
+        context: IrProgram,
         type: IrType? = null,
-        allowSubType: Boolean = false
+        allowSubType: Boolean = false,
+        topOnly: Boolean = false
     ): IrExpression {
         val chooseType = type ?: randomType(context) { true } ?: IrAny
         val generator = config.randomExpressionGenerator(this, random)
@@ -529,11 +667,26 @@ class IrDeclGeneratorImpl(
     override fun genNewExpression(
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
-        context: IrContainer,
+        context: IrProgram,
         type: IrType,
         allowSubType: Boolean
     ): IrNew {
         return IrNew(type)
+    }
+
+    override fun genFunctionCall(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrProgram,
+        returnType: IrType,
+        allowSubType: Boolean
+    ): IrFunctionCall {
+        val searchResult = searchFunction(context, returnType, allowSubType)
+            ?: genTopLevelFunction(
+                context, randomLanguage(),
+                returnType = returnType
+            )
+        return IrFunctionCall(null, searchResult, listOf(TODO("arg todo")))
     }
     //</editor-fold>
 }

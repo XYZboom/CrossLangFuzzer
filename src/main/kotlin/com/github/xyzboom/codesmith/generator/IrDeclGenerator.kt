@@ -3,11 +3,9 @@ package com.github.xyzboom.codesmith.generator
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
-import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.IrExpressionContainer
+import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCall
 import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassType
@@ -25,7 +23,11 @@ interface IrDeclGenerator {
     }
 
     fun genTopLevelFunction(context: IrProgram, language: Language): IrFunctionDeclaration {
-        return genFunction(context, context, inAbstract = false, inIntf = false, language = language)
+        return genFunction(context, context, inAbstract = false, inIntf = false, null, language = language)
+    }
+
+    fun genTopLevelFunction(context: IrProgram, language: Language, returnType: IrType): IrFunctionDeclaration {
+        return genFunction(context, context, inAbstract = false, inIntf = false, returnType, language = language)
     }
 
     fun genClass(
@@ -39,6 +41,7 @@ interface IrDeclGenerator {
         funcContainer: IrContainer,
         inAbstract: Boolean,
         inIntf: Boolean,
+        returnType: IrType?,
         name: String = randomName(false),
         language: Language = Language.KOTLIN
     ): IrFunctionDeclaration
@@ -80,8 +83,26 @@ interface IrDeclGenerator {
     fun genNewExpression(
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
-        context: IrContainer,
+        context: IrProgram,
         type: IrType,
         allowSubType: Boolean
     ): IrNew
+
+    fun genFunctionCall(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrProgram,
+        returnType: IrType,
+        allowSubType: Boolean
+    ): IrFunctionCall
+
+    fun genProperty(
+        classContainer: IrContainer,
+        propContainer: IrContainer,
+        inAbstract: Boolean,
+        inIntf: Boolean,
+        type: IrType?,
+        name: String,
+        language: Language
+    ): IrPropertyDeclaration
 }

@@ -19,7 +19,7 @@ class IrProgram: IrElement(), IrContainer {
     /**
      * Properties can be top level. Top-level properties in Java will be renamed to getXXX.
      */
-    val properties = mutableListOf<IrPropertyDeclaration>()
+    override val properties = mutableListOf<IrPropertyDeclaration>()
 
     override var superContainer: IrContainer? = null
 }

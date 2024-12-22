@@ -2,11 +2,13 @@ package com.github.xyzboom.codesmith.ir.container
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 
 interface IrContainer {
     val classes: MutableList<IrClassDeclaration>
     val functions: MutableList<IrFunctionDeclaration>
+    val properties: MutableList<IrPropertyDeclaration>
 
     var superContainer: IrContainer?
     val allClasses: List<IrClassDeclaration>

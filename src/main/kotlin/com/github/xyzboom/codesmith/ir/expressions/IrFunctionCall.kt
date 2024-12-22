@@ -1,4 +1,10 @@
 package com.github.xyzboom.codesmith.ir.expressions
 
-class IrFunctionCall: IrExpression() {
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+
+class IrFunctionCall(
+    val receiver: IrExpression?,
+    val target: IrFunctionDeclaration,
+    val arguments: List<IrValueArgument>
+) : IrExpression() {
 }

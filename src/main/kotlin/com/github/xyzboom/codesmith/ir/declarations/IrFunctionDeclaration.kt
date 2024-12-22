@@ -12,7 +12,7 @@ import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 class IrFunctionDeclaration(
     name: String,
     var container: IrContainer
-) : IrDeclaration(name) {
+) : IrDeclaration(name), IrClassMember {
     /**
      * only available when [language] is [Language.JAVA]
      */

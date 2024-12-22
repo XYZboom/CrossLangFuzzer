@@ -18,7 +18,8 @@ class IrClassDeclaration(
     name: String,
     var classType: IrClassType,
     val fields: MutableList<IrFieldDeclaration> = mutableListOf(),
-    override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
+    override val functions: MutableList<IrFunctionDeclaration> = mutableListOf(),
+    override val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
 ) : IrDeclaration(name), IrContainer {
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
@@ -34,6 +35,7 @@ class IrClassDeclaration(
     override fun <D> acceptChildren(visitor: IrVisitor<Unit, D>, data: D) {
         fields.forEach { it.accept(visitor, data) }
         functions.forEach { it.accept(visitor, data) }
+        properties.forEach { it.accept(visitor, data) }
     }
 
     override fun toString(): String {

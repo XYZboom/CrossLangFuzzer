@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 
@@ -19,6 +20,9 @@ interface IrVisitor<out R, in D> {
 
     fun visitFunction(function: IrFunctionDeclaration, data: D): R =
         visitDeclaration(function, data)
+
+    fun visitProperty(property: IrPropertyDeclaration, data: D): R =
+        visitDeclaration(property, data)
 
     fun visitExpression(expression: IrExpression, data: D): R =
         visitElement(expression, data)

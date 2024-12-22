@@ -15,21 +15,39 @@ data class GeneratorConfig(
     val topLevelClassWeight: Int = 3,
     val topLevelFunctionWeight: Int = 1,
     val classImplNumRange: IntRange = 0..3,
-    val functionNumRange: IntRange = 1..3,
+    val classMemberNumRange: IntRange = 1..5,
+    val classMemberIsFunctionWeight: Int = 3,
+    val classMemberIsPropertyWeight: Int = 2,
     val functionParameterNumRange: IntRange = 0..3,
     val functionExpressionNumRange: IntRange = 2..8,
     val functionParameterNullableProbability: Float = 0.4f,
     val functionReturnTypeNullableProbability: Float = 0.4f,
     val printJavaNullableAnnotationProbability: Float = 0.4f,
     val newExpressionWeight: Int = 1,
+    val functionCallExpressionWeight: Int = 1,
     /**
      * If true, override functions will only be generated for situations that must override.
      * Such as: there are unimplemented functions in super types;
      * there are conflict functions in super types;
      */
     val overrideOnlyMustOnes: Boolean = false,
-    val noFinalFunction: Boolean = false
+    val noFinalFunction: Boolean = false,
+    val noFinalProperties: Boolean = false,
 ) {
+    fun randomClassMemberGenerator(
+        declGenerator: IrDeclGenerator,
+        random: Random = Random.Default
+    ): IrClassMemberGenerator {
+        val generators = listOf(
+            declGenerator::genFunction,
+            declGenerator::genProperty
+        )
+        val weights = listOf(
+            classMemberIsFunctionWeight,
+            classMemberIsPropertyWeight,
+        )
+        return rouletteSelection(generators, weights, random)
+    }
 
     fun randomTopLevelDeclGenerator(
         declGenerator: IrDeclGenerator,
@@ -51,10 +69,12 @@ data class GeneratorConfig(
         random: Random = Random.Default
     ): IrExpressionGenerator {
         val generators = listOf(
-            declGenerator::genNewExpression
+            declGenerator::genNewExpression,
+            declGenerator::genFunctionCall
         )
         val weights = listOf(
-            newExpressionWeight
+            newExpressionWeight,
+            functionCallExpressionWeight
         )
         return rouletteSelection(generators, weights, random)
     }
@@ -67,7 +87,8 @@ data class GeneratorConfig(
         @get:TestOnly
         val testDefault = GeneratorConfig(
             overrideOnlyMustOnes = true,
-            noFinalFunction = true
+            noFinalFunction = true,
+            noFinalProperties = true,
         )
     }
 }

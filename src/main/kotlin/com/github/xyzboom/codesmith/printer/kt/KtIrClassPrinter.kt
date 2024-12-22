@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
@@ -162,6 +163,25 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(", ")
             }
         }
+    }
+
+    override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
+        data.append(indent)
+        if (!property.isFinal) {
+            data.append("open ")
+        }
+        val valOrVar = if (property.readonly) {
+            "val "
+        } else {
+            "var "
+        }
+        data.append(valOrVar)
+        data.append(property.name)
+        data.append(": ")
+        data.append(printType(property.type))
+        data.append(" = ")
+        data.append("TODO()")
+        data.append("\n")
     }
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {

@@ -6,6 +6,7 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
@@ -23,10 +24,11 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             put(IrUnit, "void")
         }
 
-        private const val IMPORTS =
+        const val IMPORTS =
             "import org.jetbrains.annotations.NotNull;\n" +
                     "import org.jetbrains.annotations.Nullable;\n"
         const val TOP_LEVEL_CONTAINER_CLASS_NAME = "JavaTopLevelContainer"
+        const val FUNCTION_BODY_TODO = "throw new RuntimeException();"
     }
 
     private var printNullableAnnotation = false
@@ -196,7 +198,54 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
+    override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
+        val propertyContainer: IrElement = elementStack.peek()
+
+        fun buildGetterOrSetter(setter: Boolean) {
+            data.append(indent)
+            data.append("public ")
+            if (property.isFinal) {
+                data.append("final ")
+            }
+            if (propertyContainer is IrClassDeclaration && propertyContainer.classType == INTERFACE) {
+                data.append("default ")
+            }
+            if (setter) {
+                data.append(printType(IrUnit))
+            } else {
+                data.append(printType(property.type))
+            }
+            data.append(" ")
+            data.append(
+                if (setter) {
+                    "set"
+                } else {
+                    "get"
+                }
+            )
+            data.append(property.name.replaceFirstChar { it.uppercaseChar() })
+            data.append("(")
+            if (setter) {
+                data.append(printType(property.type))
+                data.append(" value")
+            }
+            data.append(")")
+            data.append(" {\n")
+            indentCount++
+            data.append(indent)
+            data.append(FUNCTION_BODY_TODO)
+            data.append("\n")
+            indentCount--
+            data.append(indent)
+            data.append("}\n")
+        }
+        buildGetterOrSetter(false)
+        if (!property.readonly) {
+            buildGetterOrSetter(true)
+        }
+    }
+
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
-        data.append("${indent}throw new RuntimeException();\n")
+        data.append("${indent}${FUNCTION_BODY_TODO}\n")
     }
 }

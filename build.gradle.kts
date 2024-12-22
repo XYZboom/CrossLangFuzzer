@@ -38,8 +38,9 @@ publishing {
 }
 dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    implementation("org.apache.logging.log4j:log4j-api:2.20.0")
-    implementation("org.slf4j:slf4j-log4j12:2.0.10")
+    runtimeOnly("org.apache.logging.log4j:log4j-api:2.20.0")
+    runtimeOnly("org.slf4j:slf4j-log4j12:2.0.16")
+    runtimeOnly("org.slf4j:slf4j-api:2.0.16")
     // For coverage usage
     api("org.jacoco:org.jacoco.core:0.8.12")
     implementation(kotlin("reflect"))

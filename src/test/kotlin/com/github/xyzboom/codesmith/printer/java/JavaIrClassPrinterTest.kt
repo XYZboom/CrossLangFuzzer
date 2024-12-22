@@ -3,13 +3,18 @@ package com.github.xyzboom.codesmith.printer.java
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.printer.java.JavaIrClassPrinter.Companion.IMPORTS
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 class JavaIrClassPrinterTest {
+    companion object {
+        private val todoFunctionBody = "\t\tthrow new RuntimeException();\n"
+    }
     @Test
     fun testPrintSimpleClassWithSimpleFunction() {
         val printer = JavaIrClassPrinter()
@@ -22,8 +27,10 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "public final class $clazzName {\n" +
+        val expect = IMPORTS +
+                "public final class $clazzName {\n" +
                 "\tpublic final void $funcName() {\n" +
+                todoFunctionBody +
                 "\t}\n" +
                 "}\n"
         assertEquals(expect, result)
@@ -43,10 +50,12 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "public final class $clazzName {\n" +
+        val expect = IMPORTS +
+                "public final class $clazzName {\n" +
                 "\t// stub\n"+
                 "\t/*\n"+
                 "\tpublic final void $funcName() {\n" +
+                todoFunctionBody +
                 "\t}\n" +
                 "\t*/\n"+
                 "}\n"
@@ -67,10 +76,38 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "public final class $clazzName {\n" +
+        val expect = IMPORTS +
+                "public final class $clazzName {\n" +
                 "\tpublic final void $funcName(Object arg0, $clazzName arg1) {\n" +
+                todoFunctionBody +
                 "\t}\n" +
                 "}\n"
         assertEquals(expect, result)
     }
+
+    //<editor-fold desc="Property">
+    @Test
+    fun testPrintSimpleProperty() {
+        val printer = JavaIrClassPrinter()
+        val clazzName = "SimpleClassWithSimpleFunction"
+        val propertyTypeName = "PType"
+        val propertyName = "simple"
+        val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
+        val pClass = IrClassDeclaration(propertyTypeName, IrClassType.FINAL)
+        val property = IrPropertyDeclaration(propertyName, clazz).apply {
+            isFinal = true
+            type = pClass.type
+            readonly = true
+        }
+        clazz.properties.add(property)
+        val result = printer.print(clazz)
+        val expect = IMPORTS +
+                "public final class $clazzName {\n" +
+                "\tpublic final $propertyTypeName get${propertyName.replaceFirstChar { it.uppercaseChar() }}() {\n" +
+                todoFunctionBody +
+                "\t}\n" +
+                "}\n"
+        assertEquals(expect, result)
+    }
+    //</editor-fold>
 }

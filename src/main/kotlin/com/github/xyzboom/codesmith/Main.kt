@@ -4,16 +4,15 @@ import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.runner.CoverageRunner
-import org.apache.log4j.BasicConfigurator
 import java.io.File
 import java.time.LocalTime
 
+
+
 fun main() {
-    System.setProperty("log4j.logger.com.github.xyzboom.codesmith", "TRACE")
-    BasicConfigurator.resetConfiguration()
     val temp = System.getProperty("java.io.tmpdir")
     val printer = IrProgramPrinter()
-    for (i in 0 until 100) {
+    for (i in 0 until 1) {
         val prog = IrDeclGeneratorImpl(
             GeneratorConfig(
                 topLevelDeclRange = 5..9
