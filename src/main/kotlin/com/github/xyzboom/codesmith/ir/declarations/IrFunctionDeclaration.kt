@@ -4,15 +4,17 @@ import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
+import com.github.xyzboom.codesmith.ir.container.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 class IrFunctionDeclaration(
     name: String,
     var container: IrContainer
-) : IrDeclaration(name), IrClassMember {
+) : IrDeclaration(name), IrClassMember, IrTypeParameterContainer {
     /**
      * only available when [language] is [Language.JAVA]
      */
@@ -25,6 +27,7 @@ class IrFunctionDeclaration(
     val topLevel: Boolean get() = container is IrProgram
     var parameterList = IrParameterList()
     var returnType: IrType = IrUnit
+    override val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
 
     class Signature(
         val name: String,

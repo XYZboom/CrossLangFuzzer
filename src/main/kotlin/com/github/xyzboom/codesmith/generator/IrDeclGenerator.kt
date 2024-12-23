@@ -51,7 +51,13 @@ interface IrDeclGenerator {
     ): IrFunctionDeclaration
 
     fun randomClassType(): IrClassType
-    fun randomType(from: IrContainer, filter: (IrClassDeclaration) -> Boolean): IrType?
+    fun randomType(
+        from: IrContainer,
+        classContext: IrClassDeclaration?,
+        functionContext: IrFunctionDeclaration?,
+        filter: (IrType) -> Boolean
+    ): IrType?
+
     fun IrClassDeclaration.genSuperTypes(context: IrContainer)
 
     /**
@@ -76,11 +82,15 @@ interface IrDeclGenerator {
      */
     fun genFunctionParameter(
         classContainer: IrContainer,
+        classContext: IrClassDeclaration?,
+        functionContext: IrFunctionDeclaration?,
         name: String = randomName(false)
     ): IrParameter
 
     fun genFunctionReturnType(
         classContainer: IrContainer,
+        classContext: IrClassDeclaration?,
+        functionContext: IrFunctionDeclaration?,
         target: IrFunctionDeclaration
     )
 

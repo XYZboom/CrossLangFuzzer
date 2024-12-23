@@ -6,23 +6,31 @@ import kotlin.random.Random
 
 data class GeneratorConfig(
     val nameLengthRange: IntRange = 3..8,
-    /**
-     * Probability that a class or interface has a super class or interface
-     */
-    val classHasSuperProbability: Float = 0.3f,
     val javaRatio: Float = 0.5f,
+    //<editor-fold desc="Top Level">
     val topLevelDeclRange: IntRange = 8..15,
     val topLevelClassWeight: Int = 3,
     val topLevelFunctionWeight: Int = 1,
     val topLevelPropertyWeight: Int = 1,
+    //</editor-fold>
+    //<editor-fold desc="Class">
+    /**
+     * Probability that a class or interface has a super class or interface
+     */
+    val classHasSuperProbability: Float = 0.3f,
     val classImplNumRange: IntRange = 0..3,
     val classMemberNumRange: IntRange = 1..5,
     val classMemberIsFunctionWeight: Int = 3,
     val classMemberIsPropertyWeight: Int = 2,
+    val classHasTypeParameterProbability: Float = 0.3f,
+    val classTypeParameterNumberRange: IntRange = 1..3,
+    //</editor-fold>
+    //<editor-fold desc="Function">
     val functionParameterNumRange: IntRange = 0..3,
     val functionExpressionNumRange: IntRange = 2..8,
     val functionParameterNullableProbability: Float = 0.4f,
     val functionReturnTypeNullableProbability: Float = 0.4f,
+    //</editor-fold>
     val printJavaNullableAnnotationProbability: Float = 0.4f,
     val newExpressionWeight: Int = 1,
     val functionCallExpressionWeight: Int = 1,
