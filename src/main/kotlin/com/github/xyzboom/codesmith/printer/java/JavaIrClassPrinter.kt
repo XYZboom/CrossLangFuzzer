@@ -7,7 +7,7 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
-import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrClassType.*
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
@@ -15,6 +15,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
+import com.github.xyzboom.codesmith.printer.kt.KtIrClassPrinter
 
 class JavaIrClassPrinter : AbstractIrClassPrinter() {
     companion object {
@@ -253,6 +254,59 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
-        data.append("${indent}${FUNCTION_BODY_TODO}\n")
+        if (block.expressions.isEmpty()) {
+            data.append(indent)
+            data.append("throw new RuntimeException();\n")
+        } else {
+            require(block.expressions.last() is IrReturnExpression)
+        }
+        for (expression in block.expressions) {
+            data.append(indent)
+            expression.accept(this, data)
+            data.append(";\n")
+        }
+    }
+
+    override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
+        data.append("new ")
+        val store = printNullableAnnotation
+        printNullableAnnotation = false
+        data.append(printType(newExpression.createType))
+        printNullableAnnotation = store
+        data.append("()")
+    }
+
+    override fun visitFunctionCallExpression(functionCall: IrFunctionCall, data: StringBuilder) {
+        val receiver = functionCall.receiver
+        val target = functionCall.target
+        if (receiver != null) {
+            receiver.accept(this, data)
+            data.append(".")
+        } else if (target.topLevel) {
+            if (target.language == Language.KOTLIN) {
+                data.append(KtIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME)
+            } else {
+                data.append(TOP_LEVEL_CONTAINER_CLASS_NAME)
+            }
+            data.append(".")
+        }
+        data.append(target.name)
+        data.append("(")
+        for ((index, argument) in functionCall.arguments.withIndex()) {
+            argument.accept(this, data)
+            if (index != functionCall.arguments.lastIndex) {
+                data.append(", ")
+            }
+        }
+        data.append(")")
+    }
+
+    override fun visitReturnExpression(returnExpression: IrReturnExpression, data: StringBuilder) {
+        data.append("return ")
+        returnExpression.innerExpression?.accept(this, data)
+    }
+
+    override fun visitDefaultImplExpression(defaultImpl: IrDefaultImpl, data: StringBuilder) {
+        data.append("null")
     }
 }

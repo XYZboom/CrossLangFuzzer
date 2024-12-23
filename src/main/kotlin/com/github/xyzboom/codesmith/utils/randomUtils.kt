@@ -37,7 +37,8 @@ fun <T> rouletteSelection(list: Array<T>, weights: List<Int>, random: Random = R
 }
 
 fun <T> choice(vararg collections: Collection<T>, random: Random = Random.Default): T {
-    val choose = rouletteSelection(collections, collections.map { it.size }, random)
+    val notEmpty = collections.filterNot { it.isEmpty() }
+    val choose = rouletteSelection(notEmpty, notEmpty.map { it.size }, random)
     return choose.random(random)
 }
 

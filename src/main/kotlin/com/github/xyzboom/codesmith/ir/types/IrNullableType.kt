@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith.ir.types
 
-class IrNullableType private constructor(val innerType: IrType): IrType() {
+class IrNullableType private constructor(val innerType: IrType) : IrType() {
+    override val classType: IrClassType = innerType.classType
+
     companion object {
         @JvmStatic
         fun nullableOf(type: IrType): IrType {

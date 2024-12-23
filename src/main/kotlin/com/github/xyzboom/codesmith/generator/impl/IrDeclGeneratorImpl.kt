@@ -7,12 +7,12 @@ import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
-import com.github.xyzboom.codesmith.ir.types.IrClassifier
-import com.github.xyzboom.codesmith.ir.types.IrClassType
-import com.github.xyzboom.codesmith.ir.types.IrNullableType
-import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
+import com.github.xyzboom.codesmith.utils.rouletteSelection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
@@ -142,7 +142,7 @@ class IrDeclGeneratorImpl(
         logger.trace { "start gen program" }
         return IrProgram().apply {
             for (i in 0 until config.topLevelDeclRange.random(random)) {
-                val generator = config.randomTopLevelDeclGenerator(this@IrDeclGeneratorImpl, random)
+                val generator = randomTopLevelDeclGenerator()
                 generator(
                     this, randomLanguage()
                 )
@@ -444,7 +444,7 @@ class IrDeclGeneratorImpl(
 
             for (i in 0 until config.classMemberNumRange.random(random)) {
                 val generator: IrClassMemberGenerator = if (classType != IrClassType.INTERFACE) {
-                    config.randomClassMemberGenerator(this@IrDeclGeneratorImpl, random)
+                    randomClassMemberGenerator()
                 } else {
                     this@IrDeclGeneratorImpl::genFunction
                 }
@@ -498,10 +498,27 @@ class IrDeclGeneratorImpl(
             for (i in 0 until config.functionParameterNumRange.random(random)) {
                 parameterList.parameters.add(genFunctionParameter(classContainer))
             }
-            genFunctionReturnType(classContainer, this)
+            if (returnType == null) {
+                genFunctionReturnType(classContainer, this)
+            } else {
+                this.returnType = returnType
+            }
             if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
                 logger.trace { "make $name print nullable annotations" }
                 printNullableAnnotations = true
+            }
+            val block = body
+            if (block != null) {
+                repeat(config.functionExpressionNumRange.random(random)) {
+                    val expr = genExpression(block, this, classContainer.program)
+                    block.expressions.add(expr)
+                }
+                if (this.returnType !== IrUnit) {
+                    val returnExpr = genExpression(block, this, classContainer.program, this.returnType)
+                    block.expressions.add(IrReturnExpression(returnExpr))
+                } else {
+                    block.expressions.add(IrReturnExpression(null))
+                }
             }
         }
     }
@@ -657,10 +674,29 @@ class IrDeclGeneratorImpl(
         context: IrProgram,
         type: IrType? = null,
         allowSubType: Boolean = false,
-        topOnly: Boolean = false
+        leafOnly: Boolean = false
     ): IrExpression {
-        val generator = config.randomExpressionGenerator(this, random)
+        val generator = randomExpressionGenerator(block, functionContext, context, type, leafOnly)
         return generator.invoke(block, functionContext, context, type, allowSubType)
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun expressionAlwaysAvailable(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrProgram,
+        type: IrType?
+    ): Boolean {
+        return true
+    }
+
+    fun newExpressionAvailable(
+        @Suppress("UNUSED_PARAMETER") block: IrExpressionContainer,
+        @Suppress("UNUSED_PARAMETER") functionContext: IrFunctionDeclaration,
+        @Suppress("UNUSED_PARAMETER") context: IrProgram,
+        type: IrType?
+    ): Boolean {
+        return type == null || type.classType == IrClassType.FINAL || type.classType == IrClassType.OPEN
     }
 
     override fun genNewExpression(
@@ -670,7 +706,11 @@ class IrDeclGeneratorImpl(
         type: IrType?,
         allowSubType: Boolean
     ): IrNew {
-        return IrNew(type ?: TODO())
+        val chooseType = type ?: randomType(context) {
+            it.type is IrSimpleClassifier
+                    && (it.type.classType == IrClassType.OPEN || it.type.classType == IrClassType.FINAL)
+        } ?: IrAny
+        return IrNew.create(chooseType)
     }
 
     override fun genFunctionCall(
@@ -680,16 +720,111 @@ class IrDeclGeneratorImpl(
         returnType: IrType?,
         allowSubType: Boolean
     ): IrFunctionCall {
-        val searchResult = if (returnType != null) {
+        val receiver: IrExpression?
+        val func = if (returnType != null) {
+            receiver = null
             searchFunction(context, returnType, allowSubType)
                 ?: genTopLevelFunction(
                     context, randomLanguage(),
                     returnType = returnType
                 )
         } else {
-            TODO()
+            val searchFrom: List<Pair<IrExpression?, IrFunctionDeclaration>> =
+                context.functions.map { null to it }
+            val memberFunctions = block.variables().flatMap {
+                when (val type = it.varType) {
+                    is IrClassifier -> type.classDecl.functions
+                    else -> emptyList()
+                }.map { it1 -> it to it1 }
+            }
+            if (searchFrom.isEmpty() && memberFunctions.isEmpty()) {
+                receiver = null
+                genTopLevelFunction(context, randomLanguage())
+            } else {
+                val pair = choice(searchFrom, memberFunctions, random = random)
+                receiver = pair.first
+                pair.second
+            }
         }
-        return IrFunctionCall(null, searchResult, listOf(TODO("arg todo")))
+        val args = func.parameterList.parameters.map {
+            val generator = randomExpressionGenerator(block, functionContext, context, it.type, true)
+            generator(block, functionContext, context, it.type, allowSubType)
+        }
+        return IrFunctionCall(receiver, func, args)
     }
+
+    fun IrExpressionContainer.variables(): List<IrVariable> {
+        return expressions.filterIsInstance<IrVariable>()
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="Generators">
+    fun randomClassMemberGenerator(): IrClassMemberGenerator {
+        val generators = listOf(
+            this::genFunction,
+            this::genProperty
+        )
+        val weights = listOf(
+            config.classMemberIsFunctionWeight,
+            config.classMemberIsPropertyWeight,
+        )
+        return rouletteSelection(generators, weights, random)
+    }
+
+    fun randomTopLevelDeclGenerator(): IrTopLevelDeclGenerator {
+        val generators = listOf(
+            this::genTopLevelClass,
+            this::genTopLevelFunction,
+            this::genTopLevelProperty
+        )
+        val weights = listOf(
+            config.topLevelClassWeight,
+            config.topLevelFunctionWeight,
+            config.topLevelPropertyWeight
+        )
+        return rouletteSelection(generators, weights, random)
+    }
+
+    val exprCheckerAndGenerator = listOf(
+        this::newExpressionAvailable to (this::genNewExpression to config.newExpressionWeight),
+        this::expressionAlwaysAvailable to (this::genFunctionCall to config.functionCallExpressionWeight)
+    )
+
+    val leafOnlyExprCheckerAndGenerator = listOf(
+        this::newExpressionAvailable to (this::genNewExpression to config.newExpressionWeight),
+
+        )
+
+    /**
+     * If a generator can generate expression of [type], include it in the scope of consideration.
+     * Choose one randomly from the scope of consideration.
+     */
+    fun randomExpressionGenerator(
+        block: IrExpressionContainer,
+        functionContext: IrFunctionDeclaration,
+        context: IrProgram,
+        type: IrType?,
+        leafOnly: Boolean
+    ): IrExpressionGenerator {
+        val generators = mutableListOf<IrExpressionGenerator>()
+        val weights = mutableListOf<Int>()
+        val checkerAndGenerator = if (leafOnly) {
+            leafOnlyExprCheckerAndGenerator
+        } else {
+            exprCheckerAndGenerator
+        }
+        for ((validator, generatorWeightPair) in checkerAndGenerator) {
+            if (validator(block, functionContext, context, type)) {
+                generators.add(generatorWeightPair.first)
+                weights.add(generatorWeightPair.second)
+            }
+        }
+        if (generators.isEmpty()) {
+            return { _, _, _, _, _ -> IrDefaultImpl(type ?: randomType(context) { true } ?: IrAny) }
+        }
+        return rouletteSelection(generators, weights, random)
+    }
+
+
     //</editor-fold>
 }

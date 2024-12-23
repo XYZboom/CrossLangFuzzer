@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import org.junit.jupiter.api.Test
@@ -31,7 +32,6 @@ class KtIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
                 "\tfun $funcName(): Unit {\n" +
-                todoFunctionBody +
                 "\t}\n" +
                 "}\n"
         assertEquals(expect, result)
@@ -55,7 +55,6 @@ class KtIrClassPrinterTest {
                 "\t// stub\n" +
                 "\t/*\n" +
                 "\toverride fun $funcName(): Unit {\n" +
-                todoFunctionBody +
                 "\t}\n" +
                 "\t*/\n" +
                 "}\n"
@@ -78,7 +77,6 @@ class KtIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
                 "\tfun $funcName(arg0: Any, arg1: $clazzName): Unit {\n" +
-                todoFunctionBody +
                 "\t}\n" +
                 "}\n"
         assertEquals(expect, result)
@@ -105,4 +103,29 @@ class KtIrClassPrinterTest {
         assertEquals(expect, result)
     }
     //</editor-fold>
+
+    //<editor-fold desc="Expression">
+    @Test
+    fun testPrintNewExpression() {
+        val printer = KtIrClassPrinter()
+        val clazzName = "SimpleClassWithSimpleFunction"
+        val funcName = "simple"
+        val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
+        val func = IrFunctionDeclaration(funcName, clazz).apply {
+            isFinal = true
+            body = IrBlock().apply {
+                expressions.add(IrNew.create(clazz.type))
+            }
+        }
+        clazz.functions.add(func)
+        val result = printer.print(clazz)
+        val expect = "public class $clazzName {\n" +
+                "\tfun $funcName(): Unit {\n" +
+                "\t\t$clazzName()\n" +
+                "\t}\n" +
+                "}\n"
+        assertEquals(expect, result)
+    }
+    //</editor-fold>
+
 }

@@ -35,53 +35,6 @@ data class GeneratorConfig(
     val noFinalFunction: Boolean = false,
     val noFinalProperties: Boolean = false,
 ) {
-    fun randomClassMemberGenerator(
-        declGenerator: IrDeclGenerator,
-        random: Random = Random.Default
-    ): IrClassMemberGenerator {
-        val generators = listOf(
-            declGenerator::genFunction,
-            declGenerator::genProperty
-        )
-        val weights = listOf(
-            classMemberIsFunctionWeight,
-            classMemberIsPropertyWeight,
-        )
-        return rouletteSelection(generators, weights, random)
-    }
-
-    fun randomTopLevelDeclGenerator(
-        declGenerator: IrDeclGenerator,
-        random: Random = Random.Default
-    ): IrTopLevelDeclGenerator {
-        val generators = listOf(
-            declGenerator::genTopLevelClass,
-            declGenerator::genTopLevelFunction,
-            declGenerator::genTopLevelProperty
-        )
-        val weights = listOf(
-            topLevelClassWeight,
-            topLevelFunctionWeight,
-            topLevelPropertyWeight
-        )
-        return rouletteSelection(generators, weights, random)
-    }
-
-    fun randomExpressionGenerator(
-        declGenerator: IrDeclGenerator,
-        random: Random = Random.Default
-    ): IrExpressionGenerator {
-        val generators = listOf(
-            declGenerator::genNewExpression,
-            declGenerator::genFunctionCall
-        )
-        val weights = listOf(
-            newExpressionWeight,
-            functionCallExpressionWeight
-        )
-        return rouletteSelection(generators, weights, random)
-    }
-
     companion object {
         @JvmStatic
         val default = GeneratorConfig()
