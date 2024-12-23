@@ -588,7 +588,7 @@ class IrDeclGeneratorImpl(
                 logger.trace { "make $name print nullable annotations" }
                 printNullableAnnotations = true
             }
-            readonly = random.nextBoolean()
+            readonly = topLevel || random.nextBoolean()
             genPropertyType(classContainer, this)
         }
     }
@@ -659,33 +659,36 @@ class IrDeclGeneratorImpl(
         allowSubType: Boolean = false,
         topOnly: Boolean = false
     ): IrExpression {
-        val chooseType = type ?: randomType(context) { true } ?: IrAny
         val generator = config.randomExpressionGenerator(this, random)
-        return generator.invoke(block, functionContext, context, chooseType, allowSubType)
+        return generator.invoke(block, functionContext, context, type, allowSubType)
     }
 
     override fun genNewExpression(
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
         context: IrProgram,
-        type: IrType,
+        type: IrType?,
         allowSubType: Boolean
     ): IrNew {
-        return IrNew(type)
+        return IrNew(type ?: TODO())
     }
 
     override fun genFunctionCall(
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
         context: IrProgram,
-        returnType: IrType,
+        returnType: IrType?,
         allowSubType: Boolean
     ): IrFunctionCall {
-        val searchResult = searchFunction(context, returnType, allowSubType)
-            ?: genTopLevelFunction(
-                context, randomLanguage(),
-                returnType = returnType
-            )
+        val searchResult = if (returnType != null) {
+            searchFunction(context, returnType, allowSubType)
+                ?: genTopLevelFunction(
+                    context, randomLanguage(),
+                    returnType = returnType
+                )
+        } else {
+            TODO()
+        }
         return IrFunctionCall(null, searchResult, listOf(TODO("arg todo")))
     }
     //</editor-fold>

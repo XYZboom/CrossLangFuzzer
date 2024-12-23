@@ -30,6 +30,10 @@ interface IrDeclGenerator {
         return genFunction(context, context, inAbstract = false, inIntf = false, returnType, language = language)
     }
 
+    fun genTopLevelProperty(context: IrProgram, language: Language): IrPropertyDeclaration {
+        return genProperty(context, context, inAbstract = false, inIntf = false, null, language = language)
+    }
+
     fun genClass(
         context: IrContainer,
         name: String = randomName(true),
@@ -84,7 +88,7 @@ interface IrDeclGenerator {
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
         context: IrProgram,
-        type: IrType,
+        type: IrType?,
         allowSubType: Boolean
     ): IrNew
 
@@ -92,7 +96,7 @@ interface IrDeclGenerator {
         block: IrExpressionContainer,
         functionContext: IrFunctionDeclaration,
         context: IrProgram,
-        returnType: IrType,
+        returnType: IrType?,
         allowSubType: Boolean
     ): IrFunctionCall
 
@@ -102,7 +106,7 @@ interface IrDeclGenerator {
         inAbstract: Boolean,
         inIntf: Boolean,
         type: IrType?,
-        name: String,
-        language: Language
+        name: String = randomName(false),
+        language: Language = Language.KOTLIN
     ): IrPropertyDeclaration
 }

@@ -24,8 +24,8 @@ class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
             }
             result[fileName] = content
         }
-        val javaTopLevelContent = javaClassPrinter.printTopLevelFunctions(element)
-        val ktTopLevelContent = ktClassPrinter.printTopLevelFunctions(element)
+        val javaTopLevelContent = javaClassPrinter.printTopLevelFunctionsAndProperties(element)
+        val ktTopLevelContent = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
         result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
         result["main.kt"] = "${ktTopLevelContent}\n" +
                 "fun box(): String {\n" +

@@ -37,11 +37,14 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         return data.toString()
     }
 
-    override fun printTopLevelFunctions(program: IrProgram): String {
+    override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
         val data = StringBuilder()
         elementStack.push(program)
         for (function in program.functions.filter { it.language == Language.KOTLIN }) {
             visitFunction(function, data)
+        }
+        for (property in program.properties.filter { it.language == Language.KOTLIN }) {
+            visitProperty(property, data)
         }
         require(elementStack.pop() === program)
         return data.toString()
@@ -179,6 +182,9 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         data.append(property.name)
         data.append(": ")
         data.append(printType(property.type))
+        if (property.topLevel) {
+            data.append(" get()")
+        }
         data.append(" = ")
         data.append("TODO()")
         data.append("\n")

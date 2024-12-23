@@ -14,6 +14,7 @@ data class GeneratorConfig(
     val topLevelDeclRange: IntRange = 8..15,
     val topLevelClassWeight: Int = 3,
     val topLevelFunctionWeight: Int = 1,
+    val topLevelPropertyWeight: Int = 1,
     val classImplNumRange: IntRange = 0..3,
     val classMemberNumRange: IntRange = 1..5,
     val classMemberIsFunctionWeight: Int = 3,
@@ -55,11 +56,13 @@ data class GeneratorConfig(
     ): IrTopLevelDeclGenerator {
         val generators = listOf(
             declGenerator::genTopLevelClass,
-            declGenerator::genTopLevelFunction
+            declGenerator::genTopLevelFunction,
+            declGenerator::genTopLevelProperty
         )
         val weights = listOf(
             topLevelClassWeight,
-            topLevelFunctionWeight
+            topLevelFunctionWeight,
+            topLevelPropertyWeight
         )
         return rouletteSelection(generators, weights, random)
     }

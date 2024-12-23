@@ -40,13 +40,16 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         return data.toString()
     }
 
-    override fun printTopLevelFunctions(program: IrProgram): String {
+    override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
         val data = StringBuilder(IMPORTS)
         data.append("public final class $TOP_LEVEL_CONTAINER_CLASS_NAME {")
         indentCount++
         elementStack.push(program)
         for (function in program.functions.filter { it.language == Language.JAVA }) {
             visitFunction(function, data)
+        }
+        for (property in program.properties.filter { it.language == Language.JAVA }) {
+            visitProperty(property, data)
         }
         indentCount--
         data.append("}")
@@ -205,7 +208,11 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             data.append(indent)
             data.append("public ")
             if (property.isFinal) {
-                data.append("final ")
+                if (property.topLevel) {
+                    data.append("static ")
+                } else {
+                    data.append("final ")
+                }
             }
             if (propertyContainer is IrClassDeclaration && propertyContainer.classType == INTERFACE) {
                 data.append("default ")

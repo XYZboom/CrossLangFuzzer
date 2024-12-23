@@ -14,7 +14,7 @@ typealias IrExpressionGenerator = (
     block: IrExpressionContainer,
     functionContext: IrFunctionDeclaration,
     context: IrProgram,
-    type: IrType,
+    type: IrType?,
     allowSubType: Boolean
 ) -> IrExpression
 
