@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
+import com.github.xyzboom.codesmith.ir.container.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
@@ -74,6 +75,12 @@ class IrDeclGeneratorImpl(
         return result
     }
 
+    var typeParameterCount = 0
+
+    fun nextTypeParameterName(): String {
+        return "T${typeParameterCount++}"
+    }
+
     override fun randomIrInt(): IrInt {
         return IrInt(random.nextInt())
     }
@@ -82,10 +89,19 @@ class IrDeclGeneratorImpl(
         return IrClassType.entries.random(random)
     }
 
-    override fun randomType(from: IrContainer, filter: (IrClassDeclaration) -> Boolean): IrType? {
-        val filtered = from.allClasses.filter(filter)
-        if (filtered.isEmpty()) return null
-        return filtered.random(random).type
+    override fun randomType(
+        from: IrContainer,
+        classContext: IrClassDeclaration?,
+        functionContext: IrFunctionDeclaration?,
+        filter: (IrType) -> Boolean
+    ): IrType? {
+        val fromClassDecl = from.allClasses.filter { it.typeParameters.isEmpty() }.map { it.type }.filter(filter)
+        val fromClassTypeParameter = classContext?.typeParameters?.filter(filter) ?: emptyList()
+        val fromFuncTypeParameter = functionContext?.typeParameters?.filter(filter) ?: emptyList()
+        if (fromClassDecl.isEmpty() && fromClassTypeParameter.isEmpty() && fromFuncTypeParameter.isEmpty()) {
+            return null
+        }
+        return choice(fromClassDecl, fromClassTypeParameter, fromFuncTypeParameter, random = random)
     }
 
     fun randomLanguage(): Language {
@@ -151,26 +167,29 @@ class IrDeclGeneratorImpl(
         }
     }
 
+    fun IrTypeParameterContainer.genTypeParameter() {
+        val name = nextTypeParameterName()
+        typeParameters.add(IrTypeParameter.create(name, IrAny))
+    }
+
     override fun IrClassDeclaration.genSuperTypes(context: IrContainer) {
         val classType = classType
         if (classType != IrClassType.INTERFACE) {
-            val superType = randomType(context) {
-                (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it !== this
+            val superType = randomType(context, null, null) {
+                (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it !== this.type
             }
             if (superType is IrClassifier) {
                 subTypeMap.getOrPut(superType.classDecl) { mutableListOf() }.add(this)
             }
             this.superType = superType ?: IrAny
         }
-        val chosenIntf = mutableSetOf<IrClassDeclaration>()
-        val willAdd = mutableListOf<IrType>()
+        val willAdd = mutableSetOf<IrType>()
         for (i in 0 until config.classImplNumRange.random(random)) {
-            val now = randomType(context) {
-                it.classType == IrClassType.INTERFACE && it !in chosenIntf && it !== this
+            val now = randomType(context, null, null) {
+                it.classType == IrClassType.INTERFACE && it !in willAdd && it !== this.type
             } as? IrClassifier?
             if (now == null) break
             subTypeMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
-            chosenIntf.add(now.classDecl)
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
@@ -440,6 +459,11 @@ class IrDeclGeneratorImpl(
         return IrClassDeclaration(name, classType).apply {
             this.language = language
             context.classes.add(this)
+            if (random.nextBoolean(config.classHasTypeParameterProbability)) {
+                repeat(config.classTypeParameterNumberRange.random(random)) {
+                    genTypeParameter()
+                }
+            }
             genSuperTypes(context)
 
             for (i in 0 until config.classMemberNumRange.random(random)) {
@@ -496,10 +520,16 @@ class IrDeclGeneratorImpl(
                 }
             }
             for (i in 0 until config.functionParameterNumRange.random(random)) {
-                parameterList.parameters.add(genFunctionParameter(classContainer))
+                parameterList.parameters.add(
+                    genFunctionParameter(
+                        classContainer,
+                        funcContainer as? IrClassDeclaration,
+                        this
+                    )
+                )
             }
             if (returnType == null) {
-                genFunctionReturnType(classContainer, this)
+                genFunctionReturnType(classContainer, funcContainer as? IrClassDeclaration, this, this)
             } else {
                 this.returnType = returnType
             }
@@ -606,15 +636,17 @@ class IrDeclGeneratorImpl(
                 printNullableAnnotations = true
             }
             readonly = topLevel || random.nextBoolean()
-            genPropertyType(classContainer, this)
+            genPropertyType(classContainer, propContainer as? IrClassDeclaration, this)
         }
     }
 
     override fun genFunctionParameter(
         classContainer: IrContainer,
+        classContext: IrClassDeclaration?,
+        functionContext: IrFunctionDeclaration?,
         name: String
     ): IrParameter {
-        val chooseType = randomType(classContainer) { true } ?: IrAny
+        val chooseType = randomType(classContainer, classContext, functionContext) { true } ?: IrAny
         logger.trace { "gen parameter: $name, $chooseType" }
         val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)) {
             IrNullableType.nullableOf(chooseType)
@@ -626,9 +658,11 @@ class IrDeclGeneratorImpl(
 
     override fun genFunctionReturnType(
         classContainer: IrContainer,
+        classContext: IrClassDeclaration?,
+        functionContext: IrFunctionDeclaration?,
         target: IrFunctionDeclaration
     ) {
-        val chooseType = randomType(classContainer) { true }
+        val chooseType = randomType(classContainer, classContext, functionContext) { true }
         logger.trace {
             val sb = StringBuilder("gen return type for: ")
             sb.traceFunction(target)
@@ -648,9 +682,10 @@ class IrDeclGeneratorImpl(
 
     fun genPropertyType(
         classContainer: IrContainer,
+        classContext: IrClassDeclaration?,
         target: IrPropertyDeclaration
     ) {
-        val chooseType = randomType(classContainer) { true }
+        val chooseType = randomType(classContainer, classContext, null) { true }
         logger.trace {
             val sb = StringBuilder("gen type for property: ")
             sb.traceProperty(target)
@@ -706,9 +741,11 @@ class IrDeclGeneratorImpl(
         type: IrType?,
         allowSubType: Boolean
     ): IrNew {
-        val chooseType = type ?: randomType(context) {
-            it.type is IrSimpleClassifier
-                    && (it.type.classType == IrClassType.OPEN || it.type.classType == IrClassType.FINAL)
+        val chooseType = type ?: randomType(
+            context, functionContext.container as? IrClassDeclaration, functionContext
+        ) {
+            it is IrSimpleClassifier
+                    && (it.classType == IrClassType.OPEN || it.classType == IrClassType.FINAL)
         } ?: IrAny
         return IrNew.create(chooseType)
     }
@@ -820,7 +857,10 @@ class IrDeclGeneratorImpl(
             }
         }
         if (generators.isEmpty()) {
-            return { _, _, _, _, _ -> IrDefaultImpl(type ?: randomType(context) { true } ?: IrAny) }
+            val chooseType = type ?: randomType(
+                context, functionContext.container as? IrClassDeclaration, functionContext
+            ) { true } ?: IrAny
+            return { _, _, _, _, _ -> IrDefaultImpl(chooseType) }
         }
         return rouletteSelection(generators, weights, random)
     }
