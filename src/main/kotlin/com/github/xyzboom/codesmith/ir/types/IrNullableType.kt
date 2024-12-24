@@ -26,4 +26,12 @@ class IrNullableType private constructor(val innerType: IrType) : IrType() {
         return innerType.hashCode()
     }
 
+    override fun toString(): String {
+        return "IrNullableType($innerType)"
+    }
+
+    override fun equalsIgnoreTypeArguments(other: IrType): Boolean {
+        if (other !is IrNullableType) return false
+        return innerType.equalsIgnoreTypeArguments(other.innerType)
+    }
 }

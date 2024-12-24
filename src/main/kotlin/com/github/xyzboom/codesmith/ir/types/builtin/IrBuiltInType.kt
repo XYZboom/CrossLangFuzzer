@@ -10,4 +10,8 @@ sealed class IrBuiltInType: IrType() {
             IrUnit
         )
     }
+
+    final override fun equalsIgnoreTypeArguments(other: IrType): Boolean {
+        return other === this
+    }
 }

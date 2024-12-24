@@ -21,7 +21,12 @@ class IrClassDeclaration(
 ) : IrDeclaration(name), IrContainer, IrTypeParameterContainer {
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
-    val type: IrClassifier = IrSimpleClassifier(this)
+    val type: IrClassifier
+        get() = if (typeParameters.isEmpty()) {
+            IrSimpleClassifier(this)
+        } else {
+            IrParameterizedClassifier.create(this)
+        }
 
     override val classes: MutableList<IrClassDeclaration> = mutableListOf()
     override var superContainer: IrContainer? = null

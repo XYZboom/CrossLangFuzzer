@@ -11,4 +11,12 @@ class IrTypeParameter private constructor(
     }
 
     override val classType: IrClassType get() = upperBound.classType
+
+    override fun toString(): String {
+        return "IrTypeParameter($name: $upperBound)"
+    }
+
+    override fun equalsIgnoreTypeArguments(other: IrType): Boolean {
+        return this == other
+    }
 }

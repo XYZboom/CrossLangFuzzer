@@ -10,6 +10,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 
 interface IrDeclGenerator {
     fun randomName(startsWithUpper: Boolean): String
@@ -55,6 +56,7 @@ interface IrDeclGenerator {
         from: IrContainer,
         classContext: IrClassDeclaration?,
         functionContext: IrFunctionDeclaration?,
+        finishTypeArguments: Boolean,
         filter: (IrType) -> Boolean
     ): IrType?
 
@@ -71,7 +73,8 @@ interface IrDeclGenerator {
         makeAbstract: Boolean,
         isStub: Boolean,
         isFinal: Boolean?,
-        language: Language
+        language: Language,
+        putAllTypeArguments: Map<IrTypeParameter, IrType>
     )
 
     fun IrClassDeclaration.genOverrides()
@@ -83,14 +86,13 @@ interface IrDeclGenerator {
     fun genFunctionParameter(
         classContainer: IrContainer,
         classContext: IrClassDeclaration?,
-        functionContext: IrFunctionDeclaration?,
+        target: IrFunctionDeclaration,
         name: String = randomName(false)
     ): IrParameter
 
     fun genFunctionReturnType(
         classContainer: IrContainer,
         classContext: IrClassDeclaration?,
-        functionContext: IrFunctionDeclaration?,
         target: IrFunctionDeclaration
     )
 

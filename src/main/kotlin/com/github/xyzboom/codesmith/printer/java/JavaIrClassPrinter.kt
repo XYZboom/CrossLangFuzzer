@@ -43,7 +43,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
         val data = StringBuilder(IMPORTS)
-        data.append("public final class $TOP_LEVEL_CONTAINER_CLASS_NAME {")
+        data.append("public final class $TOP_LEVEL_CONTAINER_CLASS_NAME {\n")
         indentCount++
         elementStack.push(program)
         for (function in program.functions.filter { it.language == Language.JAVA }) {
@@ -83,7 +83,23 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             is IrClassifier ->
                 when (irType) {
                     is IrSimpleClassifier -> irType.classDecl.name
+                    is IrParameterizedClassifier -> {
+                        val sb = StringBuilder(irType.classDecl.name)
+                        sb.append("<")
+                        val entries1 = irType.getTypeArguments().entries
+                        for ((index, pair) in entries1.withIndex()) {
+                            val (_, typeArg) = pair
+                            sb.append(printType(typeArg))
+                            if (index != entries1.size - 1) {
+                                sb.append(", ")
+                            }
+                        }
+                        sb.append(">")
+                        sb.toString()
+                    }
                 }
+
+            is IrTypeParameter -> irType.name
 
             else -> throw NoWhenBranchMatchedException()
         }
@@ -128,6 +144,17 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         data.append("public ")
         data.append(printIrClassType(clazz.classType))
         data.append(clazz.name)
+        val typeParameters = clazz.typeParameters
+        if (typeParameters.isNotEmpty()) {
+            data.append("<")
+            for ((index, typeParameter) in typeParameters.withIndex()) {
+                data.append(printType(typeParameter))
+                if (index != typeParameters.lastIndex) {
+                    data.append(", ")
+                }
+            }
+            data.append(">")
+        }
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
         data.append(" {\n")
 
