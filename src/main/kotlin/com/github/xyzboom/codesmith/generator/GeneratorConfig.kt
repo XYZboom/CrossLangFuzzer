@@ -19,7 +19,7 @@ data class GeneratorConfig(
      */
     val classHasSuperProbability: Float = 0.3f,
     val classImplNumRange: IntRange = 0..3,
-    val classMemberNumRange: IntRange = 1..5,
+    val classMemberNumRange: IntRange = 1..3,
     val classMemberIsFunctionWeight: Int = 3,
     val classMemberIsPropertyWeight: Int = 2,
     val classHasTypeParameterProbability: Float = 0.3f,

@@ -60,7 +60,23 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
             is IrClassifier ->
                 when (irType) {
                     is IrSimpleClassifier -> irType.classDecl.name
+                    is IrParameterizedClassifier -> {
+                        val sb = StringBuilder(irType.classDecl.name)
+                        sb.append("<")
+                        val entries1 = irType.getTypeArguments().entries
+                        for ((index, pair) in entries1.withIndex()) {
+                            val (_, typeArg) = pair
+                            sb.append(printType(typeArg))
+                            if (index != entries1.size - 1) {
+                                sb.append(", ")
+                            }
+                        }
+                        sb.append(">")
+                        sb.toString()
+                    }
                 }
+
+            is IrTypeParameter -> irType.name
 
             else -> throw NoWhenBranchMatchedException()
         }
@@ -107,6 +123,17 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         data.append("public ")
         data.append(printIrClassType(clazz.classType))
         data.append(clazz.name)
+        val typeParameters = clazz.typeParameters
+        if (typeParameters.isNotEmpty()) {
+            data.append("<")
+            for ((index, typeParameter) in typeParameters.withIndex()) {
+                data.append(printType(typeParameter))
+                if (index != typeParameters.lastIndex) {
+                    data.append(", ")
+                }
+            }
+            data.append(">")
+        }
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
         data.append(" {\n")
 

@@ -10,7 +10,6 @@ import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
-import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import com.github.xyzboom.codesmith.utils.rouletteSelection
@@ -93,15 +92,20 @@ class IrDeclGeneratorImpl(
         from: IrContainer,
         classContext: IrClassDeclaration?,
         functionContext: IrFunctionDeclaration?,
+        finishTypeArguments: Boolean,
         filter: (IrType) -> Boolean
     ): IrType? {
-        val fromClassDecl = from.allClasses.filter { it.typeParameters.isEmpty() }.map { it.type }.filter(filter)
+        val fromClassDecl = from.allClasses.map { it.type }.filter(filter)
         val fromClassTypeParameter = classContext?.typeParameters?.filter(filter) ?: emptyList()
         val fromFuncTypeParameter = functionContext?.typeParameters?.filter(filter) ?: emptyList()
         if (fromClassDecl.isEmpty() && fromClassTypeParameter.isEmpty() && fromFuncTypeParameter.isEmpty()) {
             return null
         }
-        return choice(fromClassDecl, fromClassTypeParameter, fromFuncTypeParameter, random = random)
+        val result = choice(fromClassDecl, fromClassTypeParameter, fromFuncTypeParameter, random = random)
+        if (finishTypeArguments && result is IrParameterizedClassifier) {
+            genTypeArguments(from, classContext, result)
+        }
+        return result
     }
 
     fun randomLanguage(): Language {
@@ -145,9 +149,13 @@ class IrDeclGeneratorImpl(
     fun shuffleLanguage(prog: IrProgram) {
         for (clazz in prog.classes) {
             clazz.language = randomLanguage()
+            for (func in clazz.functions) {
+                func.printNullableAnnotations = random.nextBoolean(config.printJavaNullableAnnotationProbability)
+            }
         }
         for (func in prog.functions) {
             func.language = randomLanguage()
+            func.printNullableAnnotations = random.nextBoolean(config.printJavaNullableAnnotationProbability)
         }
         for (property in prog.properties) {
             property.language = randomLanguage()
@@ -172,24 +180,70 @@ class IrDeclGeneratorImpl(
         typeParameters.add(IrTypeParameter.create(name, IrAny))
     }
 
+    fun genTypeArguments(
+        context: IrContainer,
+        classContext: IrClassDeclaration?,
+        superType: IrParameterizedClassifier
+    ) {
+        for (typeParam in superType.classDecl.typeParameters) {
+            val chooseType = randomType(context, classContext, null, false) {
+                it !is IrParameterizedClassifier // for now, we forbid nested cases
+            } ?: IrAny // for now, we do not talk about upperbound
+            superType.putTypeArgument(typeParam, chooseType)
+        }
+    }
+
     override fun IrClassDeclaration.genSuperTypes(context: IrContainer) {
         val classType = classType
+        val selectedSupers = mutableListOf<IrType>()
         if (classType != IrClassType.INTERFACE) {
-            val superType = randomType(context, null, null) {
-                (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it !== this.type
+
+            val superType = randomType(
+                context, classContext = null, functionContext = null,
+                finishTypeArguments = false
+                //                    ^^^^^
+                // as we don't want to search type parameters, so classContext and functionContext here is null,
+                // but we want to use type parameters as type arguments, so we do it in our own.
+            ) {
+                (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it != this.type
             }
             if (superType is IrClassifier) {
                 subTypeMap.getOrPut(superType.classDecl) { mutableListOf() }.add(this)
+                superType.classDecl.traverseSuper {
+                    selectedSupers.add(it.type)
+                    true
+                }
+                if (superType is IrParameterizedClassifier) {
+                    genTypeArguments(context, this, superType)
+                }
             }
             this.superType = superType ?: IrAny
         }
         val willAdd = mutableSetOf<IrType>()
         for (i in 0 until config.classImplNumRange.random(random)) {
-            val now = randomType(context, null, null) {
-                it.classType == IrClassType.INTERFACE && it !in willAdd && it !== this.type
-            } as? IrClassifier?
+            val now = randomType(context, null, null, false) {
+                var superWasSelected = false
+                if (it is IrClassifier) {
+                    it.classDecl.traverseSuper { it1 ->
+                        if (selectedSupers.any { it2 ->
+                                it2 is IrParameterizedClassifier && it1.type.equalsIgnoreTypeArguments(it2)
+                                // do not allow to inherit class with generic type twice
+                            }) {
+                            superWasSelected = true
+                        }
+                        true
+                    }
+                }
+                it.classType == IrClassType.INTERFACE && it !in willAdd && it != this.type
+                        && !superWasSelected
+            }
             if (now == null) break
-            subTypeMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
+            if (now is IrClassifier) {
+                subTypeMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
+                if (now is IrParameterizedClassifier) {
+                    genTypeArguments(context, this, now)
+                }
+            }
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
@@ -413,7 +467,7 @@ class IrDeclGeneratorImpl(
             logger.trace { "must override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
-                isStub = false, superFunc?.isFinal, language = this.language
+                isStub = false, superFunc?.isFinal, language = this.language, getTypeArguments(superAndIntf)
             )
         }
 
@@ -426,7 +480,7 @@ class IrDeclGeneratorImpl(
             logger.trace { "stub override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
-                isStub = true, superFunc?.isFinal, language = this.language
+                isStub = true, superFunc?.isFinal, language = this.language, getTypeArguments(superAndIntf)
             )
         }
 
@@ -450,8 +504,26 @@ class IrDeclGeneratorImpl(
             val first = superFunc ?: intfFunc.first()
             require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "can override" }
-            genOverrideFunction(superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language)
+            genOverrideFunction(
+                superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language, getTypeArguments(superAndIntf)
+            )
         }
+    }
+
+    private fun IrClassDeclaration.getTypeArguments(superAndIntf: Set<IrFunctionDeclaration>): Map<IrTypeParameter, IrType> {
+        var typeArgs = emptyMap<IrTypeParameter, IrType>()
+        if (superAndIntf.size == 1) {
+            val singleSuper = superAndIntf.single().container as IrClassDeclaration
+            if (singleSuper.typeParameters.isNotEmpty()) {
+                val superType = if (this.superType?.equalsIgnoreTypeArguments(singleSuper.type) == true) {
+                    this.superType!!
+                } else {
+                    implementedTypes.first { it.equalsIgnoreTypeArguments(singleSuper.type) }
+                } as IrParameterizedClassifier
+                typeArgs = superType.getTypeArguments()
+            }
+        }
+        return typeArgs
     }
 
     override fun genClass(context: IrContainer, name: String, language: Language): IrClassDeclaration {
@@ -506,6 +578,7 @@ class IrDeclGeneratorImpl(
             }
             sb.toString()
         }
+        require(!topLevel || returnType !is IrTypeParameter)
         return IrFunctionDeclaration(name, funcContainer).apply {
             this.language = language
             funcContainer.functions.add(this)
@@ -529,16 +602,18 @@ class IrDeclGeneratorImpl(
                 )
             }
             if (returnType == null) {
-                genFunctionReturnType(classContainer, funcContainer as? IrClassDeclaration, this, this)
+                genFunctionReturnType(classContainer, funcContainer as? IrClassDeclaration, this)
             } else {
+                logger.trace { "use given return type: $returnType" }
                 this.returnType = returnType
             }
+            require(!topLevel || this.returnType !is IrTypeParameter)
             if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
                 logger.trace { "make $name print nullable annotations" }
                 printNullableAnnotations = true
             }
             val block = body
-            if (block != null) {
+            /*if (block != null) {
                 repeat(config.functionExpressionNumRange.random(random)) {
                     val expr = genExpression(block, this, classContainer.program)
                     block.expressions.add(expr)
@@ -549,7 +624,7 @@ class IrDeclGeneratorImpl(
                 } else {
                     block.expressions.add(IrReturnExpression(null))
                 }
-            }
+            }*/
         }
     }
 
@@ -558,7 +633,8 @@ class IrDeclGeneratorImpl(
         makeAbstract: Boolean,
         isStub: Boolean,
         isFinal: Boolean?,
-        language: Language
+        language: Language,
+        putAllTypeArguments: Map<IrTypeParameter, IrType>
     ) {
         logger.trace {
             val sb = StringBuilder("gen override for class: $name\n")
@@ -577,7 +653,30 @@ class IrDeclGeneratorImpl(
             isOverrideStub = isStub
             override += from
             parameterList = first.parameterList.copyForOverride()
+            for (param in parameterList.parameters) {
+                val paramType = param.type
+                if (paramType in putAllTypeArguments) {
+                    // replace type parameter in super with type argument
+                    param.type = putAllTypeArguments[paramType]!!
+                }
+                if (paramType is IrNullableType && paramType.innerType in putAllTypeArguments) {
+                    param.type = IrNullableType.nullableOf(putAllTypeArguments[paramType.innerType]!!)
+                }
+                if (paramType is IrParameterizedClassifier) {
+                    paramType.putAllTypeArguments(putAllTypeArguments)
+                }
+            }
             returnType = first.returnType
+            val returnType = returnType
+            if (returnType in putAllTypeArguments) {
+                this.returnType = putAllTypeArguments[returnType]!!
+            }
+            if (returnType is IrNullableType && returnType.innerType in putAllTypeArguments) {
+                this.returnType = IrNullableType.nullableOf(putAllTypeArguments[returnType.innerType]!!)
+            }
+            if (returnType is IrParameterizedClassifier) {
+                returnType.putAllTypeArguments(putAllTypeArguments)
+            }
             if (!makeAbstract) {
                 body = IrBlock()
 
@@ -643,10 +742,16 @@ class IrDeclGeneratorImpl(
     override fun genFunctionParameter(
         classContainer: IrContainer,
         classContext: IrClassDeclaration?,
-        functionContext: IrFunctionDeclaration?,
+        target: IrFunctionDeclaration,
         name: String
     ): IrParameter {
-        val chooseType = randomType(classContainer, classContext, functionContext) { true } ?: IrAny
+        val chooseType = randomType(classContainer, classContext, target, true) {
+            if (target.topLevel) {
+                it !is IrTypeParameter
+            } else {
+                true
+            }
+        } ?: IrAny
         logger.trace { "gen parameter: $name, $chooseType" }
         val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)) {
             IrNullableType.nullableOf(chooseType)
@@ -659,10 +764,15 @@ class IrDeclGeneratorImpl(
     override fun genFunctionReturnType(
         classContainer: IrContainer,
         classContext: IrClassDeclaration?,
-        functionContext: IrFunctionDeclaration?,
         target: IrFunctionDeclaration
     ) {
-        val chooseType = randomType(classContainer, classContext, functionContext) { true }
+        val chooseType = randomType(classContainer, classContext, target, true) {
+            if (target.topLevel) {
+                it !is IrTypeParameter
+            } else {
+                true
+            }
+        }
         logger.trace {
             val sb = StringBuilder("gen return type for: ")
             sb.traceFunction(target)
@@ -685,7 +795,7 @@ class IrDeclGeneratorImpl(
         classContext: IrClassDeclaration?,
         target: IrPropertyDeclaration
     ) {
-        val chooseType = randomType(classContainer, classContext, null) { true }
+        val chooseType = randomType(classContainer, classContext, null, true) { true }
         logger.trace {
             val sb = StringBuilder("gen type for property: ")
             sb.traceProperty(target)
@@ -731,7 +841,10 @@ class IrDeclGeneratorImpl(
         @Suppress("UNUSED_PARAMETER") context: IrProgram,
         type: IrType?
     ): Boolean {
-        return type == null || type.classType == IrClassType.FINAL || type.classType == IrClassType.OPEN
+        return type == null ||
+                (type !is IrTypeParameter && (type.classType == IrClassType.FINAL
+                        || type.classType == IrClassType.OPEN)
+                        )
     }
 
     override fun genNewExpression(
@@ -742,12 +855,24 @@ class IrDeclGeneratorImpl(
         allowSubType: Boolean
     ): IrNew {
         val chooseType = type ?: randomType(
-            context, functionContext.container as? IrClassDeclaration, functionContext
+            context, functionContext.container as? IrClassDeclaration, functionContext, true
         ) {
             it is IrSimpleClassifier
                     && (it.classType == IrClassType.OPEN || it.classType == IrClassType.FINAL)
         } ?: IrAny
+        require(chooseType !is IrTypeParameter)
         return IrNew.create(chooseType)
+    }
+
+    fun functionCallAvailable(
+        @Suppress("UNUSED_PARAMETER") block: IrExpressionContainer,
+        @Suppress("UNUSED_PARAMETER") functionContext: IrFunctionDeclaration,
+        context: IrProgram,
+        type: IrType?
+    ): Boolean {
+        if (type == null) return true
+        searchFunction(context, type, false) ?: return type !is IrTypeParameter
+        return true
     }
 
     override fun genFunctionCall(
@@ -761,10 +886,13 @@ class IrDeclGeneratorImpl(
         val func = if (returnType != null) {
             receiver = null
             searchFunction(context, returnType, allowSubType)
-                ?: genTopLevelFunction(
-                    context, randomLanguage(),
-                    returnType = returnType
-                )
+                ?: run {
+                    logger.trace { "no function returns $returnType, generate a new one." }
+                    genTopLevelFunction(
+                        context, randomLanguage(),
+                        returnType = returnType
+                    )
+                }
         } else {
             val searchFrom: List<Pair<IrExpression?, IrFunctionDeclaration>> =
                 context.functions.map { null to it }
@@ -824,7 +952,7 @@ class IrDeclGeneratorImpl(
 
     val exprCheckerAndGenerator = listOf(
         this::newExpressionAvailable to (this::genNewExpression to config.newExpressionWeight),
-        this::expressionAlwaysAvailable to (this::genFunctionCall to config.functionCallExpressionWeight)
+        this::functionCallAvailable to (this::genFunctionCall to config.functionCallExpressionWeight)
     )
 
     val leafOnlyExprCheckerAndGenerator = listOf(
@@ -858,7 +986,7 @@ class IrDeclGeneratorImpl(
         }
         if (generators.isEmpty()) {
             val chooseType = type ?: randomType(
-                context, functionContext.container as? IrClassDeclaration, functionContext
+                context, functionContext.container as? IrClassDeclaration, functionContext, true
             ) { true } ?: IrAny
             return { _, _, _, _, _ -> IrDefaultImpl(chooseType) }
         }

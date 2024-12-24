@@ -5,11 +5,10 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 
 class IrParameter(
     name: String,
-    val type: IrType
+    var type: IrType
 ) : IrDeclaration(name) {
     fun copyForOverride(): IrParameter {
-        // no need to copy type for now
-        return IrParameter(name, type)
+        return IrParameter(name, type.copyForOverride())
     }
 
     var defaultValue: IrExpression? = null
