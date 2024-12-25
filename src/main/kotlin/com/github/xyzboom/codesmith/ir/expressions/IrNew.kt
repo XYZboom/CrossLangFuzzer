@@ -1,9 +1,11 @@
 package com.github.xyzboom.codesmith.ir.expressions
 
+import com.fasterxml.jackson.annotation.JsonTypeName
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
+@JsonTypeName("IrNew")
 class IrNew private constructor(val createType: IrType) : IrExpression() {
 
     companion object {

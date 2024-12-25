@@ -202,7 +202,9 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         if (body != null) {
             data.append(" {\n")
             indentCount++
+            elementStack.push(function)
             visitBlock(body, data)
+            require(elementStack.pop() === function)
             indentCount--
             data.append(indent)
             data.append("}")
@@ -281,11 +283,12 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
+        val function = elementStack.peek() as IrFunctionDeclaration
         if (block.expressions.isEmpty()) {
             data.append(indent)
             data.append("throw new RuntimeException();\n")
         } else {
-            require(block.expressions.last() is IrReturnExpression)
+            require(function.returnType === IrUnit || block.expressions.last() is IrReturnExpression)
         }
         for (expression in block.expressions) {
             data.append(indent)

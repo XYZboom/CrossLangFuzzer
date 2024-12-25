@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.fasterxml.jackson.annotation.JsonTypeName
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.container.IrContainer
@@ -7,6 +8,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
+@JsonTypeName("property")
 class IrPropertyDeclaration(
     name: String,
     var container: IrContainer

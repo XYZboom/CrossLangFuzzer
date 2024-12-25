@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.fasterxml.jackson.annotation.*
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
@@ -11,8 +12,10 @@ import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
+@JsonTypeName("function")
 class IrFunctionDeclaration(
     name: String,
+    @JsonIdentityReference
     var container: IrContainer
 ) : IrDeclaration(name), IrClassMember, IrTypeParameterContainer {
     /**
@@ -22,8 +25,10 @@ class IrFunctionDeclaration(
     var body: IrBlock? = null
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
+    @JsonBackReference("override")
     var override = mutableListOf<IrFunctionDeclaration>()
     var isFinal = false
+    @get:JsonIgnore
     val topLevel: Boolean get() = container is IrProgram
     var parameterList = IrParameterList()
     var returnType: IrType = IrUnit
@@ -50,6 +55,7 @@ class IrFunctionDeclaration(
         }
     }
 
+    @get:JsonIgnore
     val signature: Signature
         get() {
             return Signature(name, parameterList.parameters.map { it.type })

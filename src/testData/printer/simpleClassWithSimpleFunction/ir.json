@@ -1,0 +1,19 @@
+{
+  "@type": "class",
+  "@id": 1,
+  "name": "SimpleClassWithSimpleFunction",
+  "classType": "FINAL",
+  "functions": [
+    {
+      "@type": "function",
+      "@id": 2,
+      "name": "simple",
+      "container": 1,
+      "body": {
+        "@type": "IrBlock",
+        "@id": 3
+      },
+      "isFinal": true
+    }
+  ]
+}

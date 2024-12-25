@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
-import com.github.xyzboom.codesmith.Language
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonTypeName
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.container.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.types.*
@@ -11,16 +12,18 @@ typealias SuperAndIntfFunctions = Pair<IrFunctionDeclaration?, MutableSet<IrFunc
 //                                     functions in interfaces ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 typealias FunctionSignatureMap = Map<IrFunctionDeclaration.Signature, SuperAndIntfFunctions>
 
-
+@JsonTypeName("class")
 class IrClassDeclaration(
     name: String,
-    var classType: IrClassType,
-    val fields: MutableList<IrFieldDeclaration> = mutableListOf(),
-    override val functions: MutableList<IrFunctionDeclaration> = mutableListOf(),
-    override val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
+    var classType: IrClassType
 ) : IrDeclaration(name), IrContainer, IrTypeParameterContainer {
     var superType: IrType? = null
     val implementedTypes = mutableListOf<IrType>()
+    val fields: MutableList<IrFieldDeclaration> = mutableListOf()
+    override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
+    override val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
+
+    @get:JsonIgnore
     val type: IrClassifier
         get() = if (typeParameters.isEmpty()) {
             IrSimpleClassifier(this)

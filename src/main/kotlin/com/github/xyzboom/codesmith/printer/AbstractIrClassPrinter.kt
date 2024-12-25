@@ -15,10 +15,10 @@ abstract class AbstractIrClassPrinter(
     override fun visitElement(element: IrElement, data: StringBuilder) {
         elementStack.push(element)
         super.visitElement(element, data)
-        elementStack.pop()
+        require(elementStack.pop() === element)
     }
 
-    val indent get() = "\t".repeat(indentCount)
+    val indent get() = " ".repeat(4).repeat(indentCount)
 
     abstract fun printIrClassType(irClassType: IrClassType): String
 
