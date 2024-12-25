@@ -1,42 +1,22 @@
 package com.github.xyzboom.codesmith.generator.impl
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
+import com.github.xyzboom.codesmith.assertIsOverride
+import com.github.xyzboom.codesmith.assertParameters
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import org.junit.jupiter.api.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class IrDeclGeneratorImplTest {
-
-    private fun IrFunctionDeclaration.assertIsOverride(
-        shouldFrom: List<IrFunctionDeclaration>,
-        shouldHasBody: Boolean,
-        shouldBeStub: Boolean,
-        shouldBeFinal: Boolean = false
-    ) {
-        assertTrue(isOverride)
-        for (func in shouldFrom) {
-            assertTrue(signatureEquals(func))
-        }
-        assertEquals(shouldFrom.size, override.size)
-        assertContentEquals(shouldFrom.sortedBy { it.hashCode() }, override.sortedBy { it.hashCode() })
-        assertEquals(
-            shouldHasBody, body != null,
-            "$name should ${if (shouldHasBody) "" else "not "}have a body"
-        )
-        assertEquals(
-            shouldBeStub, isOverrideStub,
-            "$name should ${if (shouldBeStub) "" else "not "}be a stub"
-        )
-        assertEquals(
-            shouldBeFinal, isFinal,
-            "$name should ${if (shouldBeFinal) "" else "not "}be final"
-        )
-    }
+    //<editor-fold desc="Override">
+    //<editor-fold desc="Normal">
 
     @Test
     fun testGenOverrideFromAbstractSuperAndAnInterface0() {
@@ -62,7 +42,7 @@ class IrDeclGeneratorImplTest {
         val override = subClass.functions.first()
         override.assertIsOverride(
             listOf(function, functionInIntf),
-            shouldHasBody = true, shouldBeStub = false
+            true, shouldHasBody = true, shouldBeStub = false
         )
     }
 
@@ -92,7 +72,7 @@ class IrDeclGeneratorImplTest {
         val override = subClass.functions.first()
         override.assertIsOverride(
             listOf(function, functionInIntf),
-            shouldHasBody = true, shouldBeStub = false
+            true, shouldHasBody = true, shouldBeStub = false
         )
     }
 
@@ -122,7 +102,7 @@ class IrDeclGeneratorImplTest {
         val override = subClass.functions.first()
         override.assertIsOverride(
             listOf(function, functionInIntf),
-            shouldHasBody = true, shouldBeStub = false
+            true, shouldHasBody = true, shouldBeStub = false
         )
     }
 
@@ -151,7 +131,7 @@ class IrDeclGeneratorImplTest {
         val override = subClass.functions.first()
         override.assertIsOverride(
             listOf(function, functionInIntf),
-            shouldHasBody = true, shouldBeStub = false
+            true, shouldHasBody = true, shouldBeStub = false
         )
     }
 
@@ -179,6 +159,7 @@ class IrDeclGeneratorImplTest {
         val funcInSub = subClass.functions.single()
         funcInSub.assertIsOverride(
             listOf(function),
+            true,
             shouldHasBody = true,
             shouldBeStub = true
         )
@@ -202,6 +183,7 @@ class IrDeclGeneratorImplTest {
         )
         subSubClass.functions.single().assertIsOverride(
             listOf(functionInIntf, funcInSub),
+            true,
             shouldHasBody = true,
             shouldBeStub = false
         )
@@ -258,6 +240,7 @@ class IrDeclGeneratorImplTest {
         val funcInAbsP = absP.functions.single()
         funcInAbsP.assertIsOverride(
             listOf(funcInGrandP),
+            true,
             shouldHasBody = true,
             shouldBeStub = true
         )
@@ -271,6 +254,7 @@ class IrDeclGeneratorImplTest {
         )
         openC.functions.single().assertIsOverride(
             listOf(funcInAbsP, funcInI1),
+            true,
             shouldHasBody = true,
             shouldBeStub = false
         )
@@ -298,6 +282,7 @@ class IrDeclGeneratorImplTest {
         val function = childClass.functions.single()
         function.assertIsOverride(
             listOf(funcInSuper),
+            true,
             shouldHasBody = true,
             shouldBeStub = true,
             shouldBeFinal = true
@@ -328,6 +313,7 @@ class IrDeclGeneratorImplTest {
         val function = childClass.functions.single()
         function.assertIsOverride(
             listOf(funcInSuper),
+            true,
             shouldHasBody = true,
             shouldBeStub = true,
             shouldBeFinal = true
@@ -362,6 +348,7 @@ class IrDeclGeneratorImplTest {
         assertEquals(1, clazz.functions.size)
         clazz.functions.single().assertIsOverride(
             listOf(funcInI1),
+            true,
             shouldHasBody = true,
             shouldBeStub = false,
             shouldBeFinal = false
@@ -421,6 +408,7 @@ class IrDeclGeneratorImplTest {
         }
         c.functions.single().assertIsOverride(
             listOf(funcInP, funcInI1),
+            true,
             shouldHasBody = true,
             shouldBeStub = false,
             shouldBeFinal = false
@@ -472,6 +460,7 @@ class IrDeclGeneratorImplTest {
         }
         c.functions.single().assertIsOverride(
             listOf(funcInP, funcInI1),
+            true,
             shouldHasBody = true,
             shouldBeStub = false,
             shouldBeFinal = false
@@ -518,6 +507,7 @@ class IrDeclGeneratorImplTest {
         }
         i3.functions.single().assertIsOverride(
             listOf(funcInI1, funcInI2),
+            true,
             shouldHasBody = true,
             shouldBeStub = false,
             shouldBeFinal = false
@@ -564,9 +554,121 @@ class IrDeclGeneratorImplTest {
         }
         c.functions.single().assertIsOverride(
             listOf(funcInI1, funcInP),
+            true,
             shouldHasBody = true,
             shouldBeStub = false,
             shouldBeFinal = false
         )
     }
+
+    @Test
+    fun testOverrideStubIsNotMustOverride() {
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val gp = IrClassDeclaration("GP", IrClassType.OPEN)
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            superType = gp.type
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            superType = p.type
+        }
+        val funcInGp = IrFunctionDeclaration("func", gp).apply {
+            body = IrBlock()
+            gp.functions.add(this)
+        }
+        with(generator) {
+            p.genOverrides()
+        }
+        val funcInP = p.functions.single()
+        funcInP.assertIsOverride(
+            listOf(funcInGp),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+
+        with(generator) {
+            c.genOverrides()
+        }
+        val funcInC = c.functions.single()
+        funcInC.assertIsOverride(
+            listOf(funcInP),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+    }
+    //</editor-fold>
+
+
+    //<editor-fold desc="Generic">
+    @Test
+    fun testOverrideWithCorrectParameterWhenSuperHasGeneric() {
+        /**
+         * GP<T0>#
+         * P<T1>: GP<T1>#
+         * C<T2>: P<T2>#
+         * # means implement function
+         */
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val t1 = IrTypeParameter.create("T1", IrAny)
+        val t2 = IrTypeParameter.create("T2", IrAny)
+        val gp = IrClassDeclaration("GP", IrClassType.OPEN).apply {
+            typeParameters.add(t0)
+        }
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            typeParameters.add(t1)
+            val rawGp = gp.type as IrParameterizedClassifier
+            rawGp.putTypeArgument(t0, t1)
+            superType = rawGp
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            typeParameters.add(t2)
+            val rawP = p.type as IrParameterizedClassifier
+            rawP.putTypeArgument(t1, t2)
+            superType = rawP
+        }
+        val funcInGp = IrFunctionDeclaration("func", gp).apply {
+            body = IrBlock()
+            gp.functions.add(this)
+            parameterList.parameters.add(IrParameter("arg", t0))
+        }
+        with(generator) {
+            p.genOverrides()
+        }
+        val funcInP = p.functions.single()
+        funcInP.assertIsOverride(
+            listOf(funcInGp),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        funcInP.assertParameters(
+            listOf(
+                "arg" to t1
+            )
+        )
+
+        with(generator) {
+            c.genOverrides()
+        }
+        val funcInC = c.functions.single()
+        funcInC.assertIsOverride(
+            listOf(funcInP),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        funcInC.assertParameters(
+            listOf(
+                "arg" to t2
+            )
+        )
+    }
+    //</editor-fold>
+    //</editor-fold>
 }
