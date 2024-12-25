@@ -1,0 +1,26 @@
+{
+  "@type": "class",
+  "@id": 1,
+  "name": "SimpleClassWithSimpleFunction",
+  "classType": "FINAL",
+  "properties": [
+    {
+      "@type": "property",
+      "@id": 2,
+      "name": "simple",
+      "container": 1,
+      "isFinal": true,
+      "type": {
+        "@type": "IrSimpleClassifier",
+        "@id": 3,
+        "classDecl": {
+          "@type": "class",
+          "@id": 4,
+          "name": "PType",
+          "classType": "FINAL"
+        }
+      },
+      "readonly": true
+    }
+  ]
+}

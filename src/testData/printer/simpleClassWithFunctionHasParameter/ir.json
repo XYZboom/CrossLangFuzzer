@@ -1,0 +1,48 @@
+{
+  "@type": "class",
+  "@id": 1,
+  "name": "SimpleClassWithFunctionHasParameter",
+  "classType": "FINAL",
+  "functions": [
+    {
+      "@type": "function",
+      "@id": 2,
+      "name": "simple",
+      "container": 1,
+      "body": {
+        "@type": "IrBlock",
+        "@id": 3
+      },
+      "isFinal": true,
+      "parameterList": {
+        "@type": "IrParameterList",
+        "@id": 4,
+        "parameters": [
+          {
+            "@type": "IrParameter",
+            "@id": 5,
+            "name": "arg0",
+            "type": {
+              "@type": "IrAny",
+              "@id": 6
+            }
+          },
+          {
+            "@type": "IrParameter",
+            "@id": 7,
+            "name": "arg1",
+            "type": {
+              "@type": "IrSimpleClassifier",
+              "@id": 8,
+              "classDecl": 1
+            }
+          }
+        ]
+      },
+      "returnType": {
+        "@type": "IrUnit",
+        "@id": 9
+      }
+    }
+  ]
+}

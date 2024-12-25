@@ -1,19 +1,26 @@
 package com.github.xyzboom.codesmith.ir.container
 
+import com.fasterxml.jackson.annotation.*
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator::class)
 interface IrContainer {
     val classes: MutableList<IrClassDeclaration>
     val functions: MutableList<IrFunctionDeclaration>
     val properties: MutableList<IrPropertyDeclaration>
 
     var superContainer: IrContainer?
+
+    @get:JsonIgnore
     val allClasses: List<IrClassDeclaration>
         get() = classes + (superContainer?.classes ?: emptyList())
+
+    @get:JsonBackReference
     val program: IrProgram
         get() {
             if (this is IrProgram) {
