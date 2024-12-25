@@ -444,7 +444,9 @@ class IrDeclGeneratorImpl(
                     }
                 }
                 val nonStubNonAbstractCount = nonStubOverrides.count { it.body != null }
-                if (nonStubNonAbstractCount > 0) {
+                if (nonStubNonAbstractCount > 0 && nonStubOverrides.size > 1) {
+                    //                      ^^^ may conflict
+                    //    override several functions, conflict confirmed ^^^
                     mustOverrides.add(pair)
                     notMustOverride = false
                 }
