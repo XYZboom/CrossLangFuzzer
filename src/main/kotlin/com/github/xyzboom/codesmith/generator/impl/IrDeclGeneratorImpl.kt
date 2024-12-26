@@ -194,10 +194,10 @@ class IrDeclGeneratorImpl(
     }
 
     override fun IrClassDeclaration.genSuperTypes(context: IrContainer) {
+        logger.trace { "start gen super types for ${this.name}" }
         val classType = classType
         val selectedSupers = mutableListOf<IrType>()
         if (classType != IrClassType.INTERFACE) {
-
             val superType = randomType(
                 context, classContext = null, functionContext = null,
                 finishTypeArguments = false
@@ -222,13 +222,16 @@ class IrDeclGeneratorImpl(
         val willAdd = mutableSetOf<IrType>()
         for (i in 0 until config.classImplNumRange.random(random)) {
             val now = randomType(context, null, null, false) {
+                logger.trace { "considering $it" }
                 var superWasSelected = false
                 if (it is IrClassifier) {
                     it.classDecl.traverseSuper { it1 ->
+                        logger.trace { "traversing $it1" }
                         if (selectedSupers.any { it2 ->
                                 it2 is IrParameterizedClassifier && it1.type.equalsIgnoreTypeArguments(it2)
                                 // do not allow to inherit class with generic type twice
                             }) {
+                            logger.trace { "$it1 was selected." }
                             superWasSelected = true
                         }
                         true
@@ -239,6 +242,7 @@ class IrDeclGeneratorImpl(
             }
             if (now == null) break
             if (now is IrClassifier) {
+                logger.trace { "add $now into implement interfaces" }
                 subTypeMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
                 if (now is IrParameterizedClassifier) {
                     genTypeArguments(context, this, now)
@@ -247,6 +251,7 @@ class IrDeclGeneratorImpl(
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
+        logger.trace { "finish gen super types for ${this.name}" }
     }
 
     /**
@@ -461,11 +466,9 @@ class IrDeclGeneratorImpl(
         }
 
         for ((superFunc, intfFunc) in mustOverrides) {
-            val first = superFunc ?: intfFunc.first()
             val superAndIntf = if (superFunc != null) {
                 intfFunc + superFunc
             } else intfFunc
-            require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "must override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
@@ -474,11 +477,9 @@ class IrDeclGeneratorImpl(
         }
 
         for ((superFunc, intfFunc) in stubOverride) {
-            val first = superFunc ?: intfFunc.first()
             val superAndIntf = if (superFunc != null) {
                 intfFunc + superFunc
             } else intfFunc
-            require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "stub override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
@@ -503,8 +504,6 @@ class IrDeclGeneratorImpl(
                 false
             }
             val isFinal = doOverride && !makeAbstract && classType != IrClassType.INTERFACE
-            val first = superFunc ?: intfFunc.first()
-            require(this.functions.all { !it.signatureEquals(first) })
             logger.trace { "can override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language, getTypeArguments(superAndIntf)

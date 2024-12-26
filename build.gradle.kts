@@ -39,6 +39,7 @@ publishing {
 dependencies {
     implementation("org.reflections:reflections:0.10.2")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.18.+")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.18.+")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.+")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     runtimeOnly("org.apache.logging.log4j:log4j-api:2.20.0")
