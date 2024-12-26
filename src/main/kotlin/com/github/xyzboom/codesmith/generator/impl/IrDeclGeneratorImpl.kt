@@ -629,6 +629,23 @@ class IrDeclGeneratorImpl(
         }
     }
 
+    private fun getActualTypeFromArguments(
+        oriType: IrType,
+        typeArguments: Map<IrTypeParameter, IrType>
+    ): IrType {
+        if (oriType in typeArguments) {
+            // replace type parameter in super with type argument
+            return typeArguments[oriType]!!
+        }
+        if (oriType is IrNullableType) {
+            return IrNullableType.nullableOf(getActualTypeFromArguments(oriType.innerType, typeArguments))
+        }
+        if (oriType is IrParameterizedClassifier) {
+            oriType.putAllTypeArguments(typeArguments)
+        }
+        return oriType
+    }
+
     override fun IrClassDeclaration.genOverrideFunction(
         from: List<IrFunctionDeclaration>,
         makeAbstract: Boolean,
@@ -655,29 +672,11 @@ class IrDeclGeneratorImpl(
             override += from
             parameterList = first.parameterList.copyForOverride()
             for (param in parameterList.parameters) {
-                val paramType = param.type
-                if (paramType in putAllTypeArguments) {
-                    // replace type parameter in super with type argument
-                    param.type = putAllTypeArguments[paramType]!!
-                }
-                if (paramType is IrNullableType && paramType.innerType in putAllTypeArguments) {
-                    param.type = IrNullableType.nullableOf(putAllTypeArguments[paramType.innerType]!!)
-                }
-                if (paramType is IrParameterizedClassifier) {
-                    paramType.putAllTypeArguments(putAllTypeArguments)
-                }
+                param.type = getActualTypeFromArguments(param.type, putAllTypeArguments)
             }
             returnType = first.returnType
             val returnType = returnType
-            if (returnType in putAllTypeArguments) {
-                this.returnType = putAllTypeArguments[returnType]!!
-            }
-            if (returnType is IrNullableType && returnType.innerType in putAllTypeArguments) {
-                this.returnType = IrNullableType.nullableOf(putAllTypeArguments[returnType.innerType]!!)
-            }
-            if (returnType is IrParameterizedClassifier) {
-                returnType.putAllTypeArguments(putAllTypeArguments)
-            }
+            this.returnType = getActualTypeFromArguments(returnType, putAllTypeArguments)
             if (!makeAbstract) {
                 body = IrBlock()
 
