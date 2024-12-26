@@ -8,6 +8,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrClassType
+import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
@@ -849,6 +850,64 @@ class IrDeclGeneratorImplTest {
         funcInGC.assertParameters(
             listOf(
                 "arg" to gpWithT3
+            )
+        )
+    }
+
+    @Test
+    fun testOverrideWithCorrectParameterWhenSuperHasGeneric4() {
+        /**
+         * P<T0, T1>
+         * C<T2, T3>: P<T2, T3>#
+         * # means implement function
+         *
+         * func(P<T1, T0>)
+         */
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val t1 = IrTypeParameter.create("T1", IrAny)
+        val t2 = IrTypeParameter.create("T2", IrAny)
+        val t3 = IrTypeParameter.create("T3", IrAny)
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            typeParameters.add(t0)
+            typeParameters.add(t1)
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            typeParameters.add(t2)
+            typeParameters.add(t3)
+            val rawP = p.type as IrParameterizedClassifier
+            rawP.putTypeArgument(t0, t2)
+            rawP.putTypeArgument(t1, t3)
+            superType = rawP
+        }
+        val funcInP = IrFunctionDeclaration("func", p).apply {
+            body = IrBlock()
+            p.functions.add(this)
+            val rawP = p.type as IrParameterizedClassifier
+            rawP.putTypeArgument(t0, t1)
+            rawP.putTypeArgument(t1, t0)
+            parameterList.parameters.add(IrParameter("arg", IrNullableType.nullableOf(rawP)))
+        }
+
+        with(generator) {
+            c.genOverrides()
+        }
+        val funcInC = c.functions.single()
+        funcInC.assertIsOverride(
+            listOf(funcInP),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        val pWithT2T3 = p.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, t2)
+            putTypeArgument(t1, t3)
+        }
+        funcInC.assertParameters(
+            listOf(
+                "arg" to IrNullableType.nullableOf(pWithT2T3)
             )
         )
     }

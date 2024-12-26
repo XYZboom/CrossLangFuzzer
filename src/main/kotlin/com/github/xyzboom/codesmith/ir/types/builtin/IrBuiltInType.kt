@@ -14,4 +14,8 @@ sealed class IrBuiltInType: IrType() {
     final override fun equalsIgnoreTypeArguments(other: IrType): Boolean {
         return other === this
     }
+
+    override fun toString(): String {
+        return this::class.simpleName!!
+    }
 }
