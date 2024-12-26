@@ -24,9 +24,27 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
     fun getTypeArgument(typeParameter: IrTypeParameter) = arguments[typeParameter]
 
     fun putAllTypeArguments(args: Map<IrTypeParameter, IrType>) {
-        for ((typeParam, typeArg) in args) {
-            if (arguments.containsKey(typeParam)) {
-                putTypeArgument(typeParam, typeArg)
+        for ((typeParam, typeArg) in arguments) {
+            /**
+             * Directly use.
+             * Parent<T0>
+             * Child<T1>: Parent<T1>
+             * [args] will be {"T0": "T1"}
+             */
+            if (args.containsKey(typeParam)) {
+                putTypeArgument(typeParam, args[typeParam]!!)
+            } else {
+                /**
+                 * Indirectly use.
+                 * Parent<T0>
+                 * Child<T1>: Parent<T1>
+                 * GrandChild<T2>: Child<T2>
+                 * [args] will be {"T2": "T1"},
+                 * "T1" here matches value in [args] above.
+                 */
+                if (args.containsKey(typeArg)) {
+                    putTypeArgument(typeParam, args[typeArg]!!)
+                }
             }
         }
     }
@@ -59,4 +77,11 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
             arguments.putAll(this@IrParameterizedClassifier.arguments)
         }
     }
+
+    override fun toString(): String {
+        return "IrParameterizedClassifier(${classDecl.name}<" +
+                "${arguments.toList().joinToString(", ") { "${it.first.name}[${it.second}]" }}>)"
+    }
+
+
 }

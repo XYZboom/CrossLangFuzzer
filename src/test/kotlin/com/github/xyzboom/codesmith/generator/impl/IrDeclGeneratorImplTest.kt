@@ -669,6 +669,189 @@ class IrDeclGeneratorImplTest {
             )
         )
     }
+
+    @Test
+    fun testOverrideWithCorrectParameterWhenSuperHasGeneric2() {
+        /**
+         * GP<T0>#
+         * P<T1>: GP<T1>#
+         * C<T2>: P<T2>#
+         * # means implement function
+         *
+         * func(GP<T0>)
+         */
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val t1 = IrTypeParameter.create("T1", IrAny)
+        val t2 = IrTypeParameter.create("T2", IrAny)
+        val gp = IrClassDeclaration("GP", IrClassType.OPEN).apply {
+            typeParameters.add(t0)
+        }
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            typeParameters.add(t1)
+            val rawGp = gp.type as IrParameterizedClassifier
+            rawGp.putTypeArgument(t0, t1)
+            superType = rawGp
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            typeParameters.add(t2)
+            val rawP = p.type as IrParameterizedClassifier
+            rawP.putTypeArgument(t1, t2)
+            superType = rawP
+        }
+        val funcInGp = IrFunctionDeclaration("func", gp).apply {
+            body = IrBlock()
+            gp.functions.add(this)
+            parameterList.parameters.add(IrParameter("arg", gp.type))
+        }
+        with(generator) {
+            p.genOverrides()
+        }
+        val funcInP = p.functions.single()
+        funcInP.assertIsOverride(
+            listOf(funcInGp),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        val gpWithT1 = gp.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, t1)
+        }
+        funcInP.assertParameters(
+            listOf(
+                "arg" to gpWithT1
+            )
+        )
+
+        with(generator) {
+            c.genOverrides()
+        }
+        val funcInC = c.functions.single()
+        funcInC.assertIsOverride(
+            listOf(funcInP),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        val gpWithT2 = gp.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, t2)
+        }
+        funcInC.assertParameters(
+            listOf(
+                "arg" to gpWithT2
+            )
+        )
+    }
+
+    @Test
+    fun testOverrideWithCorrectParameterWhenSuperHasGeneric3() {
+        /**
+         * GP<T0>#
+         * P<T1>: GP<T1>#
+         * C<T2>: P<T2>#
+         * GC<T3>: C<T3>#
+         * # means implement function
+         *
+         * func(GP<T0>)
+         */
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val t1 = IrTypeParameter.create("T1", IrAny)
+        val t2 = IrTypeParameter.create("T2", IrAny)
+        val t3 = IrTypeParameter.create("T3", IrAny)
+        val gp = IrClassDeclaration("GP", IrClassType.OPEN).apply {
+            typeParameters.add(t0)
+        }
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            typeParameters.add(t1)
+            val rawGp = gp.type as IrParameterizedClassifier
+            rawGp.putTypeArgument(t0, t1)
+            superType = rawGp
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            typeParameters.add(t2)
+            val rawP = p.type as IrParameterizedClassifier
+            rawP.putTypeArgument(t1, t2)
+            superType = rawP
+        }
+        val gc = IrClassDeclaration("GC", IrClassType.OPEN).apply {
+            typeParameters.add(t3)
+            val rawC = c.type as IrParameterizedClassifier
+            rawC.putTypeArgument(t2, t3)
+            superType = rawC
+        }
+        val funcInGp = IrFunctionDeclaration("func", gp).apply {
+            body = IrBlock()
+            gp.functions.add(this)
+            parameterList.parameters.add(IrParameter("arg", gp.type))
+        }
+        with(generator) {
+            p.genOverrides()
+        }
+        val funcInP = p.functions.single()
+        funcInP.assertIsOverride(
+            listOf(funcInGp),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        val gpWithT1 = gp.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, t1)
+        }
+        funcInP.assertParameters(
+            listOf(
+                "arg" to gpWithT1
+            )
+        )
+
+        with(generator) {
+            c.genOverrides()
+        }
+        val funcInC = c.functions.single()
+        funcInC.assertIsOverride(
+            listOf(funcInP),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        val gpWithT2 = gp.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, t2)
+        }
+        funcInC.assertParameters(
+            listOf(
+                "arg" to gpWithT2
+            )
+        )
+
+        with(generator) {
+            gc.genOverrides()
+        }
+        val funcInGC = gc.functions.single()
+        funcInGC.assertIsOverride(
+            listOf(funcInC),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        val gpWithT3 = gp.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, t3)
+        }
+        funcInGC.assertParameters(
+            listOf(
+                "arg" to gpWithT3
+            )
+        )
+    }
     //</editor-fold>
     //</editor-fold>
 }
