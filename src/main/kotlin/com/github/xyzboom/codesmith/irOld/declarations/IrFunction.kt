@@ -30,12 +30,13 @@ interface IrFunction: IrDeclaration, IrFunctionContainer, IrAccessModifierContai
         }
 
     fun isSameSignature(other: IrFunction): Boolean {
+        // for now, since we never generate overload functions, so only check names.
         if (other.name != name) return false
-        if (other.returnType != returnType) return false
+        /*if (other.returnType != returnType) return false
         if (other.valueParameters.size != valueParameters.size) return false
         for ((myParamType, otherParamType) in valueParameters.zip(other.valueParameters)) {
             if (!myParamType.type.equalsIgnoreNullability(otherParamType.type)) return false
-        }
+        }*/
         return true
     }
 

@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaration) : IrClassifier(classDecl) {
     companion object {
@@ -11,6 +12,8 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
             }
             return IrParameterizedClassifier(classDecl)
         }
+
+        private val logger = KotlinLogging.logger {}
     }
 
     private val arguments: MutableMap<IrTypeParameter, IrType?> =
@@ -23,7 +26,7 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
 
     fun getTypeArgument(typeParameter: IrTypeParameter) = arguments[typeParameter]
 
-    fun putAllTypeArguments(args: Map<IrTypeParameter, IrType>) {
+    fun putAllTypeArguments(args: Map<IrTypeParameter, IrType>, onlyValue: Boolean = false) {
         for ((typeParam, typeArg) in arguments) {
             /**
              * Directly use.
@@ -31,7 +34,8 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
              * Child<T1>: Parent<T1>
              * [args] will be {"T0": "T1"}
              */
-            if (args.containsKey(typeParam)) {
+            if (!onlyValue && args.containsKey(typeParam)) {
+                logger.trace { "replace $typeParam with ${args[typeParam]!!}" }
                 putTypeArgument(typeParam, args[typeParam]!!)
             } else {
                 /**
@@ -43,6 +47,7 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
                  * "T1" here matches value in [args] above.
                  */
                 if (args.containsKey(typeArg)) {
+                    logger.trace { "replace $typeParam with ${args[typeArg]!!}" }
                     putTypeArgument(typeParam, args[typeArg]!!)
                 }
             }
@@ -72,9 +77,11 @@ class IrParameterizedClassifier private constructor(classDecl: IrClassDeclaratio
         return result
     }
 
-    override fun copyForOverride(): IrType {
+    override fun copy(): IrType {
         return create(this.classDecl).apply {
-            arguments.putAll(this@IrParameterizedClassifier.arguments)
+            for ((typeParameter, typeArgument) in this@IrParameterizedClassifier.arguments) {
+                arguments[typeParameter.copy()] = typeArgument?.copy()
+            }
         }
     }
 

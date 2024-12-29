@@ -16,7 +16,7 @@ import com.github.xyzboom.codesmith.utils.rouletteSelection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
-class IrDeclGeneratorImpl(
+open class IrDeclGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     private val random: Random = Random.Default,
 ) : IrDeclGenerator {
@@ -105,7 +105,7 @@ class IrDeclGeneratorImpl(
         if (finishTypeArguments && result is IrParameterizedClassifier) {
             genTypeArguments(from, classContext, result)
         }
-        return result
+        return result.copy()
     }
 
     fun randomLanguage(): Language {
@@ -121,7 +121,7 @@ class IrDeclGeneratorImpl(
     fun IrClassDeclaration.isSubtypeOf(parent: IrClassDeclaration): Boolean {
         var result = false
         traverseSuper {
-            if (it === parent) {
+            if (it is IrClassifier && it.classDecl == parent) {
                 result = true
                 return@traverseSuper false
             }
@@ -197,6 +197,7 @@ class IrDeclGeneratorImpl(
         logger.trace { "start gen super types for ${this.name}" }
         val classType = classType
         val selectedSupers = mutableListOf<IrType>()
+        val allSuperArguments: MutableMap<IrTypeParameter, IrType> = mutableMapOf()
         if (classType != IrClassType.INTERFACE) {
             val superType = randomType(
                 context, classContext = null, functionContext = null,
@@ -207,65 +208,122 @@ class IrDeclGeneratorImpl(
             ) {
                 (it.classType == IrClassType.OPEN || it.classType == IrClassType.ABSTRACT) && it != this.type
             }
+            logger.trace { "choose super: $superType" }
             if (superType is IrClassifier) {
                 subTypeMap.getOrPut(superType.classDecl) { mutableListOf() }.add(this)
-                superType.classDecl.traverseSuper {
-                    selectedSupers.add(it.type)
-                    true
-                }
                 if (superType is IrParameterizedClassifier) {
                     genTypeArguments(context, this, superType)
+                    allSuperArguments.putAll(superType.getTypeArguments())
                 }
+                logger.trace { "all super type args: $allSuperArguments" }
+                recordSelectedSuper(superType, selectedSupers, allSuperArguments)
             }
             this.superType = superType ?: IrAny
         }
         val willAdd = mutableSetOf<IrType>()
         for (i in 0 until config.classImplNumRange.random(random)) {
-            val now = randomType(context, null, null, false) {
-                logger.trace { "considering $it" }
+            logger.trace { "selected supers: $selectedSupers" }
+            val now = randomType(context, null, null, false) { consideringType ->
+                logger.trace { "considering $consideringType" }
                 var superWasSelected = false
-                if (it is IrClassifier) {
-                    it.classDecl.traverseSuper { it1 ->
-                        logger.trace { "traversing $it1" }
-                        if (selectedSupers.any { it2 ->
-                                it2 is IrParameterizedClassifier && it1.type.equalsIgnoreTypeArguments(it2)
-                                // do not allow to inherit class with generic type twice
-                            }) {
-                            logger.trace { "$it1 was selected." }
+                if (consideringType is IrClassifier) {
+                    consideringType.classDecl.traverseSuper {
+                        if (selectedSupers.any { it1 -> it.equalsIgnoreTypeArguments(it1) }) {
+                            logger.trace { "$it was selected." }
                             superWasSelected = true
+                            return@traverseSuper false
                         }
                         true
                     }
                 }
-                it.classType == IrClassType.INTERFACE && it !in willAdd && it != this.type
+                val result = consideringType.classType == IrClassType.INTERFACE
                         && !superWasSelected
+                        && willAdd.all { !it.equalsIgnoreTypeArguments(consideringType) }
+                        && consideringType != this.type
+                logger.trace {
+                    "$consideringType ${
+                        if (result) {
+                            "can"
+                        } else {
+                            "can't"
+                        }
+                    } be considered."
+                }
+                return@randomType result
             }
             if (now == null) break
             if (now is IrClassifier) {
                 logger.trace { "add $now into implement interfaces" }
                 subTypeMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
                 if (now is IrParameterizedClassifier) {
-                    genTypeArguments(context, this, now)
+                    val mayInSuper = selectedSupers.firstOrNull { it.equalsIgnoreTypeArguments(now) }
+                    if (mayInSuper == null) {
+                        logger.trace { "$now is not appeared in super, use it with generated type args." }
+                        genTypeArguments(context, this, now)
+                        allSuperArguments.putAll(now.getTypeArguments())
+                    } else {
+                        logger.trace { "$now appeared in super, use it directly." }
+                        mayInSuper as IrParameterizedClassifier
+                        allSuperArguments.putAll(mayInSuper.getTypeArguments())
+                        now.putAllTypeArguments(allSuperArguments)
+                    }
                 }
+                recordSelectedSuper(now, selectedSupers, allSuperArguments)
             }
             willAdd.add(now)
         }
         implementedTypes.addAll(willAdd)
+        allSuperTypeArguments.putAll(allSuperArguments)
         logger.trace { "finish gen super types for ${this.name}" }
+    }
+
+    private fun recordSelectedSuper(
+        now: IrClassifier,
+        selectedSupers: MutableList<IrType>,
+        allSuperArguments: MutableMap<IrTypeParameter, IrType>
+    ) {
+        logger.trace { "recording $now into selected super" }
+        selectedSupers.add(now)
+        now.classDecl.traverseSuper {
+            if (selectedSupers.all { it1 -> !it.equalsIgnoreTypeArguments(it1) }) {
+                logger.trace { "adding $it to selectedSupers" }
+                val rawSuper = it.copy()
+                if (rawSuper is IrParameterizedClassifier) {
+                    rawSuper.putAllTypeArguments(allSuperArguments)
+                    /**
+                     * Record indirectly use.
+                     * GrandParent<T0>
+                     * Parent<T1>: GrandParent<T1>
+                     * Child<T2>: Parent<T2>
+                     * GrandChild<T3>: Child<T3>
+                     * When [now] is GrandChild, we first meet Child(T2 [ T3 ]),
+                     * and a k-v pair (T2: T3) is recorded into [allSuperArguments].
+                     * Then we meet Parent(T1 [ T2 ]), since we already have a (T2: T3) in [allSuperArguments],
+                     * a Parent(T1 [ T3 ]) will be successfully recorded into [selectedSupers].
+                     * After this, we meet GrandParent(T0 [ T1 ]), that's why we need the following line.
+                     * We need to record a (T1: T3).
+                     */
+                    allSuperArguments.putAll(rawSuper.getTypeArguments())
+                }
+                selectedSupers.add(rawSuper)
+                logger.trace { "added $rawSuper to selectedSupers" }
+            }
+            true
+        }
     }
 
     /**
      * @param [visitor] return false in [visitor] if want stop
      */
-    private fun IrClassDeclaration.traverseSuper(visitor: (IrClassDeclaration) -> Boolean) {
+    private fun IrClassDeclaration.traverseSuper(visitor: (IrType) -> Boolean) {
         val superType = superType
         if (superType is IrClassifier) {
-            if (!visitor(superType.classDecl)) return
+            if (!visitor(superType)) return
             superType.classDecl.traverseSuper(visitor)
         }
         for (intf in implementedTypes) {
             if (intf is IrClassifier) {
-                if (!visitor(intf.classDecl)) return
+                if (!visitor(intf)) return
                 intf.classDecl.traverseSuper(visitor)
             }
         }
@@ -472,7 +530,7 @@ class IrDeclGeneratorImpl(
             logger.trace { "must override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
-                isStub = false, superFunc?.isFinal, language = this.language, getTypeArguments(superAndIntf)
+                isStub = false, superFunc?.isFinal, language = this.language, allSuperTypeArguments
             )
         }
 
@@ -483,7 +541,7 @@ class IrDeclGeneratorImpl(
             logger.trace { "stub override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
-                isStub = true, superFunc?.isFinal, language = this.language, getTypeArguments(superAndIntf)
+                isStub = true, superFunc?.isFinal, language = this.language, allSuperTypeArguments
             )
         }
 
@@ -506,25 +564,9 @@ class IrDeclGeneratorImpl(
             val isFinal = doOverride && !makeAbstract && classType != IrClassType.INTERFACE
             logger.trace { "can override" }
             genOverrideFunction(
-                superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language, getTypeArguments(superAndIntf)
+                superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language, allSuperTypeArguments
             )
         }
-    }
-
-    private fun IrClassDeclaration.getTypeArguments(superAndIntf: Set<IrFunctionDeclaration>): Map<IrTypeParameter, IrType> {
-        var typeArgs = emptyMap<IrTypeParameter, IrType>()
-        if (superAndIntf.size == 1) {
-            val singleSuper = superAndIntf.single().container as IrClassDeclaration
-            if (singleSuper.typeParameters.isNotEmpty()) {
-                val superType = if (this.superType?.equalsIgnoreTypeArguments(singleSuper.type) == true) {
-                    this.superType!!
-                } else {
-                    implementedTypes.first { it.equalsIgnoreTypeArguments(singleSuper.type) }
-                } as IrParameterizedClassifier
-                typeArgs = superType.getTypeArguments()
-            }
-        }
-        return typeArgs
     }
 
     override fun genClass(context: IrContainer, name: String, language: Language): IrClassDeclaration {
@@ -629,19 +671,31 @@ class IrDeclGeneratorImpl(
         }
     }
 
+    /**
+     * ```kotlin
+     * interface I<T0> {
+     *     fun func(i: I<Any>)
+     * }
+     * ```
+     * For `i` in `func`, its type is "I(T0 [ Any ])".
+     * If we have a class implements I<String>, the [typeArguments] here will be "T0 [ String ]".
+     * For such situation, [onlyValue] must be `true`.
+     * @see [IrParameterizedClassifier.putAllTypeArguments]
+     */
     private fun getActualTypeFromArguments(
         oriType: IrType,
-        typeArguments: Map<IrTypeParameter, IrType>
+        typeArguments: Map<IrTypeParameter, IrType>,
+        onlyValue: Boolean
     ): IrType {
         if (oriType in typeArguments) {
             // replace type parameter in super with type argument
             return typeArguments[oriType]!!
         }
         if (oriType is IrNullableType) {
-            return IrNullableType.nullableOf(getActualTypeFromArguments(oriType.innerType, typeArguments))
+            return IrNullableType.nullableOf(getActualTypeFromArguments(oriType.innerType, typeArguments, onlyValue))
         }
         if (oriType is IrParameterizedClassifier) {
-            oriType.putAllTypeArguments(typeArguments)
+            oriType.putAllTypeArguments(typeArguments, onlyValue)
         }
         return oriType
     }
@@ -672,11 +726,10 @@ class IrDeclGeneratorImpl(
             override += from
             parameterList = first.parameterList.copyForOverride()
             for (param in parameterList.parameters) {
-                param.type = getActualTypeFromArguments(param.type, putAllTypeArguments)
+                param.type = getActualTypeFromArguments(param.type, putAllTypeArguments, true)
             }
-            returnType = first.returnType
-            val returnType = returnType
-            this.returnType = getActualTypeFromArguments(returnType, putAllTypeArguments)
+            val returnType = first.returnType.copy()
+            this.returnType = getActualTypeFromArguments(returnType, putAllTypeArguments, true)
             if (!makeAbstract) {
                 body = IrBlock()
 

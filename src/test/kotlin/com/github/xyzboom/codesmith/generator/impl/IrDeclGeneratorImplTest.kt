@@ -3,19 +3,97 @@ package com.github.xyzboom.codesmith.generator.impl
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.assertIsOverride
 import com.github.xyzboom.codesmith.assertParameters
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.types.IrClassType
-import com.github.xyzboom.codesmith.ir.types.IrNullableType
-import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import io.kotest.matchers.maps.shouldMatchExactly
+import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class IrDeclGeneratorImplTest {
+class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
+    val mockProgram
+        get() = IrProgram()
+
+    //<editor-fold desc="Gen super">
+    @Test
+    fun testSuperArgumentsIsCorrect() {
+        /**
+         * P<T0>
+         * C<T1>: P<T1>
+         */
+        val prog = mockProgram
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val t1 = IrTypeParameter.create("T1", IrAny)
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            typeParameters.add(t0)
+            superContainer = prog
+            prog.classes.add(this)
+        }
+        val c = IrClassDeclaration("C", IrClassType.FINAL).apply {
+            typeParameters.add(t1)
+            superContainer = prog
+            prog.classes.add(this)
+        }
+        val generator = SequentialTypeSelectionIrDeclGenerator(
+            listOf(p.type, t1)
+        )
+        with(generator) {
+            c.genSuperTypes(prog)
+        }
+        c.allSuperTypeArguments.shouldMatchExactly(
+            t0 to { it shouldBe t1 }
+        )
+    }
+
+    @Test
+    fun testSuperArgumentsIsCorrect2() {
+        /**
+         * P<T0>
+         * C<T1>: P<T1>
+         * GC<T2>: C<T2>
+         */
+        val prog = mockProgram
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val t1 = IrTypeParameter.create("T1", IrAny)
+        val t2 = IrTypeParameter.create("T2", IrAny)
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            typeParameters.add(t0)
+            superContainer = prog
+            prog.classes.add(this)
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            typeParameters.add(t1)
+            superType = p.type.apply {
+                this as IrParameterizedClassifier
+                putTypeArgument(t0, t1)
+            }
+            superContainer = prog
+            prog.classes.add(this)
+            allSuperTypeArguments[t0] = t1
+        }
+        val gc = IrClassDeclaration("GC", IrClassType.FINAL).apply {
+            typeParameters.add(t2)
+            superContainer = prog
+            prog.classes.add(this)
+        }
+        val generator = SequentialTypeSelectionIrDeclGenerator(
+            listOf(c.type, t2)
+        )
+        with(generator) {
+            gc.genSuperTypes(prog)
+        }
+        gc.allSuperTypeArguments.shouldMatchExactly(
+            t0 to { it shouldBe t2 },
+            t1 to { it shouldBe t2 },
+        )
+    }
+    //</editor-fold>
+
     //<editor-fold desc="Override">
     //<editor-fold desc="Normal">
 
@@ -624,12 +702,15 @@ class IrDeclGeneratorImplTest {
             val rawGp = gp.type as IrParameterizedClassifier
             rawGp.putTypeArgument(t0, t1)
             superType = rawGp
+            allSuperTypeArguments[t0] = t1
         }
         val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
             typeParameters.add(t2)
             val rawP = p.type as IrParameterizedClassifier
             rawP.putTypeArgument(t1, t2)
             superType = rawP
+            allSuperTypeArguments[t1] = t2
+            allSuperTypeArguments[t0] = t2
         }
         val funcInGp = IrFunctionDeclaration("func", gp).apply {
             body = IrBlock()
@@ -693,17 +774,23 @@ class IrDeclGeneratorImplTest {
             val rawGp = gp.type as IrParameterizedClassifier
             rawGp.putTypeArgument(t0, t1)
             superType = rawGp
+            allSuperTypeArguments[t0] = t1
         }
         val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
             typeParameters.add(t2)
             val rawP = p.type as IrParameterizedClassifier
             rawP.putTypeArgument(t1, t2)
             superType = rawP
+            allSuperTypeArguments[t1] = t2
+            allSuperTypeArguments[t0] = t2
         }
         val funcInGp = IrFunctionDeclaration("func", gp).apply {
             body = IrBlock()
             gp.functions.add(this)
-            parameterList.parameters.add(IrParameter("arg", gp.type))
+            parameterList.parameters.add(IrParameter("arg", gp.type.apply {
+                this as IrParameterizedClassifier
+                putTypeArgument(t0, t0)
+            }))
         }
         with(generator) {
             p.genOverrides()
@@ -772,23 +859,32 @@ class IrDeclGeneratorImplTest {
             val rawGp = gp.type as IrParameterizedClassifier
             rawGp.putTypeArgument(t0, t1)
             superType = rawGp
+            allSuperTypeArguments[t0] = t1
         }
         val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
             typeParameters.add(t2)
             val rawP = p.type as IrParameterizedClassifier
             rawP.putTypeArgument(t1, t2)
             superType = rawP
+            allSuperTypeArguments[t1] = t2
+            allSuperTypeArguments[t0] = t2
         }
         val gc = IrClassDeclaration("GC", IrClassType.OPEN).apply {
             typeParameters.add(t3)
             val rawC = c.type as IrParameterizedClassifier
             rawC.putTypeArgument(t2, t3)
             superType = rawC
+            allSuperTypeArguments[t2] = t3
+            allSuperTypeArguments[t1] = t3
+            allSuperTypeArguments[t0] = t3
         }
         val funcInGp = IrFunctionDeclaration("func", gp).apply {
             body = IrBlock()
             gp.functions.add(this)
-            parameterList.parameters.add(IrParameter("arg", gp.type))
+            parameterList.parameters.add(IrParameter("arg", gp.type.apply {
+                this as IrParameterizedClassifier
+                putTypeArgument(t0, t0)
+            }))
         }
         with(generator) {
             p.genOverrides()
@@ -879,6 +975,8 @@ class IrDeclGeneratorImplTest {
             rawP.putTypeArgument(t0, t2)
             rawP.putTypeArgument(t1, t3)
             superType = rawP
+            allSuperTypeArguments[t0] = t2
+            allSuperTypeArguments[t1] = t3
         }
         val funcInP = IrFunctionDeclaration("func", p).apply {
             body = IrBlock()
@@ -902,12 +1000,87 @@ class IrDeclGeneratorImplTest {
         )
         val pWithT2T3 = p.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t2)
-            putTypeArgument(t1, t3)
+            putTypeArgument(t0, t3)
+            putTypeArgument(t1, t2)
         }
         funcInC.assertParameters(
             listOf(
                 "arg" to IrNullableType.nullableOf(pWithT2T3)
+            )
+        )
+    }
+
+    @Test
+    fun testOverrideMultiSuperWithCorrectParameter() {
+        /**
+         * I<T0>&
+         * P: I<P>#
+         * C: P, I<P>^
+         * & means abstract function
+         * # means implement function
+         * ^ means stub function
+         *
+         * func(I<T0>)
+         */
+        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val t0 = IrTypeParameter.create("T0", IrAny)
+        val i = IrClassDeclaration("I", IrClassType.INTERFACE).apply {
+            typeParameters.add(t0)
+        }
+        val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
+            val rawI = i.type as IrParameterizedClassifier
+            rawI.putTypeArgument(t0, type)
+            implementedTypes.add(rawI)
+            allSuperTypeArguments[t0] = type
+        }
+        val c = IrClassDeclaration("C", IrClassType.OPEN).apply {
+            superType = p.type
+            val rawI = i.type as IrParameterizedClassifier
+            rawI.putTypeArgument(t0, p.type)
+            implementedTypes.add(rawI)
+            allSuperTypeArguments[t0] = p.type
+        }
+        val funcInI = IrFunctionDeclaration("func", i).apply {
+            val rawI = i.type as IrParameterizedClassifier
+            rawI.putTypeArgument(t0, t0)
+            parameterList.parameters.add(IrParameter("arg0", rawI))
+            i.functions.add(this)
+        }
+        with(generator) {
+            p.genOverrides()
+        }
+        val funcInP = p.functions.single()
+        funcInP.assertIsOverride(
+            listOf(funcInI),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = false,
+            shouldBeFinal = false
+        )
+        val iOfP = i.type.apply {
+            this as IrParameterizedClassifier
+            putTypeArgument(t0, p.type)
+        }
+        funcInP.assertParameters(
+            listOf(
+                "arg0" to iOfP
+            )
+        )
+
+        with(generator) {
+            c.genOverrides()
+        }
+        val funcInC = c.functions.single()
+        funcInC.assertIsOverride(
+            listOf(funcInI, funcInP),
+            shouldBeSameSignature = false,
+            shouldHasBody = true,
+            shouldBeStub = true,
+            shouldBeFinal = false
+        )
+        funcInC.assertParameters(
+            listOf(
+                "arg0" to iOfP
             )
         )
     }

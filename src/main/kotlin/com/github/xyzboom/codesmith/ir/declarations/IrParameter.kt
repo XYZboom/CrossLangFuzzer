@@ -8,7 +8,7 @@ class IrParameter(
     var type: IrType
 ) : IrDeclaration(name) {
     fun copyForOverride(): IrParameter {
-        return IrParameter(name, type.copyForOverride())
+        return IrParameter(name, type.copy())
     }
 
     var defaultValue: IrExpression? = null
