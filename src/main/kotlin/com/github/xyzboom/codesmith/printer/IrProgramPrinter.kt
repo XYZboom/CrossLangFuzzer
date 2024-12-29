@@ -54,7 +54,6 @@ class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
         val sb = StringBuilder(
             "// JVM_DEFAULT_MODE: all\n" +
                     "// TARGET_BACKEND: JVM\n" +
-                    "// WITH_JDK\n" +
                     "// JVM_TARGET: 1.8\n"
         )
         for ((key, value) in map) {

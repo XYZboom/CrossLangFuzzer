@@ -11,5 +11,5 @@ abstract class IrType : IrElement() {
     @get:JsonIgnore
     open val unfinished: Boolean get() = false
     abstract fun equalsIgnoreTypeArguments(other: IrType): Boolean
-    open fun copyForOverride(): IrType = this
+    open fun copy(): IrType = this
 }

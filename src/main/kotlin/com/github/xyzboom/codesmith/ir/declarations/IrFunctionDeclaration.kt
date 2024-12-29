@@ -43,14 +43,14 @@ class IrFunctionDeclaration(
             if (other !is Signature) return false
 
             if (name != other.name) return false
-            if (parameterTypes != other.parameterTypes) return false
+//            if (parameterTypes != other.parameterTypes) return false
 
             return true
         }
 
         override fun hashCode(): Int {
             var result = name.hashCode()
-            result = 31 * result + parameterTypes.hashCode()
+//            result = 31 * result + parameterTypes.hashCode()
             return result
         }
     }

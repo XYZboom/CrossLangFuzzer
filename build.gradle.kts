@@ -49,6 +49,7 @@ dependencies {
     api("org.jacoco:org.jacoco.core:0.8.12")
     implementation(kotlin("reflect"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
+    testImplementation("io.kotest:kotest-assertions-core:5.9.1")
     testImplementation(kotlin("test"))
 }
 

@@ -22,6 +22,7 @@ class IrClassDeclaration(
     val fields: MutableList<IrFieldDeclaration> = mutableListOf()
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
     override val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
+    val allSuperTypeArguments: MutableMap<IrTypeParameter, IrType> = mutableMapOf()
 
     @get:JsonIgnore
     val type: IrClassifier
