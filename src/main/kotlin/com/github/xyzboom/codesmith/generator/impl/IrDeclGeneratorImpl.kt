@@ -18,7 +18,7 @@ import kotlin.random.Random
 
 open class IrDeclGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
-    private val random: Random = Random.Default,
+    internal val random: Random = Random.Default,
 ) : IrDeclGenerator {
 
     private val logger = KotlinLogging.logger {}
