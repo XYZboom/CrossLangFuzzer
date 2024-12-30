@@ -1,17 +1,17 @@
 package com.github.xyzboom.codesmith.mutator.impl
 
-import com.github.xyzboom.codesmith.mutator.MutatorConfig
+import com.github.xyzboom.codesmith.mutator.MutatorConfigOld
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-class IrMutatorImplTest {
+class IrMutatorOldImplTest {
 
     @Test
     fun initWithNotEnabledConfigShouldFail() {
-        val copyMethod = MutatorConfig.default::copy
+        val copyMethod = MutatorConfigOld.default::copy
         val config = copyMethod.callBy(copyMethod.parameters.associateWith { false })
         assertThrows<IllegalArgumentException> {
-            IrMutatorImpl(config = config)
+            IrMutatorOldImpl(config = config)
         }
     }
 }

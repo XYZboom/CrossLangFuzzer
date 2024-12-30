@@ -6,6 +6,7 @@ import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.container.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
+import javax.annotation.PostConstruct
 
 typealias SuperAndIntfFunctions = Pair<IrFunctionDeclaration?, MutableSet<IrFunctionDeclaration>>
 //                                     ^^^^^^^^^^^^^^^^^^^^^ decl in super
@@ -22,6 +23,12 @@ class IrClassDeclaration(
     val fields: MutableList<IrFieldDeclaration> = mutableListOf()
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
     override val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
+
+    /**
+     * Since [allSuperTypeArguments] can be calculated from [superType] and [implementedTypes],
+     * no need to do serialize.
+     */
+    @JsonIgnore
     val allSuperTypeArguments: MutableMap<IrTypeParameter, IrType> = mutableMapOf()
 
     @get:JsonIgnore
@@ -47,5 +54,10 @@ class IrClassDeclaration(
 
     override fun toString(): String {
         return "class $name"
+    }
+
+    @PostConstruct
+    fun test() {
+        println("123123")
     }
 }

@@ -3,7 +3,7 @@ package com.github.xyzboom.codesmith.mutator
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.typeOf
 
-data class MutatorConfig(
+data class MutatorConfigOld(
     /**
      * ```kt
      * internal open class A
@@ -100,13 +100,13 @@ data class MutatorConfig(
     val functionCallInternal: Boolean = false,
 ) {
     fun anyEnabled(): Boolean {
-        val properties = MutatorConfig::class.memberProperties
+        val properties = MutatorConfigOld::class.memberProperties
         return properties.map { it.getter }.filter { it.returnType == typeOf<Boolean>() }
             .any { it.call(this) as Boolean? == true }
     }
 
     companion object {
         @JvmStatic
-        val default = MutatorConfig()
+        val default = MutatorConfigOld()
     }
 }

@@ -18,10 +18,10 @@ import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.memberProperties
 
 @Suppress("Unused")
-class IrMutatorImpl(
-    private val config: MutatorConfig = MutatorConfig.default,
+class IrMutatorOldImpl(
+    private val config: MutatorConfigOld = MutatorConfigOld.default,
     private val random: Random = Random.Default,
-): IrMutator(), IAccessChecker by AccessCheckerImpl() {
+): IrMutatorOld(), IAccessChecker by AccessCheckerImpl() {
 
     init {
         if (!config.anyEnabled()) {
@@ -295,18 +295,18 @@ class IrMutatorImpl(
 
     /**
      * do a mutated on specified [program].
-     * Return the result program and the mutated position in [MutatorConfig].
+     * Return the result program and the mutated position in [MutatorConfigOld].
      */
-    override fun mutate(program: IrProgram): Pair<IrProgram, MutatorConfig> {
-        val configByMethods = IrMutatorImpl::class.declaredMemberFunctions.filter {
+    override fun mutate(program: IrProgram): Pair<IrProgram, MutatorConfigOld> {
+        val configByMethods = IrMutatorOldImpl::class.declaredMemberFunctions.filter {
             it.annotations.any { anno ->
                 anno.annotationClass == ConfigBy::class
             }
         }
-        val configParams = ::MutatorConfig.parameters
+        val configParams = ::MutatorConfigOld.parameters
         val flow = configByMethods.map { method ->
             val anno = method.annotations.single { it.annotationClass == ConfigBy::class } as ConfigBy
-            val configProperty = MutatorConfig::class.memberProperties.single { it.name == anno.name }
+            val configProperty = MutatorConfigOld::class.memberProperties.single { it.name == anno.name }
             val param = configParams.single { it.name == anno.name }
             @Suppress("UNCHECKED_CAST")
             Triple(method as KFunction<Pair<IrProgram, Boolean>>, configProperty, param)
@@ -322,6 +322,6 @@ class IrMutatorImpl(
             myProg = step.first
             mutateResult[param] = step.second
         }
-        return myProg to ::MutatorConfig.callBy(mutateResult)
+        return myProg to ::MutatorConfigOld.callBy(mutateResult)
     }
 }
