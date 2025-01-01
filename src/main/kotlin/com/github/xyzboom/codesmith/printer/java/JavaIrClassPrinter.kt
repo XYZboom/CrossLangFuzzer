@@ -32,9 +32,6 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         const val FUNCTION_BODY_TODO = "throw new RuntimeException();"
     }
 
-    private var printNullableAnnotation = false
-    private var noNullableAnnotation = false
-
     override fun print(element: IrClassDeclaration): String {
         val data = StringBuilder(IMPORTS)
         visitClass(element, data)
@@ -67,17 +64,28 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    override fun printType(irType: IrType): String {
+    /**
+     * @param printNullableAnnotation Print nullability annotation with comment when set to false.
+     *          Print full nullability annotation when set to true.
+     *          **NOT AVAILABLE** when [noNullabilityAnnotation] set true.
+     * @param noNullabilityAnnotation Print no nullability annotation of types when set to true.
+     *          Suppress [printNullableAnnotation] when [noNullabilityAnnotation] set to true.
+     */
+    private fun printType(
+        irType: IrType,
+        printNullableAnnotation: Boolean,
+        noNullabilityAnnotation: Boolean = false
+    ): String {
         val typeStr = when (irType) {
             is IrNullableType -> {
-                val store = noNullableAnnotation
-                noNullableAnnotation = true
-                val result = printType(irType.innerType)
-                noNullableAnnotation = store
+                /**
+                 * Since we are going to print [IrNullableType.innerType], so we close all nullability annotation
+                 */
+                val result = printType(irType.innerType, printNullableAnnotation, true)
                 result
             }
 
-            is IrBuiltInType -> return builtInNames[irType]
+            is IrBuiltInType -> builtInNames[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 
             is IrClassifier ->
@@ -89,7 +97,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                         val entries1 = irType.getTypeArguments().entries
                         for ((index, pair) in entries1.withIndex()) {
                             val (_, typeArg) = pair
-                            sb.append(printType(typeArg))
+                            sb.append(printType(typeArg, printNullableAnnotation, noNullabilityAnnotation))
                             if (index != entries1.size - 1) {
                                 sb.append(", ")
                             }
@@ -103,15 +111,20 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
             else -> throw NoWhenBranchMatchedException()
         }
-        val annotationStr = if (printNullableAnnotation && !noNullableAnnotation) {
-            if (irType is IrNullableType) "@Nullable "
-            else "@NotNull "
-        } else ""
-        return "$annotationStr$typeStr"
+        val annotationStr = if (irType is IrNullableType) {
+            "@Nullable"
+        } else {
+            "@NotNull"
+        }
+        val finalAnnotationStr = if (noNullabilityAnnotation) {
+            ""
+        } else if (!printNullableAnnotation) {
+            "/*$annotationStr*/ "
+        } else "$annotationStr "
+        return "$finalAnnotationStr$typeStr"
     }
 
     override fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String {
-        noNullableAnnotation = true
         val sb = if (superType != null || implList.isNotEmpty()) {
             StringBuilder(" ")
         } else {
@@ -119,7 +132,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         }
         if (superType != null) {
             sb.append("extends ")
-            sb.append(printType(superType))
+            sb.append(printType(superType, printNullableAnnotation = false, noNullabilityAnnotation = true))
             sb.append(" ")
         }
         if (implList.isNotEmpty()) {
@@ -129,13 +142,12 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                 sb.append("extends ")
             }
             for ((index, type) in implList.withIndex()) {
-                sb.append(printType(type))
+                sb.append(printType(type, printNullableAnnotation = false, noNullabilityAnnotation = true))
                 if (index != implList.lastIndex) {
                     sb.append(", ")
                 }
             }
         }
-        noNullableAnnotation = false
         return sb.toString()
     }
 
@@ -148,7 +160,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         if (typeParameters.isNotEmpty()) {
             data.append("<")
             for ((index, typeParameter) in typeParameters.withIndex()) {
-                data.append(printType(typeParameter))
+                data.append(printType(typeParameter, printNullableAnnotation = false))
                 if (index != typeParameters.lastIndex) {
                     data.append(", ")
                 }
@@ -167,15 +179,19 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
-        val store = noNullableAnnotation
-        noNullableAnnotation = function.printNullableAnnotations
+        val functionContainer: IrElement = elementStack.peek()
+        elementStack.push(function)
+        /**
+         * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
+         * so multi line comments in stubs need to be disabled.
+         */
+        val printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
             data.append(indent)
             data.append("/*\n")
         }
-        val functionContainer: IrElement = elementStack.peek()
         data.append(indent)
         data.append("public ")
         if (function.body == null) {
@@ -192,7 +208,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append("final ")
             }
         }
-        data.append(printType(function.returnType))
+        data.append(printType(function.returnType, printNullableAnnotation))
         data.append(" ")
         data.append(function.name)
         data.append("(")
@@ -202,9 +218,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         if (body != null) {
             data.append(" {\n")
             indentCount++
-            elementStack.push(function)
             visitBlock(body, data)
-            require(elementStack.pop() === function)
             indentCount--
             data.append(indent)
             data.append("}")
@@ -216,13 +230,14 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             data.append(indent)
             data.append("*/\n")
         }
-        noNullableAnnotation = store
+        require(elementStack.pop() === function)
     }
 
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters
+        val func = elementStack.peek() as IrFunctionDeclaration
         for ((index, parameter) in parameters.withIndex()) {
-            data.append(printType(parameter.type))
+            data.append(printType(parameter.type, func.printNullableAnnotations || func.isOverrideStub))
             data.append(" ")
             data.append(parameter.name)
             if (index != parameters.lastIndex) {
@@ -233,6 +248,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
         val propertyContainer: IrElement = elementStack.peek()
+        val printNullableAnnotation = property.printNullableAnnotations
 
         fun buildGetterOrSetter(setter: Boolean) {
             data.append(indent)
@@ -248,9 +264,9 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append("default ")
             }
             if (setter) {
-                data.append(printType(IrUnit))
+                data.append(printType(IrUnit, printNullableAnnotation))
             } else {
-                data.append(printType(property.type))
+                data.append(printType(property.type, printNullableAnnotation))
             }
             data.append(" ")
             data.append(
@@ -263,7 +279,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             data.append(property.name.replaceFirstChar { it.uppercaseChar() })
             data.append("(")
             if (setter) {
-                data.append(printType(property.type))
+                data.append(printType(property.type, printNullableAnnotation))
                 data.append(" value")
             }
             data.append(")")
@@ -299,10 +315,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
         data.append("new ")
-        val store = printNullableAnnotation
-        printNullableAnnotation = false
-        data.append(printType(newExpression.createType))
-        printNullableAnnotation = store
+        data.append(printType(newExpression.createType, printNullableAnnotation = false, noNullabilityAnnotation = true))
         data.append("()")
     }
 

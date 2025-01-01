@@ -31,6 +31,10 @@ data class GeneratorConfig(
     val functionParameterNullableProbability: Float = 0.4f,
     val functionReturnTypeNullableProbability: Float = 0.4f,
     //</editor-fold>
+    //<editor-fold desc="Types">
+    val allowNothingInParameter: Boolean = false,
+    val allowNothingInReturnType: Boolean = false,
+    //</editor-fold>
     val printJavaNullableAnnotationProbability: Float = 0.4f,
     val newExpressionWeight: Int = 1,
     val functionCallExpressionWeight: Int = 1,

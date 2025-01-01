@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 
 class KtIrClassPrinterTest {
     companion object {
-        private val todoFunctionBody = "\t\tthrow RuntimeException()\n"
+        private val todoFunctionBody = "${" ".repeat(8)}throw RuntimeException()\n"
         private val todoPropertyInitExpr = "TODO()"
     }
 
@@ -31,8 +31,9 @@ class KtIrClassPrinterTest {
         clazz.functions.add(func)
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
-                "\tfun $funcName(): Unit {\n" +
-                "\t}\n" +
+                "    fun $funcName(): Unit {\n" +
+                todoFunctionBody +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -52,11 +53,12 @@ class KtIrClassPrinterTest {
         clazz.functions.add(func)
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
-                "\t// stub\n" +
-                "\t/*\n" +
-                "\toverride fun $funcName(): Unit {\n" +
-                "\t}\n" +
-                "\t*/\n" +
+                "    // stub\n" +
+                "    /*\n" +
+                "    override fun $funcName(): Unit {\n" +
+                todoFunctionBody +
+                "    }\n" +
+                "    */\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -76,8 +78,9 @@ class KtIrClassPrinterTest {
         clazz.functions.add(func)
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
-                "\tfun $funcName(arg0: Any, arg1: $clazzName): Unit {\n" +
-                "\t}\n" +
+                "    fun $funcName(arg0: Any, arg1: $clazzName): Unit {\n" +
+                todoFunctionBody +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -98,7 +101,7 @@ class KtIrClassPrinterTest {
         clazz.properties.add(property)
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
-                "\tval $propertyName: Any = $todoPropertyInitExpr\n" +
+                "    val $propertyName: Any = $todoPropertyInitExpr\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -120,9 +123,9 @@ class KtIrClassPrinterTest {
         clazz.functions.add(func)
         val result = printer.print(clazz)
         val expect = "public class $clazzName {\n" +
-                "\tfun $funcName(): Unit {\n" +
-                "\t\t$clazzName()\n" +
-                "\t}\n" +
+                "    fun $funcName(): Unit {\n" +
+                "        $clazzName()\n" +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }

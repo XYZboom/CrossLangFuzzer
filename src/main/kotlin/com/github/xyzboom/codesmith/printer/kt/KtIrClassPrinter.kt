@@ -51,7 +51,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         return data.toString()
     }
 
-    override fun printType(irType: IrType): String {
+    private fun printType(irType: IrType): String {
         return when (irType) {
             is IrNullableType -> return "${printType(irType.innerType)}?"
             is IrBuiltInType -> return builtInNames[irType]

@@ -8,5 +8,12 @@ data class MutatorConfig(
     companion object {
         @JvmStatic
         val default = MutatorConfig()
+
+        @JvmStatic
+        val allZero = MutatorConfig(
+            mutateGenericArgumentInParentWeight = 0,
+            removeOverrideMemberFunctionWeight = 0,
+            mutateGenericArgumentInMemberFunctionParameterWeight = 0,
+        )
     }
 }

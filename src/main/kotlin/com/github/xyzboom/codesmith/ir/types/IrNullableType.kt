@@ -5,7 +5,7 @@ class IrNullableType private constructor(val innerType: IrType) : IrType() {
 
     companion object {
         @JvmStatic
-        fun nullableOf(type: IrType): IrType {
+        fun nullableOf(type: IrType): IrNullableType {
             if (type is IrNullableType) {
                 return type
             }
@@ -28,6 +28,10 @@ class IrNullableType private constructor(val innerType: IrType) : IrType() {
 
     override fun toString(): String {
         return "IrNullableType($innerType)"
+    }
+
+    override fun copy(): IrNullableType {
+        return nullableOf(innerType.copy())
     }
 
     override fun equalsIgnoreTypeArguments(other: IrType): Boolean {

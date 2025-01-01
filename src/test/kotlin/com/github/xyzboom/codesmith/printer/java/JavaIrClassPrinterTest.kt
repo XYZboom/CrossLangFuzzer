@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 
 class JavaIrClassPrinterTest {
     companion object {
-        private val todoFunctionBody = "\t\tthrow new RuntimeException();\n"
+        private val todoFunctionBody = "${" ".repeat(8)}throw new RuntimeException();\n"
     }
     @Test
     fun testPrintSimpleClassWithSimpleFunction() {
@@ -33,8 +33,9 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = IMPORTS +
                 "public final class $clazzName {\n" +
-                "\tpublic final void $funcName() {\n" +
-                "\t}\n" +
+                "    public final /*@NotNull*/ void $funcName() {\n" +
+                todoFunctionBody +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -55,11 +56,12 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = IMPORTS +
                 "public final class $clazzName {\n" +
-                "\t// stub\n"+
-                "\t/*\n"+
-                "\tpublic final void $funcName() {\n" +
-                "\t}\n" +
-                "\t*/\n"+
+                "    // stub\n"+
+                "    /*\n"+
+                "    public final @NotNull void $funcName() {\n" +
+                todoFunctionBody +
+                "    }\n" +
+                "    */\n"+
                 "}\n"
         assertEquals(expect, result)
     }
@@ -80,8 +82,9 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = IMPORTS +
                 "public final class $clazzName {\n" +
-                "\tpublic final void $funcName(Object arg0, $clazzName arg1) {\n" +
-                "\t}\n" +
+                "    public final /*@NotNull*/ void $funcName(/*@NotNull*/ Object arg0, /*@NotNull*/ $clazzName arg1) {\n" +
+                todoFunctionBody +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -104,9 +107,10 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = IMPORTS +
                 "public final class $clazzName {\n" +
-                "\tpublic final $propertyTypeName get${propertyName.replaceFirstChar { it.uppercaseChar() }}() {\n" +
+                "    public final /*@NotNull*/ $propertyTypeName " +
+                "get${propertyName.replaceFirstChar { it.uppercaseChar() }}() {\n" +
                 todoFunctionBody +
-                "\t}\n" +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -129,9 +133,9 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = IMPORTS +
                 "public final class $clazzName {\n" +
-                "\tpublic final void $funcName() {\n" +
-                "\t\tnew $clazzName();\n" +
-                "\t}\n" +
+                "    public final /*@NotNull*/ void $funcName() {\n" +
+                "        new $clazzName();\n" +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }

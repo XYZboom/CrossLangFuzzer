@@ -3,7 +3,7 @@ import org.jetbrains.annotations.Nullable;
 public final class SimpleClassWithSimpleFunction {
     // stub
     /*
-    public final void simple() {
+    public final @NotNull void simple() {
         throw new RuntimeException();
     }
     */

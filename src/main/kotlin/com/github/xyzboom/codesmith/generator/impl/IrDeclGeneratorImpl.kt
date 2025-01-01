@@ -9,7 +9,7 @@ import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.*
 import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
 import com.github.xyzboom.codesmith.ir.types.*
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.*
 import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import com.github.xyzboom.codesmith.utils.rouletteSelection
@@ -95,13 +95,17 @@ open class IrDeclGeneratorImpl(
         finishTypeArguments: Boolean,
         filter: (IrType) -> Boolean
     ): IrType? {
+        val builtins = ALL_BUILTINS.filter(filter)
         val fromClassDecl = from.allClasses.map { it.type }.filter(filter)
         val fromClassTypeParameter = classContext?.typeParameters?.filter(filter) ?: emptyList()
         val fromFuncTypeParameter = functionContext?.typeParameters?.filter(filter) ?: emptyList()
-        if (fromClassDecl.isEmpty() && fromClassTypeParameter.isEmpty() && fromFuncTypeParameter.isEmpty()) {
+        val allList = arrayOf(
+            builtins, fromClassDecl, fromClassTypeParameter, fromFuncTypeParameter
+        )
+        if (allList.all { it.isEmpty() }) {
             return null
         }
-        val result = choice(fromClassDecl, fromClassTypeParameter, fromFuncTypeParameter, random = random)
+        val result = choice(*allList, random = random)
         if (finishTypeArguments && result is IrParameterizedClassifier) {
             genTypeArguments(from, classContext, result)
         }
@@ -188,6 +192,7 @@ open class IrDeclGeneratorImpl(
         for (typeParam in superType.classDecl.typeParameters) {
             val chooseType = randomType(context, classContext, null, false) {
                 it !is IrParameterizedClassifier // for now, we forbid nested cases
+                        && it !== IrUnit
             } ?: IrAny // for now, we do not talk about upperbound
             superType.putTypeArgument(typeParam, chooseType)
         }
@@ -802,11 +807,13 @@ open class IrDeclGeneratorImpl(
             if (target.topLevel) {
                 it !is IrTypeParameter
             } else {
-                true
+                it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
             }
         } ?: IrAny
         logger.trace { "gen parameter: $name, $chooseType" }
-        val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)) {
+        val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)
+            || chooseType === IrNothing
+        ) {
             IrNullableType.nullableOf(chooseType)
         } else {
             chooseType
@@ -823,7 +830,7 @@ open class IrDeclGeneratorImpl(
             if (target.topLevel) {
                 it !is IrTypeParameter
             } else {
-                true
+                it !== IrNothing || config.allowNothingInReturnType
             }
         }
         logger.trace {
@@ -856,7 +863,9 @@ open class IrDeclGeneratorImpl(
             sb.toString()
         }
         if (chooseType != null) {
-            val makeNullableType = if (random.nextBoolean(config.functionReturnTypeNullableProbability)) {
+            val makeNullableType = if (random.nextBoolean(config.functionReturnTypeNullableProbability)
+                || chooseType === IrNothing
+            ) {
                 IrNullableType.nullableOf(chooseType)
             } else {
                 chooseType

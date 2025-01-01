@@ -22,8 +22,6 @@ abstract class AbstractIrClassPrinter(
 
     abstract fun printIrClassType(irClassType: IrClassType): String
 
-    abstract fun printType(irType: IrType): String
-
     abstract fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String
 
     abstract fun printTopLevelFunctionsAndProperties(program: IrProgram): String
