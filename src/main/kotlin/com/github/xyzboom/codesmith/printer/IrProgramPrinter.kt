@@ -15,6 +15,37 @@ class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
     private val javaClassPrinter = JavaIrClassPrinter()
     private val ktClassPrinter = KtIrClassPrinter()
 
+    private val extraJavaFile = buildMap {
+        put(
+            "NotNull.java",
+            "package org.jetbrains.annotations;\n" +
+                    "\n" +
+                    "import java.lang.annotation.*;\n" +
+                    "\n" +
+                    "// org.jetbrains.annotations used in the compiler is version 13, whose @NotNull does not support the TYPE_USE target (version 15 does).\n" +
+                    "// We're using our own @org.jetbrains.annotations.NotNull for testing purposes.\n" +
+                    "@Documented\n" +
+                    "@Retention(RetentionPolicy.CLASS)\n" +
+                    "@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\n" +
+                    "public @interface NotNull {\n" +
+                    "}"
+        )
+        put(
+            "Nullable.java",
+            "package org.jetbrains.annotations;\n" +
+                    "\n" +
+                    "import java.lang.annotation.*;\n" +
+                    "\n" +
+                    "// org.jetbrains.annotations used in the compiler is version 13, whose @Nullable does not support the TYPE_USE target (version 15 does).\n" +
+                    "// We're using our own @org.jetbrains.annotations.Nullable for testing purposes.\n" +
+                    "@Documented\n" +
+                    "@Retention(RetentionPolicy.CLASS)\n" +
+                    "@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\n" +
+                    "public @interface Nullable {\n" +
+                    "}"
+        )
+    }
+
     override fun print(element: IrProgram): Map<String, String> {
         val result = mutableMapOf<String, String>()
         for (clazz in element.classes) {
@@ -33,6 +64,7 @@ class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
                 "}\n" +
                 "fun main(args: Array<String>) {\n" +
                 "}"
+        result.putAll(extraJavaFile)
         return result
     }
 

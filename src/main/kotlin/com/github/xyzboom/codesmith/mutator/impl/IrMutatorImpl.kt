@@ -1,8 +1,10 @@
 package com.github.xyzboom.codesmith.mutator.impl
 
+import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.mutator.*
@@ -72,6 +74,30 @@ class IrMutatorImpl(
                 return@mutateGenericArgumentInMemberFunctionParameter true
             }
             false
+        }
+        return false
+    }
+
+    @ConfigBy("mutateParameterNullabilityWeight")
+    fun mutateParameterNullability(program: IrProgram): Boolean {
+        program.randomTraverseMemberFunctions(random) { func ->
+            val param = func.parameterList.parameters.firstOrNull {
+                if (random.nextBoolean()) {
+                    it.type is IrNullableType
+                } else {
+                    it.type !is IrNullableType
+                }
+            } ?: return@randomTraverseMemberFunctions false
+            val type = param.type
+            if (type is IrNullableType) {
+                param.type = type.innerType
+            } else {
+                param.type = IrNullableType.nullableOf(type)
+            }
+            if (func.language == Language.JAVA) {
+                func.printNullableAnnotations = true
+            }
+            return@mutateParameterNullability true
         }
         return false
     }
