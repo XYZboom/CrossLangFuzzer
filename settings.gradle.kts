@@ -3,4 +3,5 @@ plugins {
 }
 rootProject.name = "code-smith"
 include("test-framework")
-
+include("runners:scala3-runner")
+findProject(":runners:scala3-runner")?.name = "scala3-runner"

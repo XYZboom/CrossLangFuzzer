@@ -808,8 +808,8 @@ open class IrDeclGeneratorImpl(
             if (target.topLevel) {
                 it !is IrTypeParameter
             } else {
-                it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
-            }
+                true
+            } && it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
         } ?: IrAny
         logger.trace { "gen parameter: $name, $chooseType" }
         val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)
@@ -831,8 +831,8 @@ open class IrDeclGeneratorImpl(
             if (target.topLevel) {
                 it !is IrTypeParameter
             } else {
-                it !== IrNothing || config.allowNothingInReturnType
-            }
+                true
+            } && it !== IrNothing || config.allowNothingInReturnType
         }
         logger.trace {
             val sb = StringBuilder("gen return type for: ")

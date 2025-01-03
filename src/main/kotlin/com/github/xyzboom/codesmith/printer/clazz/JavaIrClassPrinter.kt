@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.printer.java
+package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrElement
@@ -14,8 +14,6 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
-import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
-import com.github.xyzboom.codesmith.printer.kt.KtIrClassPrinter
 
 class JavaIrClassPrinter : AbstractIrClassPrinter() {
     companion object {
@@ -64,17 +62,10 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    /**
-     * @param printNullableAnnotation Print nullability annotation with comment when set to false.
-     *          Print full nullability annotation when set to true.
-     *          **NOT AVAILABLE** when [noNullabilityAnnotation] set true.
-     * @param noNullabilityAnnotation Print no nullability annotation of types when set to true.
-     *          Suppress [printNullableAnnotation] when [noNullabilityAnnotation] set to true.
-     */
-    private fun printType(
+    override fun printType(
         irType: IrType,
         printNullableAnnotation: Boolean,
-        noNullabilityAnnotation: Boolean = false
+        noNullabilityAnnotation: Boolean
     ): String {
         val typeStr = when (irType) {
             is IrNullableType -> {

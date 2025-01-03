@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.printer.kt
+package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrParameterList
@@ -13,8 +13,6 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
-import com.github.xyzboom.codesmith.printer.AbstractIrClassPrinter
-import com.github.xyzboom.codesmith.printer.java.JavaIrClassPrinter
 
 class KtIrClassPrinter : AbstractIrClassPrinter() {
 
@@ -51,7 +49,11 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         return data.toString()
     }
 
-    private fun printType(irType: IrType): String {
+    override fun printType(
+        irType: IrType,
+        printNullableAnnotation: Boolean,
+        noNullabilityAnnotation: Boolean
+    ): String {
         return when (irType) {
             is IrNullableType -> return "${printType(irType.innerType)}?"
             is IrBuiltInType -> return builtInNames[irType]

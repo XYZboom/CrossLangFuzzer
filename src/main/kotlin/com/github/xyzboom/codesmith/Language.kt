@@ -1,5 +1,5 @@
 package com.github.xyzboom.codesmith
 
 enum class Language {
-    KOTLIN, JAVA;
+    KOTLIN, JAVA, SCALA3;
 }
