@@ -1,7 +1,5 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.codesmith.irOld.types.builtin.IrBuiltinTypes.builtinTypes
-
 object KeyWords {
 
     val java = listOf(
@@ -61,6 +59,6 @@ object KeyWords {
         "as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when",
         "unit", "any"
     )
-    val builtins = listOf("Object") + builtinTypes.map { it.name }
+    val builtins = listOf("object")
     val windows = listOf("nul")
 }

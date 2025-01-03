@@ -19,6 +19,7 @@ import kotlin.random.Random
 open class IrDeclGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
+    private val majorLanguage: Language = Language.KOTLIN
 ) : IrDeclGenerator {
 
     private val logger = KotlinLogging.logger {}
@@ -116,7 +117,7 @@ open class IrDeclGeneratorImpl(
         if (random.nextBoolean(config.javaRatio)) {
             return Language.JAVA
         }
-        return Language.KOTLIN
+        return majorLanguage
     }
 
     /**
