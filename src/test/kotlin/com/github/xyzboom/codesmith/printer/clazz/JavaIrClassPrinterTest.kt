@@ -1,8 +1,5 @@
-package com.github.xyzboom.codesmith.printer.java
+package com.github.xyzboom.codesmith.printer.clazz
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.module.kotlin.jsonMapper
-import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
@@ -11,7 +8,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
-import com.github.xyzboom.codesmith.printer.java.JavaIrClassPrinter.Companion.IMPORTS
+import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.IMPORTS
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 

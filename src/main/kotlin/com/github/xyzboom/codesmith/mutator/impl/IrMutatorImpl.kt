@@ -9,9 +9,12 @@ import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.mutator.*
 import com.github.xyzboom.codesmith.utils.rouletteSelection
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.memberProperties
+
+private val logger = KotlinLogging.logger { }
 
 class IrMutatorImpl(
     private val config: MutatorConfig = MutatorConfig.default,
@@ -34,6 +37,9 @@ class IrMutatorImpl(
                     ) { type ->
                         type !is IrParameterizedClassifier && type != typeArg
                     } ?: continue
+                    logger.trace {
+                        "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
+                    }
                     impl.putTypeArgument(typeParam, replaceArg)
                     return@mutateGenericArgumentInParent true
                 }
@@ -71,6 +77,11 @@ class IrMutatorImpl(
                     type !is IrParameterizedClassifier && type != typeArg
                 } ?: return@randomTraverseMemberFunctions false
                 paramType.putTypeArgument(typeParam, replaceArg)
+                logger.trace {
+                    "mutateGenericArgumentInMemberFunctionParameter at: " +
+                            "${(func.container as IrClassDeclaration).name}:${func.name}, " +
+                            "change: $typeArg into $replaceArg, new param $param"
+                }
                 return@mutateGenericArgumentInMemberFunctionParameter true
             }
             false

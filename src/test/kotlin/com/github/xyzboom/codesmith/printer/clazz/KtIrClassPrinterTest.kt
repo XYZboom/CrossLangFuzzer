@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.printer.kt
+package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration

@@ -2,8 +2,9 @@ package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.printer.java.JavaIrClassPrinter
-import com.github.xyzboom.codesmith.printer.kt.KtIrClassPrinter
+import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
+import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
+import com.github.xyzboom.codesmith.printer.clazz.Scala3IrClassPrinter
 import java.io.File
 
 /**
@@ -11,9 +12,16 @@ import java.io.File
  * Key of result is file name and value is file content.
  */
 @Suppress("unused")
-class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
+class IrProgramPrinter(
+    /**
+     * Print a file that contains a `box` function.
+     * Use for Kotlin box test.
+     */
+    private val printBox: Boolean = true
+) : IrPrinter<IrProgram, Map<String, String>> {
     private val javaClassPrinter = JavaIrClassPrinter()
     private val ktClassPrinter = KtIrClassPrinter()
+    private val scala3ClassPrinter = Scala3IrClassPrinter()
 
     private val extraJavaFile = buildMap {
         put(
@@ -52,18 +60,22 @@ class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
                 Language.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)
+                Language.SCALA3 -> "${clazz.name}.scala" to scala3ClassPrinter.print(clazz)
+                else -> TODO("The language ${clazz.language} has not been implemented yet")
             }
             result[fileName] = content
         }
         val javaTopLevelContent = javaClassPrinter.printTopLevelFunctionsAndProperties(element)
         val ktTopLevelContent = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
         result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
-        result["main.kt"] = "${ktTopLevelContent}\n" +
-                "fun box(): String {\n" +
-                "\treturn \"OK\"\n" +
-                "}\n" +
-                "fun main(args: Array<String>) {\n" +
-                "}"
+        if (printBox) {
+            result["main.kt"] = "${ktTopLevelContent}\n" +
+                    "fun box(): String {\n" +
+                    "\treturn \"OK\"\n" +
+                    "}\n" +
+                    "fun main(args: Array<String>) {\n" +
+                    "}"
+        }
         result.putAll(extraJavaFile)
         return result
     }
@@ -74,6 +86,10 @@ class IrProgramPrinter : IrPrinter<IrProgram, Map<String, String>> {
             saveDir.mkdirs()
         }
         val fileMap = print(program)
+        saveFileMap(fileMap, path)
+    }
+
+    fun saveFileMap(fileMap: Map<String, String>, path: String) {
         for ((fileName, content) in fileMap) {
             val file = File(path, fileName)
             file.createNewFile()
