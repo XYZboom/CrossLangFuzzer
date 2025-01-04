@@ -59,6 +59,7 @@ object KeyWords {
         "as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when",
         "unit", "any"
     )
+    val scala = listOf("def", "trait")
     val builtins = listOf("object")
     val windows = listOf("nul")
 }

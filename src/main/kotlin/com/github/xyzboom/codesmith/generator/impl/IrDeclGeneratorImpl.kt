@@ -27,6 +27,7 @@ open class IrDeclGeneratorImpl(
     private val generatedNames = mutableSetOf<String>().apply {
         addAll(KeyWords.java)
         addAll(KeyWords.kotlin)
+        addAll(KeyWords.scala)
         addAll(KeyWords.builtins)
         addAll(KeyWords.windows)
     }

@@ -12,14 +12,14 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class Scala3ClassPrinterTest {
+class ScalaClassPrinterTest {
     companion object {
         private val todoFunctionBody = "${" ".repeat(4)}???\n"
     }
 
     @Test
     fun testPrintSimpleClassWithSimpleFunction() {
-        val printer = Scala3IrClassPrinter()
+        val printer = ScalaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -38,7 +38,7 @@ class Scala3ClassPrinterTest {
 
     @Test
     fun testPrintSimpleClassWithSimpleStubFunction() {
-        val printer = Scala3IrClassPrinter()
+        val printer = ScalaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -62,7 +62,7 @@ class Scala3ClassPrinterTest {
 
     @Test
     fun testPrintSimpleClassWithFunctionHasParameter() {
-        val printer = Scala3IrClassPrinter()
+        val printer = ScalaIrClassPrinter()
         val clazzName = "SimpleClassWithFunctionHasParameter"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -85,7 +85,7 @@ class Scala3ClassPrinterTest {
     @Test
     @Disabled
     fun testPrintSimpleProperty() {
-        val printer = Scala3IrClassPrinter()
+        val printer = ScalaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val propertyTypeName = "PType"
         val propertyName = "simple"
@@ -112,7 +112,7 @@ class Scala3ClassPrinterTest {
     @Test
     @Disabled
     fun testPrintNewExpression() {
-        val printer = Scala3IrClassPrinter()
+        val printer = ScalaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
