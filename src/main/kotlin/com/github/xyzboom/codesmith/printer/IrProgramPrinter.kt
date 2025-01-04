@@ -4,7 +4,7 @@ import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
-import com.github.xyzboom.codesmith.printer.clazz.Scala3IrClassPrinter
+import com.github.xyzboom.codesmith.printer.clazz.ScalaIrClassPrinter
 import java.io.File
 
 /**
@@ -21,7 +21,7 @@ class IrProgramPrinter(
 ) : IrPrinter<IrProgram, Map<String, String>> {
     private val javaClassPrinter = JavaIrClassPrinter()
     private val ktClassPrinter = KtIrClassPrinter()
-    private val scala3ClassPrinter = Scala3IrClassPrinter()
+    private val scalaClassPrinter = ScalaIrClassPrinter()
 
     private val extraJavaFile = buildMap {
         put(
@@ -60,7 +60,7 @@ class IrProgramPrinter(
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
                 Language.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)
-                Language.SCALA3 -> "${clazz.name}.scala" to scala3ClassPrinter.print(clazz)
+                Language.SCALA -> "${clazz.name}.scala" to scalaClassPrinter.print(clazz)
                 else -> TODO("The language ${clazz.language} has not been implemented yet")
             }
             result[fileName] = content

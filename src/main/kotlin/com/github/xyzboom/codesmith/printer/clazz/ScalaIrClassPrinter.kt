@@ -1,7 +1,5 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
-import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -15,7 +13,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 
-class Scala3IrClassPrinter : AbstractIrClassPrinter() {
+class ScalaIrClassPrinter : AbstractIrClassPrinter() {
     override val spaceCountInIndent: Int = 2
 
     companion object {
@@ -82,15 +80,13 @@ class Scala3IrClassPrinter : AbstractIrClassPrinter() {
         if (superType != null) {
             sb.append(printType(superType))
             if (implList.isNotEmpty()) {
-                sb.append(", ")
+                sb.append(" ")
             }
         }
         if (implList.isNotEmpty()) {
-            for ((index, type) in implList.withIndex()) {
+            for (type in implList) {
+                sb.append("with ")
                 sb.append(printType(type))
-                if (index != implList.lastIndex) {
-                    sb.append(", ")
-                }
             }
         }
         return sb.toString()
