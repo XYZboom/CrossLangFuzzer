@@ -8,7 +8,7 @@ import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.expressions.IrNew
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
-import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.IMPORTS
+import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -28,7 +28,7 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = IMPORTS +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
                 "    public final /*@NotNull*/ void $funcName() {\n" +
                 todoFunctionBody +
@@ -51,7 +51,7 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = IMPORTS +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
                 "    // stub\n"+
                 "    /*\n"+
@@ -77,7 +77,7 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = IMPORTS +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
                 "    public final /*@NotNull*/ void $funcName(/*@NotNull*/ Object arg0, /*@NotNull*/ $clazzName arg1) {\n" +
                 todoFunctionBody +
@@ -102,7 +102,7 @@ class JavaIrClassPrinterTest {
         }
         clazz.properties.add(property)
         val result = printer.print(clazz)
-        val expect = IMPORTS +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
                 "    public final /*@NotNull*/ $propertyTypeName " +
                 "get${propertyName.replaceFirstChar { it.uppercaseChar() }}() {\n" +
@@ -128,7 +128,7 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = IMPORTS +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
                 "    public final /*@NotNull*/ void $funcName() {\n" +
                 "        new $clazzName();\n" +

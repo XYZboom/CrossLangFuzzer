@@ -1,11 +1,14 @@
 package com.github.xyzboom.codesmith.ir
 
+import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 
-class IrProgram: IrElement(), IrContainer {
+class IrProgram(
+    val majorLanguage: Language = Language.KOTLIN
+): IrElement(), IrContainer {
     /**
      * Top-level functions
      */

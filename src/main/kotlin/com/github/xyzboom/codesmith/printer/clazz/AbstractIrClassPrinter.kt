@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinter
+import com.github.xyzboom.codesmith.printer.TypeContext
 import java.util.*
 
 abstract class AbstractIrClassPrinter(
@@ -39,6 +40,7 @@ abstract class AbstractIrClassPrinter(
      */
     abstract fun printType(
         irType: IrType,
+        typeContext: TypeContext = TypeContext.Other,
         printNullableAnnotation: Boolean = true,
         noNullabilityAnnotation: Boolean = false
     ): String

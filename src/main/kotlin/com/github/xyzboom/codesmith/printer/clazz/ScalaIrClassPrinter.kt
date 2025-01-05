@@ -12,6 +12,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.printer.TypeContext
 
 class ScalaIrClassPrinter : AbstractIrClassPrinter() {
     override val spaceCountInIndent: Int = 2
@@ -35,7 +36,12 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    override fun printType(irType: IrType, printNullableAnnotation: Boolean, noNullabilityAnnotation: Boolean): String {
+    override fun printType(
+        irType: IrType,
+        typeContext: TypeContext,
+        printNullableAnnotation: Boolean,
+        noNullabilityAnnotation: Boolean
+    ): String {
         val typeStr = when (irType) {
             is IrNullableType -> {
                 val result = printType(irType.innerType)
@@ -72,22 +78,22 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String {
-        val sb = if (superType == null && implList.isEmpty()) {
-            return ""
+        val superAndIntf = if (superType != null) {
+            listOf(superType) + implList
         } else {
-            StringBuilder(" extends ")
+            implList
         }
-        if (superType != null) {
-            sb.append(printType(superType))
-            if (implList.isNotEmpty()) {
-                sb.append(" ")
-            }
+        if (superAndIntf.isEmpty()) {
+            return ""
         }
-        if (implList.isNotEmpty()) {
-            for (type in implList) {
-                sb.append("with ")
-                sb.append(printType(type))
+        val sb = StringBuilder()
+        for ((index, type) in superAndIntf.withIndex()) {
+            if (index == 0) {
+                sb.append(" extends ")
+            } else {
+                sb.append(" with ")
             }
+            sb.append(printType(type))
         }
         return sb.toString()
     }
@@ -199,7 +205,13 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
         data.append("new ")
-        data.append(printType(newExpression.createType, printNullableAnnotation = false, noNullabilityAnnotation = true))
+        data.append(
+            printType(
+                newExpression.createType,
+                printNullableAnnotation = false,
+                noNullabilityAnnotation = true,
+            )
+        )
     }
 
     override fun visitFunctionCallExpression(functionCall: IrFunctionCall, data: StringBuilder) {

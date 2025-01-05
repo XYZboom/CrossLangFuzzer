@@ -30,7 +30,8 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val printer = IrProgramPrinter(false)
     val generator = IrDeclGeneratorImpl(
         GeneratorConfig(
-            classMemberIsPropertyWeight = 0
+            classMemberIsPropertyWeight = 0,
+            allowUnitInTypeArgument = true
         ),
         majorLanguage = Language.SCALA,
     )
@@ -48,7 +49,7 @@ fun main() {
     println("start at: $tempDir")
     var i = 0
     while (true) {
-        val dur = measureTime { doOneRound() }
+        val dur = measureTime { doOneRound(true) }
         println("${i++}: $dur")
     }
 }

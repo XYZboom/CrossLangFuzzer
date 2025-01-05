@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.Language.*
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
@@ -14,37 +15,71 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.printer.TypeContext
+import com.github.xyzboom.codesmith.printer.TypeContext.*
 
-class JavaIrClassPrinter : AbstractIrClassPrinter() {
+class JavaIrClassPrinter(
+    private val majorLanguage: Language = KOTLIN
+) : AbstractIrClassPrinter() {
+    private val builtInNamesInTypeArgument = buildMap {
+        put(IrAny, "Object")
+        put(IrNothing, "Void")
+        when (majorLanguage) {
+            KOTLIN -> put(IrUnit, "Void")
+            SCALA -> put(IrUnit, "BoxedUnit")
+            JAVA -> throw IllegalStateException("Could not set major language to Java!")
+        }
+        Unit
+    }
+
+    private val builtInTypeInParameter = buildMap {
+        put(IrAny, "Object")
+        put(IrNothing, "Void")
+        when (majorLanguage) {
+            KOTLIN -> put(IrUnit, "Void")
+            SCALA -> put(IrUnit, "BoxedUnit")
+            JAVA -> throw IllegalStateException("Could not set major language to Java!")
+        }
+        Unit
+    }
+
+    private val imports = NULLABILITY_ANNOTATION_IMPORTS +
+            when (majorLanguage) {
+                KOTLIN -> ""
+                SCALA -> SCALA_RUNTIME_IMPORTS
+                JAVA -> throw IllegalStateException("Could not set major language to Java!")
+            }
+
     companion object {
         private val builtInNames = buildMap {
             put(IrAny, "Object")
             put(IrNothing, "Void")
             put(IrUnit, "void")
         }
-
-        const val IMPORTS =
+        const val NULLABILITY_ANNOTATION_IMPORTS =
             "import org.jetbrains.annotations.NotNull;\n" +
                     "import org.jetbrains.annotations.Nullable;\n"
+        const val SCALA_RUNTIME_IMPORTS =
+            "import scala.runtime.BoxedUnit;\n"
         const val TOP_LEVEL_CONTAINER_CLASS_NAME = "JavaTopLevelContainer"
         const val FUNCTION_BODY_TODO = "throw new RuntimeException();"
     }
 
     override fun print(element: IrClassDeclaration): String {
-        val data = StringBuilder(IMPORTS)
+        val data = StringBuilder(imports)
         visitClass(element, data)
         return data.toString()
     }
 
     override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
-        val data = StringBuilder(IMPORTS)
+        val data = StringBuilder(imports)
         data.append("public final class $TOP_LEVEL_CONTAINER_CLASS_NAME {\n")
         indentCount++
         elementStack.push(program)
-        for (function in program.functions.filter { it.language == Language.JAVA }) {
+        for (function in program.functions.filter { it.language == JAVA }) {
             visitFunction(function, data)
         }
-        for (property in program.properties.filter { it.language == Language.JAVA }) {
+        for (property in program.properties.filter { it.language == JAVA }) {
             visitProperty(property, data)
         }
         indentCount--
@@ -64,19 +99,30 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun printType(
         irType: IrType,
+        typeContext: TypeContext,
         printNullableAnnotation: Boolean,
         noNullabilityAnnotation: Boolean
     ): String {
+        val chooseTypeMap = when (typeContext) {
+            TypeArgument -> builtInNamesInTypeArgument
+            Parameter -> builtInTypeInParameter
+            Other -> builtInNames
+        }
         val typeStr = when (irType) {
             is IrNullableType -> {
                 /**
                  * Since we are going to print [IrNullableType.innerType], so we close all nullability annotation
                  */
-                val result = printType(irType.innerType, printNullableAnnotation, true)
+                val result = printType(
+                    irType.innerType,
+                    typeContext = typeContext,
+                    printNullableAnnotation = printNullableAnnotation,
+                    noNullabilityAnnotation = true,
+                )
                 result
             }
 
-            is IrBuiltInType -> builtInNames[irType]
+            is IrBuiltInType -> chooseTypeMap[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 
             is IrClassifier ->
@@ -88,7 +134,14 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                         val entries1 = irType.getTypeArguments().entries
                         for ((index, pair) in entries1.withIndex()) {
                             val (_, typeArg) = pair
-                            sb.append(printType(typeArg, printNullableAnnotation, noNullabilityAnnotation))
+                            sb.append(
+                                printType(
+                                    typeArg,
+                                    typeContext = TypeArgument,
+                                    printNullableAnnotation = printNullableAnnotation,
+                                    noNullabilityAnnotation = noNullabilityAnnotation,
+                                )
+                            )
                             if (index != entries1.size - 1) {
                                 sb.append(", ")
                             }
@@ -199,7 +252,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append("final ")
             }
         }
-        data.append(printType(function.returnType, printNullableAnnotation))
+        data.append(printType(function.returnType, printNullableAnnotation = printNullableAnnotation))
         data.append(" ")
         data.append(function.name)
         data.append("(")
@@ -228,7 +281,12 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
         val parameters = parameterList.parameters
         val func = elementStack.peek() as IrFunctionDeclaration
         for ((index, parameter) in parameters.withIndex()) {
-            data.append(printType(parameter.type, func.printNullableAnnotations || func.isOverrideStub))
+            data.append(
+                printType(
+                    parameter.type, Parameter,
+                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub,
+                )
+            )
             data.append(" ")
             data.append(parameter.name)
             if (index != parameters.lastIndex) {
@@ -255,9 +313,9 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append("default ")
             }
             if (setter) {
-                data.append(printType(IrUnit, printNullableAnnotation))
+                data.append(printType(IrUnit, printNullableAnnotation = printNullableAnnotation))
             } else {
-                data.append(printType(property.type, printNullableAnnotation))
+                data.append(printType(property.type, printNullableAnnotation = printNullableAnnotation))
             }
             data.append(" ")
             data.append(
@@ -270,7 +328,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             data.append(property.name.replaceFirstChar { it.uppercaseChar() })
             data.append("(")
             if (setter) {
-                data.append(printType(property.type, printNullableAnnotation))
+                data.append(printType(property.type, printNullableAnnotation = printNullableAnnotation))
                 data.append(" value")
             }
             data.append(")")
@@ -306,7 +364,13 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
         data.append("new ")
-        data.append(printType(newExpression.createType, printNullableAnnotation = false, noNullabilityAnnotation = true))
+        data.append(
+            printType(
+                newExpression.createType,
+                printNullableAnnotation = false,
+                noNullabilityAnnotation = true,
+            )
+        )
         data.append("()")
     }
 
@@ -317,7 +381,7 @@ class JavaIrClassPrinter : AbstractIrClassPrinter() {
             receiver.accept(this, data)
             data.append(".")
         } else if (target.topLevel) {
-            if (target.language == Language.KOTLIN) {
+            if (target.language == KOTLIN) {
                 data.append(KtIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME)
             } else {
                 data.append(TOP_LEVEL_CONTAINER_CLASS_NAME)
