@@ -53,7 +53,7 @@ class ScalaClassPrinterTest {
         val expect = "class $clazzName {\n" +
                 "  // stub\n" +
                 "  /*\n" +
-                "  def $funcName(): Unit = \n" +
+                "  override def $funcName(): Unit = \n" +
                 "    ???\n" +
                 "  */\n" +
                 "}\n"

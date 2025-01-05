@@ -19,7 +19,7 @@ class IrProgramPrinter(
      */
     private val printBox: Boolean = true
 ) : IrPrinter<IrProgram, Map<String, String>> {
-    private val javaClassPrinter = JavaIrClassPrinter()
+    private lateinit var javaClassPrinter: JavaIrClassPrinter
     private val ktClassPrinter = KtIrClassPrinter()
     private val scalaClassPrinter = ScalaIrClassPrinter()
 
@@ -56,6 +56,7 @@ class IrProgramPrinter(
 
     override fun print(element: IrProgram): Map<String, String> {
         val result = mutableMapOf<String, String>()
+        javaClassPrinter = JavaIrClassPrinter(element.majorLanguage)
         for (clazz in element.classes) {
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)

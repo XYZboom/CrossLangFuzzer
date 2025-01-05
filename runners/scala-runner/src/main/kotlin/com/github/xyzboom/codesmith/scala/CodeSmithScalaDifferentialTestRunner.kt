@@ -33,26 +33,32 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val printer = IrProgramPrinter(false)
     val generator = IrDeclGeneratorImpl(
         GeneratorConfig(
-            classMemberIsPropertyWeight = 0
+            classMemberIsPropertyWeight = 0,
         ),
         majorLanguage = Language.SCALA,
     )
     val program = generator.genProgram()
-    run normalDifferential@{
-        runDifferential(printer, program, stopOnErrors)
+    repeat(5) {
+        run normalDifferential@{
+            runDifferential(printer, program, stopOnErrors)
+        }
+        generator.shuffleLanguage(program)
     }
     val mutator = IrMutatorImpl(
         generator = generator,
         config = MutatorConfig(
-            mutateGenericArgumentInParentWeight = 1,
+            mutateGenericArgumentInParentWeight = 0,
             removeOverrideMemberFunctionWeight = 1,
             mutateGenericArgumentInMemberFunctionParameterWeight = 1,
             mutateParameterNullabilityWeight = 0
         )
     )
     if (mutator.mutate(program)) {
-        run mutatedDifferential@{
-            runDifferential(printer, program, stopOnErrors)
+        repeat(5) {
+            run mutatedDifferential@{
+                runDifferential(printer, program, stopOnErrors)
+            }
+            generator.shuffleLanguage(program)
         }
     }
 }
@@ -76,7 +82,7 @@ fun main() {
     println("start at: $tempDir")
     var i = 0
     while (true) {
-        val dur = measureTime { doOneRound(true) }
+        val dur = measureTime { doOneRound() }
         println("${i++}: $dur")
     }
 }

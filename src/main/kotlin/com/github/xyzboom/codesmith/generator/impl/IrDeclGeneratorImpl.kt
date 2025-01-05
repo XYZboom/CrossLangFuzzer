@@ -170,7 +170,7 @@ open class IrDeclGeneratorImpl(
 
     override fun genProgram(): IrProgram {
         logger.trace { "start gen program" }
-        return IrProgram().apply {
+        return IrProgram(majorLanguage).apply {
             for (i in 0 until config.topLevelDeclRange.random(random)) {
                 val generator = randomTopLevelDeclGenerator()
                 generator(
@@ -194,7 +194,7 @@ open class IrDeclGeneratorImpl(
         for (typeParam in superType.classDecl.typeParameters) {
             val chooseType = randomType(context, classContext, null, false) {
                 it !is IrParameterizedClassifier // for now, we forbid nested cases
-                        && it !== IrUnit
+                        && (config.allowUnitInTypeArgument || it !== IrUnit)
             } ?: IrAny // for now, we do not talk about upperbound
             superType.putTypeArgument(typeParam, chooseType)
         }

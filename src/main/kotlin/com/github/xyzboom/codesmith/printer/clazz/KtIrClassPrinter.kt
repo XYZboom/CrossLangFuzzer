@@ -13,6 +13,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.printer.TypeContext
 
 class KtIrClassPrinter : AbstractIrClassPrinter() {
 
@@ -51,6 +52,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
 
     override fun printType(
         irType: IrType,
+        typeContext: TypeContext,
         printNullableAnnotation: Boolean,
         noNullabilityAnnotation: Boolean
     ): String {

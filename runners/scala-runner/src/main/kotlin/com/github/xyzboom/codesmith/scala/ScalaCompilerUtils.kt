@@ -145,7 +145,7 @@ fun compileJavaAfterScalaFinished(
     val javaOutputWriter = StringWriter()
     val task = compiler.getTask(
         javaOutputWriter, javaFileManager, null,
-        listOf("-classpath", outputPath, "-d", outputPath),
+        listOf("-classpath", outputPath + File.pathSeparator + System.getProperty("java.class.path"), "-d", outputPath),
         null,
         javaFileObjs
     )
