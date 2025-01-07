@@ -1,8 +1,11 @@
 package com.github.xyzboom.codesmith.scala
 
+import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.JavaCompilerWrapper
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
+import com.github.xyzboom.codesmith.newTempPath
 import dotty.tools.dotc.core.Contexts
 import dotty.tools.dotc.interfaces.Diagnostic
 import dotty.tools.dotc.interfaces.SourcePosition
@@ -15,28 +18,9 @@ import scala.tools.nsc.Settings
 import scala.tools.nsc.reporters.FilteringReporter
 import scala.tools.nsc.settings.ScalaVersion
 import java.io.File
-import java.io.StringWriter
-import javax.tools.JavaCompiler
-import javax.tools.ToolProvider
 import kotlin.io.path.Path
 import kotlin.io.path.pathString
 import kotlin.jvm.optionals.getOrNull
-
-@OptIn(ExperimentalStdlibApi::class)
-val tempDir = System.getProperty("java.io.tmpdir")!! + "/" + System.nanoTime().toHexString()
-val logFile = File(System.getProperty("codesmith.logger.outdir")).also {
-    if (!it.exists()) it.mkdirs()
-}
-
-@OptIn(ExperimentalStdlibApi::class)
-fun newTempPath(): String {
-    return Path(tempDir, System.nanoTime().toHexString()).pathString.also {
-        val file = File(it)
-        if (!file.exists()) {
-            file.mkdirs()
-        }
-    }
-}
 
 val SourcePosition?.msg: String
     get() = if (this == null) {
@@ -92,7 +76,7 @@ fun compileScala3WithJava(
         val allErrors = CollectionConverters.SeqHasAsJava(reporter.allErrors()).asJava()
         allErrors.joinToString("\n") { it.msg }
     } else null
-    val compileJavaResult = compileJavaAfterScalaFinished(
+    val compileJavaResult = JavaCompilerWrapper().compileJavaAfterMajorFinished(
         allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
         outDir.absolutePath
     )
@@ -125,31 +109,10 @@ fun compileScala2WithJava(
     main.`reporter_$eq`(reporter)
     main.doCompile(global)
     val compileScalaResult = reporter.errorsMessage
-    val compileJavaResult = compileJavaAfterScalaFinished(
+    val compileJavaResult = JavaCompilerWrapper().compileJavaAfterMajorFinished(
         allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
         outDir.absolutePath
     )
     return CompileResult(compileScalaResult, compileJavaResult)
 }
 
-/**
- * @param outputPath the output path of scala classes, and also for java classes.
- */
-fun compileJavaAfterScalaFinished(
-    sourceFiles: List<File>,
-    outputPath: String
-): String? {
-    val compiler: JavaCompiler = ToolProvider.getSystemJavaCompiler()
-    val javaFileManager = compiler.getStandardFileManager(null, null, null)
-    val javaFileObjs = javaFileManager.getJavaFileObjectsFromFiles(sourceFiles)
-    val javaOutputWriter = StringWriter()
-    val task = compiler.getTask(
-        javaOutputWriter, javaFileManager, null,
-        listOf("-classpath", outputPath + File.pathSeparator + System.getProperty("java.class.path"), "-d", outputPath),
-        null,
-        javaFileObjs
-    )
-    task.call()
-    val javaOutput = javaOutputWriter.toString()
-    return javaOutput.ifEmpty { null }
-}

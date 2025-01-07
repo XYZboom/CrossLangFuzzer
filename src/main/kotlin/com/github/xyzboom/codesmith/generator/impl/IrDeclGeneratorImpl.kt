@@ -35,16 +35,6 @@ open class IrDeclGeneratorImpl(
     private val subTypeMap = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
     private val functionReturnMap = hashMapOf<IrType, MutableList<IrFunctionDeclaration>>()
 
-    private fun StringBuilder.traceFunction(function: IrFunctionDeclaration) {
-        append(function.toString())
-        append(" from ")
-        val container = function.container
-        if (container is IrClassDeclaration) {
-            append("class ")
-            append(container.name)
-        }
-    }
-
     private fun StringBuilder.traceProperty(property: IrPropertyDeclaration) {
         append(property.name)
         append(" from ")
@@ -336,23 +326,6 @@ open class IrDeclGeneratorImpl(
         }
     }
 
-    private fun IrFunctionDeclaration.traverseOverride(visitor: (IrFunctionDeclaration) -> Unit) {
-        logger.trace {
-            val sb = StringBuilder("start traverse: ")
-            sb.traceFunction(this)
-            sb.toString()
-        }
-        override.forEach {
-            visitor(it)
-            it.traverseOverride(visitor)
-        }
-        logger.trace {
-            val sb = StringBuilder("end traverse: ")
-            sb.traceFunction(this)
-            sb.toString()
-        }
-    }
-
     override fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
         logger.trace { "start collectFunctionSignatureMap for class: $name" }
         val result = mutableMapOf<IrFunctionDeclaration.Signature,
@@ -376,7 +349,7 @@ open class IrDeclGeneratorImpl(
                         found = true
                         logger.trace {
                             val sb = StringBuilder("found a override in collected that is: ")
-                            sb.traceFunction(it)
+                            with(it) { sb.traceMe() }
                             sb.toString()
                         }
                         willRemove.add(it)
@@ -385,7 +358,7 @@ open class IrDeclGeneratorImpl(
                 if (found) {
                     logger.trace {
                         val sb = StringBuilder("found a override, will remove. For function: ")
-                        sb.traceFunction(func)
+                        with(func) { sb.traceMe() }
                         sb.toString()
                     }
                 }
@@ -423,7 +396,7 @@ open class IrDeclGeneratorImpl(
                 val sb = StringBuilder("super function: \n")
                 if (superFunction != null) {
                     sb.append("\t\t")
-                    sb.traceFunction(superFunction)
+                    with(superFunction) { sb.traceMe() }
                     sb.append("\n")
                 } else {
                     sb.append("\t\tnull\n")
@@ -433,7 +406,7 @@ open class IrDeclGeneratorImpl(
 
                 for (function in functions) {
                     sb.append("\t\t")
-                    sb.traceFunction(function)
+                    with(function) { sb.traceMe() }
                     sb.append("\n")
                 }
                 sb.toString()
@@ -719,7 +692,7 @@ open class IrDeclGeneratorImpl(
             val sb = StringBuilder("gen override for class: $name\n")
             for (func in from) {
                 sb.append("\t\t")
-                sb.traceFunction(func)
+                with(func) { sb.traceMe() }
                 sb.append("\n")
             }
             sb.append("\t\tstillAbstract: $makeAbstract, isStub: $isStub, isFinal: $isFinal")
@@ -837,7 +810,7 @@ open class IrDeclGeneratorImpl(
         }
         logger.trace {
             val sb = StringBuilder("gen return type for: ")
-            sb.traceFunction(target)
+            with(target) { sb.traceMe() }
             sb.append(". return type is: $chooseType")
             sb.toString()
         }

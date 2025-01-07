@@ -11,6 +11,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 @JsonTypeName("function")
 class IrFunctionDeclaration(
@@ -18,6 +19,10 @@ class IrFunctionDeclaration(
     @JsonIdentityReference
     var container: IrContainer
 ) : IrDeclaration(name), IrClassMember, IrTypeParameterContainer {
+    companion object {
+        private val logger = KotlinLogging.logger {}
+    }
+
     /**
      * only available when [language] is [Language.JAVA]
      */
@@ -25,9 +30,11 @@ class IrFunctionDeclaration(
     var body: IrBlock? = null
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
+
     @JsonBackReference("override")
     var override = mutableListOf<IrFunctionDeclaration>()
     var isFinal = false
+
     @get:JsonIgnore
     val topLevel: Boolean get() = container is IrProgram
     var parameterList = IrParameterList()
@@ -52,6 +59,35 @@ class IrFunctionDeclaration(
             var result = name.hashCode()
 //            result = 31 * result + parameterTypes.hashCode()
             return result
+        }
+    }
+
+    fun StringBuilder.traceMe() {
+        append(this@IrFunctionDeclaration.toString())
+        append(" from ")
+        val container = container
+        if (container is IrClassDeclaration) {
+            append("class ")
+            append(container.name)
+        }
+    }
+
+    fun traverseOverride(
+        visitor: (IrFunctionDeclaration) -> Unit
+    ) {
+        logger.trace {
+            val sb = StringBuilder("start traverse: ")
+            sb.traceMe()
+            sb.toString()
+        }
+        override.forEach {
+            visitor(it)
+            it.traverseOverride(visitor)
+        }
+        logger.trace {
+            val sb = StringBuilder("end traverse: ")
+            sb.traceMe()
+            sb.toString()
         }
     }
 

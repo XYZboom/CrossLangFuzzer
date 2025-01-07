@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.9.23"
+    kotlin("jvm")
 }
 
 group = "com.github.xyzboom"
@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation(project.rootProject)
+    implementation(project(":runners:common-runner"))
     implementation("org.scala-lang:scala3-compiler_3:3.6.4-RC1-bin-20241231-1f0c576-NIGHTLY")
     implementation("org.scala-lang:scala-compiler:2.13.15")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
@@ -19,4 +20,7 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+kotlin {
+    jvmToolchain(8)
 }

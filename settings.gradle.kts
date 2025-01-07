@@ -5,3 +5,7 @@ rootProject.name = "code-smith"
 include("test-framework")
 include("runners:scala-runner")
 findProject(":runners:scala-runner")?.name = "scala-runner"
+include("runners:common-runner")
+findProject(":runners:common-runner")?.name = "common-runner"
+include("runners:groovy-runner")
+findProject(":runners:groovy-runner")?.name = "groovy-runner"

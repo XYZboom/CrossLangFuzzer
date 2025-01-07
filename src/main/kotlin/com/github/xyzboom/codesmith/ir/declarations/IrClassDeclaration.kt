@@ -2,11 +2,11 @@ package com.github.xyzboom.codesmith.ir.declarations
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonTypeName
+import com.github.xyzboom.codesmith.Language.*
 import com.github.xyzboom.codesmith.ir.container.IrContainer
 import com.github.xyzboom.codesmith.ir.container.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
-import javax.annotation.PostConstruct
 
 typealias SuperAndIntfFunctions = Pair<IrFunctionDeclaration?, MutableSet<IrFunctionDeclaration>>
 //                                     ^^^^^^^^^^^^^^^^^^^^^ decl in super
@@ -56,8 +56,13 @@ class IrClassDeclaration(
         return "class $name"
     }
 
-    @PostConstruct
-    fun test() {
-        println("123123")
+    fun changeLanguageIfNotSuitable() {
+        if (language != GROOVY4) {
+            return
+        }
+        // Default method in groovy4 interface is actual not default in java side.
+        if (classType == IrClassType.INTERFACE && functions.any { it.body != null }) {
+            language = JAVA
+        }
     }
 }

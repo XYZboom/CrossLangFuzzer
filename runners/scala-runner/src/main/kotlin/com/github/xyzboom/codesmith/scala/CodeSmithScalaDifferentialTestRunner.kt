@@ -1,12 +1,15 @@
 package com.github.xyzboom.codesmith.scala
 
+import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.tempDir
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
 import kotlin.system.exitProcess
@@ -34,6 +37,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val generator = IrDeclGeneratorImpl(
         GeneratorConfig(
             classMemberIsPropertyWeight = 0,
+            allowUnitInTypeArgument = true
         ),
         majorLanguage = Language.SCALA,
     )

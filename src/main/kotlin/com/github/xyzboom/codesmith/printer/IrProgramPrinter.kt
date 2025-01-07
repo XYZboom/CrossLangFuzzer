@@ -58,9 +58,11 @@ class IrProgramPrinter(
         val result = mutableMapOf<String, String>()
         javaClassPrinter = JavaIrClassPrinter(element.majorLanguage)
         for (clazz in element.classes) {
+            clazz.changeLanguageIfNotSuitable()
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
                 Language.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)
+                Language.GROOVY4, Language.GROOVY5 -> "${clazz.name}.groovy" to javaClassPrinter.print(clazz)
                 Language.SCALA -> "${clazz.name}.scala" to scalaClassPrinter.print(clazz)
                 else -> TODO("The language ${clazz.language} has not been implemented yet")
             }

@@ -17,6 +17,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
 import com.github.xyzboom.codesmith.printer.TypeContext.*
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class JavaIrClassPrinter(
     private val majorLanguage: Language = KOTLIN
@@ -25,7 +26,7 @@ class JavaIrClassPrinter(
         put(IrAny, "Object")
         put(IrNothing, "Void")
         when (majorLanguage) {
-            KOTLIN -> put(IrUnit, "Void")
+            KOTLIN, GROOVY4, GROOVY5 -> put(IrUnit, "Void")
             SCALA -> put(IrUnit, "BoxedUnit")
             JAVA -> throw IllegalStateException("Could not set major language to Java!")
         }
@@ -36,7 +37,7 @@ class JavaIrClassPrinter(
         put(IrAny, "Object")
         put(IrNothing, "Void")
         when (majorLanguage) {
-            KOTLIN -> put(IrUnit, "Void")
+            KOTLIN, GROOVY4, GROOVY5 -> put(IrUnit, "Void")
             SCALA -> put(IrUnit, "BoxedUnit")
             JAVA -> throw IllegalStateException("Could not set major language to Java!")
         }
@@ -45,12 +46,13 @@ class JavaIrClassPrinter(
 
     private val imports = NULLABILITY_ANNOTATION_IMPORTS +
             when (majorLanguage) {
-                KOTLIN -> ""
+                KOTLIN, GROOVY4, GROOVY5 -> ""
                 SCALA -> SCALA_RUNTIME_IMPORTS
                 JAVA -> throw IllegalStateException("Could not set major language to Java!")
             }
 
     companion object {
+        private val logger = KotlinLogging.logger {}
         private val builtInNames = buildMap {
             put(IrAny, "Object")
             put(IrNothing, "Void")
@@ -252,7 +254,27 @@ class JavaIrClassPrinter(
                 data.append("final ")
             }
         }
-        data.append(printType(function.returnType, printNullableAnnotation = printNullableAnnotation))
+        // IrUnit in Java is void if it is not type argument. It's Void otherwise.
+        var anyOverrideReturnTypeIsTypeParameter = false
+        function.traverseOverride {
+            val returnType = it.returnType
+            logger.trace { returnType.toString() }
+            if (returnType is IrTypeParameter ||
+                (returnType is IrNullableType && returnType.innerType is IrTypeParameter)
+            ) {
+                anyOverrideReturnTypeIsTypeParameter = true
+            }
+        }
+        data.append(
+            printType(
+                function.returnType, printNullableAnnotation = printNullableAnnotation,
+                typeContext = if (anyOverrideReturnTypeIsTypeParameter) {
+                    TypeArgument
+                } else {
+                    Other
+                }
+            )
+        )
         data.append(" ")
         data.append(function.name)
         data.append("(")

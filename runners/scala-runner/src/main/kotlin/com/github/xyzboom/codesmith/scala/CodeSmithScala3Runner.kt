@@ -4,27 +4,10 @@ import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
-import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
-import java.io.File
+import com.github.xyzboom.codesmith.recordCompileResult
+import com.github.xyzboom.codesmith.tempDir
 import kotlin.system.exitProcess
 import kotlin.time.measureTime
-
-
-@OptIn(ExperimentalStdlibApi::class)
-private fun recordCompileResult(
-    sourceSingleFileContent: String,
-    compileResult: CompileResult,
-) {
-    val (scalaResult, javaResult) = compileResult
-    val dir = File(logFile, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
-    File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
-    if (scalaResult != null) {
-        File(dir, "scala-error.txt").writeText(scalaResult)
-    } else if (javaResult != null) {
-        File(dir, "java-error.txt").writeText(javaResult)
-    }
-    File(dir, "main.scala").writeText(sourceSingleFileContent)
-}
 
 private fun doOneRound(stopOnErrors: Boolean = false) {
     val printer = IrProgramPrinter(false)
@@ -38,7 +21,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val program = generator.genProgram()
     val compileResult = compileScala3WithJava(printer, program)
     if (!compileResult.success) {
-        recordCompileResult(printer.printToSingle(program), compileResult)
+        recordCompileResult(Language.SCALA, printer.printToSingle(program), compileResult)
         if (stopOnErrors) {
             exitProcess(-1)
         }
