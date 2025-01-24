@@ -121,4 +121,7 @@ interface IrDeclGenerator {
         name: String = randomName(false),
         language: Language = Language.KOTLIN
     ): IrPropertyDeclaration
+
+    @Suppress("unused")
+    fun shuffleLanguage(prog: IrProgram)
 }

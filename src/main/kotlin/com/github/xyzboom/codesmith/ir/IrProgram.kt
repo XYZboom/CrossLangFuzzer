@@ -7,8 +7,20 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 
 class IrProgram(
-    val majorLanguage: Language = Language.KOTLIN
-): IrElement(), IrContainer {
+    majorLanguage: Language = Language.KOTLIN
+) : IrElement(), IrContainer {
+    var majorLanguage = majorLanguage
+        set(value) {
+            listOf(functions, classes, properties).forEach {
+                it.forEach { decl ->
+                    if (decl.language == field) {
+                        decl.language = value
+                    }
+                }
+            }
+            field = value
+        }
+
     /**
      * Top-level functions
      */

@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith
 import com.github.xyzboom.codesmith.GroovyCompilerWrapper.Companion.groovy4Compiler
 import com.github.xyzboom.codesmith.GroovyCompilerWrapper.Companion.groovy5Compiler
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
+import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
@@ -43,7 +44,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val program = generator.genProgram()
     repeat(5) {
         run normalDifferential@{
-            runDifferential(printer, program, stopOnErrors)
+            runDifferential(generator, printer, program, stopOnErrors)
         }
         generator.shuffleLanguage(program)
     }
@@ -59,7 +60,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     if (mutator.mutate(program)) {
         repeat(5) {
             run mutatedDifferential@{
-                runDifferential(printer, program, stopOnErrors)
+                runDifferential(generator, printer, program, stopOnErrors)
             }
             generator.shuffleLanguage(program)
         }
@@ -67,11 +68,16 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
 }
 
 private fun runDifferential(
+    generator: IrDeclGenerator,
     printer: IrProgramPrinter,
     program: IrProgram,
     stopOnErrors: Boolean
 ) {
     val compileGroovy4Result = groovy4Compiler.compileGroovyWithJava(printer, program)
+    program.majorLanguage = Language.GROOVY5
+    // Due to the compatibility between Groovy syntax and Java,
+    // it is reasonable to conduct differential testing directly using the 'shuffle language'
+    generator.shuffleLanguage(program)
     val compileGroovy5Result = groovy5Compiler.compileGroovyWithJava(printer, program)
     if (compileGroovy4Result != compileGroovy5Result) {
         recordCompileResult(printer.printToSingle(program), compileGroovy4Result, compileGroovy5Result)

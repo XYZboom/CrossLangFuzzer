@@ -142,7 +142,7 @@ open class IrDeclGeneratorImpl(
     }
 
     @Suppress("unused")
-    fun shuffleLanguage(prog: IrProgram) {
+    override fun shuffleLanguage(prog: IrProgram) {
         for (clazz in prog.classes) {
             clazz.language = randomLanguage()
             for (func in clazz.functions) {
@@ -326,6 +326,10 @@ open class IrDeclGeneratorImpl(
         }
     }
 
+    /**
+     * collect a map whose value is a set of function inherited directly from the supers
+     * and whose key is the signature of whose value.
+     */
     override fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
         logger.trace { "start collectFunctionSignatureMap for class: $name" }
         val result = mutableMapOf<IrFunctionDeclaration.Signature,
