@@ -533,11 +533,11 @@ open class IrDeclGeneratorImpl(
             val superAndIntf = if (superFunc != null) {
                 intfFunc + superFunc
             } else intfFunc
-            val doOverride = if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
+            val doOverride = /*if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
                 false
-            } else {
+            } else {*/
                 !config.overrideOnlyMustOnes && random.nextBoolean()
-            }
+            //}
             val makeAbstract = if (doOverride) {
                 // if doOverride is true, that means config.overrideOnlyMustOnes is already false
                 // So no more judgment is needed.

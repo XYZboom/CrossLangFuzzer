@@ -11,15 +11,21 @@ import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.pathString
 
-class GroovyCompilerWrapper private constructor(
-    resourcePath: String
+class GroovyCompilerWrapper internal constructor(
+    val version: String
 ) {
     companion object {
-        val groovy4Compiler = GroovyCompilerWrapper("groovy-4.0.24.jar")
-        val groovy5Compiler = GroovyCompilerWrapper("groovy-5.0.0-alpha-11.jar")
+        // key: version, value: resource path
+        val groovyJarsWithVersion: Map<String, String> = listResourceFiles("groovyJars").associateBy {
+            it.split("/").last().removePrefix("groovy-").removeSuffix(".jar")
+        }
     }
 
-    private val jarUrl: URL = ClassLoader.getSystemClassLoader().getResource(resourcePath)!!
+    val isGroovy5 = version.split(".").first() == "5"
+    val language = if (isGroovy5) Language.GROOVY5 else Language.GROOVY4
+    private val versionStr = "groovy-${version}"
+
+    private val jarUrl: URL = ClassLoader.getSystemClassLoader().getResource(groovyJarsWithVersion[version]!!)!!
     private val classLoader = URLClassLoader(arrayOf(jarUrl), ClassLoader.getSystemClassLoader())
     private val javaAwareCompilationUnitClass =
         classLoader.loadClass("org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit")
@@ -52,9 +58,11 @@ class GroovyCompilerWrapper private constructor(
         val allSourceFiles = fileMap.map { Path(tempPath, it.key).pathString }
         val compilerConfig = compilerConfigConstructor.newInstance()
         setTargetDirectoryMethod.invoke(compilerConfig, outDir.absolutePath)
-        setJointCompilationOptionsMethod.invoke(compilerConfig, mutableMapOf<String, Any>(
-            "stubDir" to createTempDirectory("groovy").toFile()
-        ))
+        setJointCompilationOptionsMethod.invoke(
+            compilerConfig, mutableMapOf<String, Any>(
+                "stubDir" to createTempDirectory("groovy").toFile()
+            )
+        )
         val compilationUnit =
             compilationUnitConstructor.newInstance(compilerConfig, groovyClassLoader)
         val groovyResult = try {
@@ -64,12 +72,12 @@ class GroovyCompilerWrapper private constructor(
             e.cause!!.message
         }
         if (groovyResult == null) {
-            return CompileResult(null, null)
+            return CompileResult(versionStr, null, null)
         }
         return if (groovyResult.contains("javac")) {
-            CompileResult(null, groovyResult)
+            CompileResult(versionStr, null, groovyResult)
         } else {
-            CompileResult(groovyResult, null)
+            CompileResult(versionStr, groovyResult, null)
         }
     }
 }

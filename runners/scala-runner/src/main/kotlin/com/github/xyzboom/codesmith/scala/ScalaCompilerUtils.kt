@@ -80,7 +80,8 @@ fun compileScala3WithJava(
         allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
         outDir.absolutePath
     )
-    return CompileResult(compileScalaResult, compileJavaResult)
+    // todo refactor this like [CodeSmithGroovyRunner.kt]
+    return CompileResult("scala3", compileScalaResult, compileJavaResult)
 }
 
 fun compileScala2WithJava(
@@ -113,6 +114,7 @@ fun compileScala2WithJava(
         allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
         outDir.absolutePath
     )
-    return CompileResult(compileScalaResult, compileJavaResult)
+    // todo refactor this like [CodeSmithGroovyRunner.kt]
+    return CompileResult("scala2", compileScalaResult, compileJavaResult)
 }
 
