@@ -1,8 +1,9 @@
 # CrossLangFuzzer
-CrossLangFuzzer (alias as **CodeSmith**) is an innovative fuzzing tool designed specifically for 
+CrossLangFuzzer is an innovative fuzzing tool designed specifically for 
 testing JVM-based language compilers. Unlike traditional fuzzing approaches that generate random inputs,
 our tool produces structurally valid code snippets that combine elements from multiple JVM languages, 
-exposing edge cases and interoperability issues in compiler implementations.
+exposing edge cases and interoperability issues in compiler implementations. 
+Our data is at [CrossLangFuzzerData](https://github.com/XYZboom/CrossLangFuzzerData)
 
 # Usage
 ## Kotlin Runner
