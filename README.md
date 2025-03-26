@@ -1,9 +1,9 @@
 # CrossLangFuzzer
-CrossLangFuzzer is an innovative fuzzing tool designed specifically for 
-testing JVM-based language compilers. Unlike traditional fuzzing approaches that generate random inputs,
-our tool produces structurally valid code snippets that combine elements from multiple JVM languages, 
-exposing edge cases and interoperability issues in compiler implementations. 
-Our data is at [CrossLangFuzzerData](https://github.com/XYZboom/CrossLangFuzzerData)
+CrossLangFuzzer is an innovative fuzzing tool designed specifically for testing JVM-based language compilers.
+Currently, it can generate structurally valid cross-language programs in Kotlin, Java, Groovy, Scala 2, 
+and Scala 3 languages. Three mutators are designed to diversify the generated programs.
+
+Using CrossLangFuzzer, we discovered 24 compilers bugs. The details is shown in [this repo](https://github.com/XYZboom/CrossLangFuzzerData)
 
 # Usage
 ## Kotlin Runner
