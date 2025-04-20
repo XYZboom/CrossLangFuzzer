@@ -1,14 +1,18 @@
 plugins {
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.1.20"
     `maven-publish`
 }
 
 group = "com.github.xyzboom"
 version = "1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
+allprojects {
+    repositories {
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+        mavenLocal()
+    }
 }
+
 publishing {
     repositories {
         mavenLocal()
@@ -37,11 +41,12 @@ publishing {
     }
 }
 dependencies {
+    api("com.github.xyzboom:base-fuzzer:1.0.0-SNAPSHOT")
     implementation("org.reflections:reflections:0.10.2")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.18.+")
     implementation("com.fasterxml.jackson.core:jackson-core:2.18.+")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.+")
-    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.6")
     runtimeOnly("org.apache.logging.log4j:log4j-api:2.20.0")
     runtimeOnly("org.slf4j:slf4j-log4j12:2.0.16")
     runtimeOnly("org.slf4j:slf4j-api:2.0.16")
@@ -59,5 +64,5 @@ tasks.test {
     systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
 }
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(11)
 }

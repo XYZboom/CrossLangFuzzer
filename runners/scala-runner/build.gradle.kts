@@ -5,10 +5,6 @@ plugins {
 group = "com.github.xyzboom"
 version = "1.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     implementation(project.rootProject)
     implementation(project(":runners:common-runner"))
@@ -22,5 +18,5 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(11)
 }

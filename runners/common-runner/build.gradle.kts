@@ -5,10 +5,6 @@ plugins {
 group = "com.github.xyzboom"
 version = "1.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     api("com.github.ajalt.clikt:clikt:5.0.3")
     implementation(project.rootProject)
@@ -20,5 +16,5 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(11)
 }
