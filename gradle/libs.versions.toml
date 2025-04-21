@@ -1,0 +1,26 @@
+[versions]
+kotlin = "2.1.20"
+kaml = "0.74.0"
+okio = "3.10.2"
+antlr-kotlin = "1.0.2"
+kotlin-logging = "7.0.6"
+ksp = "2.1.20-1.0.32"
+jetbrains-anno = "26.0.2"
+konst = "0.2.0"
+kotest = "6.0.0.M3"
+
+[libraries]
+kaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kaml" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+antlr-kotlin = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlr-kotlin" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlin-logging" }
+ksp = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+jetbrains-anno = { module = "org.jetbrains:annotations", version.ref = "jetbrains-anno" }
+konst = { module = "io.github.xyzboom:konst-names", version.ref = "konst" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+antlr-kotlin = { id = "com.strumenta.antlr-kotlin", version.ref = "antlr-kotlin" }

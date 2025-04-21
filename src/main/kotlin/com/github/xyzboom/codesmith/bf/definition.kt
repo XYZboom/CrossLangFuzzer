@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.bf
 
+import com.github.xyzboom.bf.def.DefinitionDecl
 import com.github.xyzboom.bf.def.Parser
 
 enum class RefType {
@@ -24,36 +25,39 @@ enum class RefType {
     }
 }
 
+@DefinitionDecl(crossLangFuzzerDef)
+const val crossLangFuzzerDef = """
+// declaration
+prog: topDecl+;
+topDecl: _topDecl lang;
+lang;
+_topDecl: class | field | func;
+
+class: classKind declName typeParam superType? superIntfList memberDecl+;
+classKind;
+superIntfList: superType*;
+
+memberDecl: memberMethod; // others todo
+memberMethod: declName param* returnType override*;
+
+// override
+override: memberMethod;
+
+param: declName type;
+
+returnType: type;
+type: typeParam | superType;
+
+superType: class typeArg*;
+// leaf
+declName;
+typeParam;
+typeArg;
+field; // todo
+func; // todo
+"""
 val definition by lazy {
     Parser().parseDefinition(
-        """
-    // declaration
-    prog: topDecl+;
-    topDecl: _topDecl lang;
-    lang;
-    _topDecl: class | field | func;
-    
-    class: classKind declName typeParam superType? superIntfList memberDecl+;
-    classKind;
-    superIntfList: superType*;
-    
-    memberDecl: memberMethod; // others todo
-    memberMethod: declName param* type override*;
-    
-    // override
-    override: memberMethod;
-    
-    param: declName type;
-    
-    type: typeParam | superType;
-    
-    superType: class typeArg*;
-    // leaf
-    declName;
-    typeParam;
-    typeArg;
-    field; // todo
-    func; // todo
-""".trimIndent(), "CrossLangFuzzer"
+        crossLangFuzzerDef, "CrossLangFuzzer"
     )
 }
