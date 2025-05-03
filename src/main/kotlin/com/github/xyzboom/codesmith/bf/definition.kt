@@ -25,7 +25,18 @@ enum class RefType {
     }
 }
 
-@DefinitionDecl(crossLangFuzzerDef)
+const val extra = """
+builtin:
+  no-parent:
+    - classKind
+    - declName
+    - lang
+  no-cache:
+    - classKind
+    - lang
+"""
+
+@DefinitionDecl(crossLangFuzzerDef, extraValue = extra)
 const val crossLangFuzzerDef = """
 // declaration
 prog: topDecl+;

@@ -16,6 +16,7 @@ import com.github.xyzboom.codesmith.utils.rouletteSelection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
+@Deprecated("Use new IR generator instead")
 open class IrDeclGeneratorImpl(
     private val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
