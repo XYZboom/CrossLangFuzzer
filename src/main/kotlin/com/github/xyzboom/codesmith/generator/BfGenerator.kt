@@ -5,14 +5,16 @@ import com.github.xyzboom.bf.tree.IRef
 import com.github.xyzboom.bf.tree.RefNode
 import com.github.xyzboom.codesmith.bf.generated.*
 import com.github.xyzboom.codesmith.newir.ClassKind
+import com.github.xyzboom.codesmith.newir.IrProgram
 import com.github.xyzboom.codesmith.newir.decl.DeclName
 
 class BfGenerator(
     private val config: GeneratorConfig = GeneratorConfig.default,
 ) : CrossLangFuzzerDefGenerator() {
-    fun generate(): DefaultProgNode {
+    fun generate(): IrProgram {
         clearGeneratedNodes()
-        return generateProg() as DefaultProgNode
+        // TODO set major language
+        return generateProg() as IrProgram
     }
 
     private val generatedNames = mutableSetOf<String>().apply {
@@ -23,6 +25,10 @@ class BfGenerator(
         addAll(KeyWords.windows)
     }
 
+    /**
+     * This method returns a name started with a lowercase char.
+     * The printer will take responsibility of uppercasing the first char.
+     */
     fun randomName(): String {
         val length = config.nameLengthRange.random(random)
         val sb = StringBuilder(
@@ -173,7 +179,9 @@ class BfGenerator(
     //</editor-fold>
 
     //<editor-fold desc="new node functions">
-
+    override fun newProg(): IProgNode {
+        return IrProgram()
+    }
     //</editor-fold>
 
     //<editor-fold desc="choose index">

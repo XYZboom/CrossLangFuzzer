@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.bf
 
 import com.github.xyzboom.bf.def.DefinitionDecl
 import com.github.xyzboom.bf.def.Parser
+import com.github.xyzboom.codesmith.newir.IrProgram
 
 enum class RefType {
     PROG,
@@ -34,6 +35,8 @@ builtin:
   no-cache:
     - classKind
     - lang
+  impl-node:
+    prog: com.github.xyzboom.codesmith.newir.IrProgram
 """
 
 @DefinitionDecl(crossLangFuzzerDef, extraValue = extra)
