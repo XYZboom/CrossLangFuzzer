@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.newir.decl
 
-import com.github.xyzboom.bf.tree.ITreeChild
-import com.github.xyzboom.bf.tree.ITreeParent
+import io.github.xyzboom.bf.tree.ITreeChild
+import io.github.xyzboom.bf.tree.ITreeParent
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.Language.GROOVY4
 import com.github.xyzboom.codesmith.Language.JAVA
@@ -10,6 +10,7 @@ import com.github.xyzboom.codesmith.bf.generated.ITopDeclNode
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.newir.ClassKind
 import com.github.xyzboom.codesmith.newir.ILanguageTag
+import com.github.xyzboom.codesmith.newir.type.IrTypeParameter
 
 class IrClassDeclaration : DefaultClassNode(), ILanguageTag {
     override var language: Language
@@ -32,6 +33,10 @@ class IrClassDeclaration : DefaultClassNode(), ILanguageTag {
 
     val name: String
         get() = (declNameChild as DeclName).value
+
+    @Suppress("UNCHECKED_CAST")
+    val typeParameters: List<IrTypeParameter>
+        get() = typeParamChildren as List<IrTypeParameter>
 
     fun changeLanguageIfNotSuitable() {
         if (language != GROOVY4) {

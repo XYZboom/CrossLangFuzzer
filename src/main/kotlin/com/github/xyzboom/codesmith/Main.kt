@@ -1,22 +1,12 @@
 package com.github.xyzboom.codesmith
 
-import com.github.xyzboom.bf.tree.INode
+import io.github.xyzboom.bf.tree.INode
 import com.github.xyzboom.codesmith.bf.generated.ICrossLangFuzzerDefTopDownVisitor
 import com.github.xyzboom.codesmith.generator.BfGenerator
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
-import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
-import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
-import com.github.xyzboom.codesmith.runner.CompilerRunner
-import com.github.xyzboom.codesmith.runner.CoverageRunner
-import java.io.File
-import java.nio.file.Paths
-import java.time.LocalTime
-import kotlin.random.Random
-import kotlin.system.exitProcess
 
 private fun doGenerateOld() {
     val printer = IrProgramPrinter()

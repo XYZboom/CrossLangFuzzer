@@ -1,8 +1,12 @@
 package com.github.xyzboom.codesmith.bf
 
-import com.github.xyzboom.bf.def.DefinitionDecl
-import com.github.xyzboom.bf.def.Parser
 import com.github.xyzboom.codesmith.newir.IrProgram
+import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
+import com.github.xyzboom.codesmith.newir.type.IrTypeParameter
+import io.github.xyzboom.bf.def.DefExtra
+import io.github.xyzboom.bf.def.DefImplPair
+import io.github.xyzboom.bf.def.DefinitionDecl
+import io.github.xyzboom.bf.def.Parser
 
 enum class RefType {
     PROG,
@@ -26,20 +30,26 @@ enum class RefType {
     }
 }
 
-const val extra = """
-builtin:
-  no-parent:
-    - classKind
-    - declName
-    - lang
-  no-cache:
-    - classKind
-    - lang
-  impl-node:
-    prog: com.github.xyzboom.codesmith.newir.IrProgram
-"""
-
-@DefinitionDecl(crossLangFuzzerDef, extraValue = extra)
+@DefinitionDecl(
+    crossLangFuzzerDef,
+    extra = DefExtra(
+        noParentNames = [
+            "classKind",
+            "declName",
+            "lang",
+        ],
+        noCacheNames = [
+            "classKind",
+            "declName",
+            "lang",
+        ],
+        implNames = [
+            DefImplPair("prog", IrProgram::class),
+            DefImplPair("class", IrClassDeclaration::class),
+            DefImplPair("typeParam", IrTypeParameter::class),
+        ]
+    )
+)
 const val crossLangFuzzerDef = """
 // declaration
 prog: topDecl+;
@@ -47,19 +57,18 @@ topDecl: _topDecl lang;
 lang;
 _topDecl: class | field | func;
 
-class: classKind declName typeParam superType? superIntfList memberDecl+;
+class: classKind declName typeParam* superType? superIntfList memberDecl+;
 classKind;
 superIntfList: superType*;
 
 memberDecl: memberMethod; // others todo
-memberMethod: declName param* returnType override*;
+memberMethod: declName param* type override*;
 
 // override
 override: memberMethod;
 
 param: declName type;
 
-returnType: type;
 type: typeParam | superType;
 
 superType: class typeArg*;

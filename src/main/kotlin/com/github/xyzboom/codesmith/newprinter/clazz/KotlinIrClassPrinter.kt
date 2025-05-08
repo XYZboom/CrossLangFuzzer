@@ -1,10 +1,12 @@
 package com.github.xyzboom.codesmith.newprinter.clazz
 
 import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.newir.ClassKind
+import com.github.xyzboom.codesmith.newir.ClassKind.*
 import com.github.xyzboom.codesmith.newir.IrProgram
 import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
 
-//class KotlinIrClassPrinter : AbstractIrClassPrinter() {
+class KotlinIrClassPrinter : AbstractIrClassPrinter() {
 
 //    companion object {
 //        private val builtInNames = buildMap {
@@ -20,11 +22,11 @@ import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
 //    }
 //
 //
-//    override fun print(element: IrClassDeclaration): String {
-//        val data = StringBuilder()
-//        visitClass(element, data)
-//        return data.toString()
-//    }
+    override fun print(element: IrClassDeclaration): String {
+        val data = StringBuilder()
+        visitClassNode(element, data)
+        return data.toString()
+    }
 
     /*override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
         val data = StringBuilder()
@@ -100,45 +102,43 @@ import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
             }
         }
         return sb.toString()
-    }
+    }*/
 
-    override fun printIrClassType(irClassType: IrClassType): String {
-        return when (irClassType) {
+    override fun printClassKind(classKind: ClassKind): String {
+        return when (classKind) {
             ABSTRACT -> "abstract class "
             INTERFACE -> "interface "
             OPEN -> "open class "
             FINAL -> "class "
         }
-    }*/
+    }
 
-
-
-    /*override fun visitClass(clazz: IrClassDeclaration, data: StringBuilder) {
+    override fun visitClassNode(clazz: IrClassDeclaration, data: StringBuilder) {
         data.append(indent)
         data.append("public ")
-        data.append(printIrClassType(clazz.classType))
+        data.append(printClassKind(clazz.classKind))
         data.append(clazz.name)
         val typeParameters = clazz.typeParameters
         if (typeParameters.isNotEmpty()) {
             data.append("<")
             for ((index, typeParameter) in typeParameters.withIndex()) {
-                data.append(printType(typeParameter))
+//                data.append(printType(typeParameter))
                 if (index != typeParameters.lastIndex) {
                     data.append(", ")
                 }
             }
             data.append(">")
         }
-        data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
+//        data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
         data.append(" {\n")
 
         indentCount++
-        super.visitClass(clazz, data)
+//        super.visitClass(clazz, data)
         indentCount--
 
         data.append(indent)
         data.append("}\n")
-    }*/
+    }
 
     val comment = """override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
         if (function.isOverrideStub) {
@@ -264,4 +264,4 @@ import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
     override fun visitDefaultImplExpression(defaultImpl: IrDefaultImpl, data: StringBuilder) {
         data.append("TODO()")
     }"""
-//}
+}

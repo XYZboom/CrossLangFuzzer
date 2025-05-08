@@ -1,7 +1,8 @@
 package com.github.xyzboom.codesmith.newprinter.clazz
 
-import com.github.xyzboom.bf.tree.INode
+import io.github.xyzboom.bf.tree.INode
 import com.github.xyzboom.codesmith.bf.generated.ICrossLangFuzzerDefTopDownVisitor
+import com.github.xyzboom.codesmith.newir.ClassKind
 import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
 import com.github.xyzboom.codesmith.newir.IrProgram
 import com.github.xyzboom.codesmith.newprinter.IrPrinter
@@ -22,11 +23,11 @@ abstract class AbstractIrClassPrinter(
 
     val indent get() = " ".repeat(spaceCountInIndent).repeat(indentCount)
 
-//    abstract fun printIrClassType(irClassType: IrClassType): String
+    abstract fun printClassKind(classKind: ClassKind): String
 
 //    abstract fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String
 
-    abstract fun printTopLevelFunctionsAndProperties(program: IrProgram): String
+//    abstract fun printTopLevelFunctionsAndProperties(program: IrProgram): String
 
     /**
      * @param printNullableAnnotation Print nullability annotation with comment when set to false.

@@ -3,7 +3,7 @@ package com.github.xyzboom.codesmith.ir
 import com.fasterxml.jackson.annotation.JsonIdentityInfo
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.ObjectIdGenerators
-import com.github.xyzboom.bf.tree.INode
+import io.github.xyzboom.bf.tree.INode
 import com.github.xyzboom.codesmith.ir.visitor.IrVisitor
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)

@@ -1,12 +1,13 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.bf.tree.INode
-import com.github.xyzboom.bf.tree.IRef
-import com.github.xyzboom.bf.tree.RefNode
+import io.github.xyzboom.bf.tree.INode
+import io.github.xyzboom.bf.tree.IRef
+import io.github.xyzboom.bf.tree.RefNode
 import com.github.xyzboom.codesmith.bf.generated.*
 import com.github.xyzboom.codesmith.newir.ClassKind
 import com.github.xyzboom.codesmith.newir.IrProgram
 import com.github.xyzboom.codesmith.newir.decl.DeclName
+import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
 
 class BfGenerator(
     private val config: GeneratorConfig = GeneratorConfig.default,
@@ -98,10 +99,6 @@ class BfGenerator(
         }
     }
 
-    override fun chooseReturnTypeReference(parent: IReturnTypeParent): IRef? {
-        return null
-    }
-
     override fun chooseOverrideReference(parent: IOverrideParent): IRef? {
         return null
     }
@@ -182,6 +179,11 @@ class BfGenerator(
     override fun newProg(): IProgNode {
         return IrProgram()
     }
+
+    override fun newClass(): IClassNode {
+        return IrClassDeclaration()
+    }
+
     //</editor-fold>
 
     //<editor-fold desc="choose index">
