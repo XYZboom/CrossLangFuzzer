@@ -36,11 +36,13 @@ enum class RefType {
         noParentNames = [
             "classKind",
             "declName",
+            "typeParamName",
             "lang",
         ],
         noCacheNames = [
             "classKind",
             "declName",
+            "typeParamName",
             "lang",
         ],
         implNames = [
@@ -70,11 +72,12 @@ override: memberMethod;
 param: declName type;
 
 type: typeParam | superType;
+typeParam: typeParamName;
 
 superType: class typeArg*;
 // leaf
 declName;
-typeParam;
+typeParamName;
 typeArg;
 field; // todo
 func; // todo

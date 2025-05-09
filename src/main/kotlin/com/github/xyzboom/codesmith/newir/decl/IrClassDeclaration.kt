@@ -10,9 +10,10 @@ import com.github.xyzboom.codesmith.bf.generated.ITopDeclNode
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.newir.ClassKind
 import com.github.xyzboom.codesmith.newir.ILanguageTag
+import com.github.xyzboom.codesmith.newir.INameTag
 import com.github.xyzboom.codesmith.newir.type.IrTypeParameter
 
-class IrClassDeclaration : DefaultClassNode(), ILanguageTag {
+class IrClassDeclaration : DefaultClassNode(), ILanguageTag, INameTag {
     override var language: Language
         get() {
             val parent2 = (parent as ITreeChild).parent as ITopDeclNode
@@ -31,7 +32,7 @@ class IrClassDeclaration : DefaultClassNode(), ILanguageTag {
             classKindChild = value
         }
 
-    val name: String
+    override val name: String
         get() = (declNameChild as DeclName).value
 
     @Suppress("UNCHECKED_CAST")

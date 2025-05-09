@@ -9,13 +9,13 @@ import com.github.xyzboom.codesmith.newprinter.IrPrinter
 import com.github.xyzboom.codesmith.printer.TypeContext
 import java.util.*
 
-abstract class AbstractIrClassPrinter(
+abstract class AbstractIrClassPrinter<D>(
     var indentCount: Int = 0
-) : IrPrinter<IrClassDeclaration, String>, ICrossLangFuzzerDefTopDownVisitor<StringBuilder> {
+) : IrPrinter<IrClassDeclaration, String>, ICrossLangFuzzerDefTopDownVisitor<D> {
     val nodeStack = Stack<INode>()
     open val spaceCountInIndent = 4
 
-    override fun visitNode(node: INode, data: StringBuilder) {
+    override fun visitNode(node: INode, data: D) {
         nodeStack.push(node)
         super.visitNode(node, data)
         require(nodeStack.pop() === node)

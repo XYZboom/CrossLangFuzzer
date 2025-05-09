@@ -1,14 +1,20 @@
 package com.github.xyzboom.codesmith.newprinter.clazz
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.bf.generated.IMemberMethodNode
 import com.github.xyzboom.codesmith.newir.ClassKind
 import com.github.xyzboom.codesmith.newir.ClassKind.*
-import com.github.xyzboom.codesmith.newir.IrProgram
 import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.Taggable
+import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.TypeSpecHolder
+import com.squareup.kotlinpoet.TypeVariableName
+import java.util.Stack
 
-class KotlinIrClassPrinter : AbstractIrClassPrinter() {
+class KotlinIrClassPrinter : AbstractIrClassPrinter<FileSpec.Builder>() {
 
-//    companion object {
+    //    companion object {
 //        private val builtInNames = buildMap {
 //            put(IrAny, "Any")
 //            put(IrNothing, "Nothing")
@@ -21,11 +27,23 @@ class KotlinIrClassPrinter : AbstractIrClassPrinter() {
 //        const val TOP_LEVEL_CONTAINER_CLASS_NAME = "MainKt"
 //    }
 //
-//
+    private val declBuilders = Stack<Taggable.Builder<*>>()
+    private val lastTypeContainer: TypeSpecHolder.Builder<*> =
+        declBuilders.first { it is TypeSpecHolder.Builder<*> } as TypeSpecHolder.Builder<*>
+
+    private inline fun <T : Taggable.Builder<*>> buildContext(builder: T, block: T.() -> Unit) {
+        declBuilders.push(builder)
+        builder.block()
+        require(declBuilders.pop() === builder)
+    }
+
     override fun print(element: IrClassDeclaration): String {
-        val data = StringBuilder()
-        visitClassNode(element, data)
-        return data.toString()
+        val fileBuilder = FileSpec.builder("", element.name)
+        declBuilders.push(fileBuilder)
+        visitClassNode(element, fileBuilder)
+        require(declBuilders.pop() === fileBuilder)
+        val typeSpec = fileBuilder.build()
+        return typeSpec.toString()
     }
 
     /*override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
@@ -113,34 +131,30 @@ class KotlinIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    override fun visitClassNode(clazz: IrClassDeclaration, data: StringBuilder) {
-        data.append(indent)
-        data.append("public ")
-        data.append(printClassKind(clazz.classKind))
-        data.append(clazz.name)
-        val typeParameters = clazz.typeParameters
-        if (typeParameters.isNotEmpty()) {
-            data.append("<")
-            for ((index, typeParameter) in typeParameters.withIndex()) {
-//                data.append(printType(typeParameter))
-                if (index != typeParameters.lastIndex) {
-                    data.append(", ")
-                }
-            }
-            data.append(">")
+    override fun visitClassNode(clazz: IrClassDeclaration, data: FileSpec.Builder) {
+        val builder = if (clazz.classKind == INTERFACE) {
+            TypeSpec.interfaceBuilder(clazz.name)
+        } else {
+            TypeSpec.classBuilder(clazz.name)
         }
-//        data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
-        data.append(" {\n")
-
-        indentCount++
-//        super.visitClass(clazz, data)
-        indentCount--
-
-        data.append(indent)
-        data.append("}\n")
+        buildContext(builder) {
+            addModifiers(KModifier.PUBLIC)
+            when (clazz.classKind) {
+                ABSTRACT -> addModifiers(KModifier.ABSTRACT)
+                INTERFACE -> {} // do nothing
+                OPEN -> addModifiers(KModifier.OPEN)
+                FINAL -> addModifiers(KModifier.FINAL)
+            }
+            for (typeParam in clazz.typeParameters) {
+                addTypeVariable(TypeVariableName(typeParam.name))
+            }
+            super.visitClassNode(clazz, data)
+        }
+        lastTypeContainer.addType(builder.build())
     }
 
-    val comment = """override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
+    val comment1 = """override fun visitMemberMethodNode(node: IMemberMethodNode, data: FileSpec.Builder) {
+
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
@@ -179,7 +193,9 @@ class KotlinIrClassPrinter : AbstractIrClassPrinter() {
             data.append(indent)
             data.append("*/\n")
         }
-    }
+    }"""
+
+    val comment = """
 
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters

@@ -44,6 +44,7 @@ publishing {
 dependencies {
     api("com.github.xyzboom:base-fuzzer:1.0.0-SNAPSHOT")
     ksp("com.github.xyzboom:base-fuzzer:1.0.0-SNAPSHOT")
+    implementation(libs.kotlin.poet)
     implementation("org.reflections:reflections:0.10.2")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.18.+")
     implementation("com.fasterxml.jackson.core:jackson-core:2.18.+")

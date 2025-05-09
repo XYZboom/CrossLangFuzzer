@@ -8,8 +8,10 @@ ksp = "2.1.20-2.0.1"
 jetbrains-anno = "26.0.2"
 konst = "0.2.0"
 kotest = "6.0.0.M3"
+kotlin-poet = "2.1.0"
 
 [libraries]
+kotlin-poet = {module = "com.squareup:kotlinpoet", version.ref = "kotlin-poet"}
 kaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kaml" }
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 antlr-kotlin = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlr-kotlin" }
