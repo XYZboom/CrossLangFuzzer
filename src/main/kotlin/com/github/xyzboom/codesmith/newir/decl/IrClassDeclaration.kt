@@ -9,35 +9,33 @@ import com.github.xyzboom.codesmith.bf.generated.DefaultClassNode
 import com.github.xyzboom.codesmith.bf.generated.ITopDeclNode
 import com.github.xyzboom.codesmith.ir.types.IrClassType
 import com.github.xyzboom.codesmith.newir.ClassKind
-import com.github.xyzboom.codesmith.newir.ILanguageTag
-import com.github.xyzboom.codesmith.newir.INameTag
+import com.github.xyzboom.codesmith.newir.tags.ILanguageTag
+import com.github.xyzboom.codesmith.newir.tags.IDeclNameTag
 import com.github.xyzboom.codesmith.newir.type.IrTypeParameter
+import io.github.xyzboom.bf.tree.NotNull
 
-class IrClassDeclaration : DefaultClassNode(), ILanguageTag, INameTag {
+class IrClassDeclaration : DefaultClassNode(), ILanguageTag, IDeclNameTag {
     override var language: Language
         get() {
             val parent2 = (parent as ITreeChild).parent as ITopDeclNode
-            return parent2.langChild as Language
+            return parent2.langChild.value as Language
         }
         set(value) {
             val parent2 = (parent as ITreeChild).parent as ITopDeclNode
-            parent2.langChild = value
+            parent2.langChild = NotNull(value)
         }
 
     var classKind: ClassKind
         get() {
-            return classKindChild as ClassKind
+            return classKindChild.value as ClassKind
         }
         set(value) {
-            classKindChild = value
+            classKindChild = NotNull(value)
         }
-
-    override val name: String
-        get() = (declNameChild as DeclName).value
 
     @Suppress("UNCHECKED_CAST")
     val typeParameters: List<IrTypeParameter>
-        get() = typeParamChildren as List<IrTypeParameter>
+        get() = typeParamChild as List<IrTypeParameter>
 
     fun changeLanguageIfNotSuitable() {
         if (language != GROOVY4) {

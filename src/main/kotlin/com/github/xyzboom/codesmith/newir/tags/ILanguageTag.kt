@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.newir
+package com.github.xyzboom.codesmith.newir.tags
 
 import com.github.xyzboom.codesmith.Language
 

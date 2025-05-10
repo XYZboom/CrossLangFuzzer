@@ -52,7 +52,7 @@ class BfGenerator(
         return null
     }
 
-    override fun chooseTopDeclReference(parent: ITopDeclParent): IRef? {
+    override fun chooseTopDeclReference(parent: IParentOfTopDecl): IRef? {
         return null
     }
 
@@ -60,13 +60,13 @@ class BfGenerator(
         return null
     }
 
-    override fun choose_topDeclReference(parent: I_topDeclParent): IRef? {
+    override fun choose_topDeclReference(parent: IParentOf_topDecl): IRef? {
         return null
     }
 
-    override fun chooseClassReference(parent: IClassParent): IRef? {
+    override fun chooseClassReference(parent: IParentOfClass): IRef? {
         return when (parent) {
-            is ISuperTypeNode -> when (val parent2 = parent.parent as ISuperTypeParent) {
+            is ISuperTypeNode -> when (val parent2 = parent.parent as IParentOfSuperType) {
                 is IClassNode, is ISuperIntfListNode -> {
                     TODO()
                 }
@@ -74,9 +74,12 @@ class BfGenerator(
                 is ITypeNode -> {
                     return RefNode(generatedClassNodes.random(random))
                 }
+
+                else -> throw NoWhenBranchMatchedException()
             }
 
             is I_topDeclNode -> null
+            else -> throw NoWhenBranchMatchedException()
         }
     }
 
@@ -84,34 +87,35 @@ class BfGenerator(
         return null
     }
 
-    override fun chooseSuperIntfListReference(parent: ISuperIntfListParent): IRef? {
+    override fun chooseSuperIntfListReference(parent: IParentOfSuperIntfList): IRef? {
         return null
     }
 
-    override fun chooseMemberDeclReference(parent: IMemberDeclParent): IRef? {
+    override fun chooseMemberDeclReference(parent: IParentOfMemberDecl): IRef? {
         return null
     }
 
-    override fun chooseMemberMethodReference(parent: IMemberMethodParent): IRef? {
+    override fun chooseMemberMethodReference(parent: IParentOfMemberMethod): IRef? {
         return when (parent) {
             is IMemberDeclNode -> null
             is IOverrideNode -> TODO()
+            else -> throw NoWhenBranchMatchedException()
         }
     }
 
-    override fun chooseOverrideReference(parent: IOverrideParent): IRef? {
+    override fun chooseOverrideReference(parent: IParentOfOverride): IRef? {
         return null
     }
 
-    override fun chooseParamReference(parent: IParamParent): IRef? {
+    override fun chooseParamReference(parent: IParentOfParam): IRef? {
         return null
     }
 
-    override fun chooseTypeReference(parent: ITypeParent): IRef? {
+    override fun chooseTypeReference(parent: IParentOfType): IRef? {
         return null
     }
 
-    override fun chooseSuperTypeReference(parent: ISuperTypeParent): IRef? {
+    override fun chooseSuperTypeReference(parent: IParentOfSuperType): IRef? {
         return null
     }
 
@@ -119,24 +123,26 @@ class BfGenerator(
         return null
     }
 
-    override fun chooseTypeParamReference(parent: ITypeParamParent): IRef? {
+    override fun chooseTypeParamReference(parent: IParentOfTypeParam): IRef? {
         return when (parent) {
             is IClassNode -> null
             is ITypeNode -> TODO()
+            else -> throw NoWhenBranchMatchedException()
         }
     }
 
-    override fun chooseTypeArgReference(parent: ITypeArgParent): IRef? {
+    override fun chooseTypeArgReference(parent: IParentOfTypeArg): IRef? {
         return when (parent) {
             is ISuperTypeNode -> null
+            else -> throw NoWhenBranchMatchedException()
         }
     }
 
-    override fun chooseFieldReference(parent: IFieldParent): IRef? {
+    override fun chooseFieldReference(parent: IParentOfField): IRef? {
         return null // todo
     }
 
-    override fun chooseFuncReference(parent: IFuncParent): IRef? {
+    override fun chooseFuncReference(parent: IParentOfFunc): IRef? {
         return null // todo
     }
     //</editor-fold>
@@ -187,11 +193,11 @@ class BfGenerator(
     //</editor-fold>
 
     //<editor-fold desc="choose index">
-    override fun choose_topDeclIndex(context: I_topDeclParent): Int {
+    override fun choose_topDeclIndex(context: IParentOf_topDecl): Int {
         return 0 // currently toplevel class only
     }
 
-    override fun chooseTypeIndex(context: ITypeParent): Int {
+    override fun chooseTypeIndex(context: IParentOfType): Int {
         // TODO consider a type parameter
         return 1
     }
