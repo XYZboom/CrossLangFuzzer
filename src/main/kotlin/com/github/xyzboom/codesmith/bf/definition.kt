@@ -2,7 +2,8 @@ package com.github.xyzboom.codesmith.bf
 
 import com.github.xyzboom.codesmith.newir.IrProgram
 import com.github.xyzboom.codesmith.newir.decl.IrClassDeclaration
-import com.github.xyzboom.codesmith.newir.type.IrTypeParameter
+import com.github.xyzboom.codesmith.newir.types.IrType
+import com.github.xyzboom.codesmith.newir.types.IrTypeParameter
 import io.github.xyzboom.bf.def.DefExtra
 import io.github.xyzboom.bf.def.DefImplPair
 import io.github.xyzboom.bf.def.DefinitionDecl
@@ -48,6 +49,7 @@ enum class RefType {
         implNames = [
             DefImplPair("prog", IrProgram::class),
             DefImplPair("class", IrClassDeclaration::class),
+            DefImplPair("type", IrType::class),
             DefImplPair("typeParam", IrTypeParameter::class),
         ]
     )
@@ -75,10 +77,10 @@ type: typeParam | superType;
 typeParam: typeParamName;
 
 superType: class typeArg*;
+typeArg: type;
 // leaf
 declName;
 typeParamName;
-typeArg;
 field; // todo
 func; // todo
 """

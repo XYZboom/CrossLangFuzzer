@@ -1,8 +1,7 @@
-package com.github.xyzboom.codesmith.newir.type
+package com.github.xyzboom.codesmith.newir.types
 
 import com.github.xyzboom.codesmith.bf.generated.DefaultTypeParamNode
 import com.github.xyzboom.codesmith.bf.generated.ITypeParamNameNode
-import com.github.xyzboom.codesmith.newir.decl.DeclName
 import com.github.xyzboom.codesmith.newir.tags.INameTag
 
 class IrTypeParameter : DefaultTypeParamNode(), INameTag {

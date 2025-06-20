@@ -178,7 +178,6 @@ class BfGenerator(
     override fun chooseTypeArgSizeWhenParentIsSuperType(parent: ISuperTypeNode): Int {
         return super.chooseTypeArgSizeWhenParentIsSuperType(parent)
     }
-
     //</editor-fold>
 
     //<editor-fold desc="new node functions">
