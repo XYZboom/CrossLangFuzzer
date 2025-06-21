@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    application
 }
 
 group = "com.github.xyzboom"
@@ -23,4 +24,20 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(8)
+}
+
+tasks.withType<JavaExec> {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+    mainClass.set("com.github.xyzboom.codesmith.scala.CodeSmithScalaDifferentialTestRunnerKt")
+    systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
+    systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
+    systemProperties["codesmith.logger.traceFile.ImmediateFlush"] =
+        System.getProperty("codesmith.logger.traceFile.ImmediateFlush") ?: "false"
+    val tmpPath = System.getProperty("java.io.tmpdir")
+    if (tmpPath != null) {
+        systemProperties["java.io.tmpdir"] = tmpPath
+    }
+    systemProperties["codesmith.logger.outdir"] = System.getProperty("codesmith.logger.outdir") ?: "./out"
 }

@@ -1,0 +1,459 @@
+Subject: [PATCH] CrossLangFuzzer
+---
+Index: gradle/verification-metadata.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gradle/verification-metadata.xml b/gradle/verification-metadata.xml
+--- a/gradle/verification-metadata.xml	(revision 9df698ee9f3693d2002b269ab944d0f5dcb75481)
++++ b/gradle/verification-metadata.xml	(date 1750475401976)
+@@ -4,6 +4,9 @@
+       <verify-metadata>true</verify-metadata>
+       <verify-signatures>false</verify-signatures>
+       <trusted-artifacts>
++         <trust group="com.github.XYZboom" name="CodeSmith"/>
++         <trust group=".*" name=".*" regex="true"/>
++         <trust group="org.jetbrains.kotlin" name=".*" regex="true"/>
+          <trust group="androidx.compose.runtime" name="runtime"/>
+          <trust group="androidx.compose.runtime" name="runtime-jvmstubs"/>
+          <trust group="androidx.compose.runtime" name="runtime-test-utils"/>
+Index: compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithMutationException.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithMutationException.kt b/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithMutationException.kt
+new file mode 100644
+--- /dev/null	(date 1750475401972)
++++ b/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithMutationException.kt	(date 1750475401972)
+@@ -0,0 +1,9 @@
++/*
++ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
++ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
++ */
++
++package org.jetbrains.kotlin.test
++
++class CodeSmithMutationException(message: String? = null) : Exception(message) {
++}
+\ No newline at end of file
+Index: compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithDifferentialTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithDifferentialTest.kt b/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithDifferentialTest.kt
+new file mode 100644
+--- /dev/null	(date 1750475401972)
++++ b/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithDifferentialTest.kt	(date 1750475401972)
+@@ -0,0 +1,204 @@
++/*
++ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
++ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
++ */
++
++package org.jetbrains.kotlin.test
++
++import com.github.xyzboom.codesmith.generator.GeneratorConfig
++import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
++import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
++import com.github.xyzboom.codesmith.mutator.MutatorConfig
++import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
++import com.github.xyzboom.codesmith.printer.IrProgramPrinter
++import com.github.xyzboom.codesmith.utils.nextBoolean
++import org.jetbrains.kotlin.test.runners.codegen.AbstractFirPsiBlackBoxCodegenTest
++import org.jetbrains.kotlin.test.runners.codegen.AbstractIrBlackBoxCodegenTest
++import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerTest
++import org.jetbrains.kotlin.test.runners.toKotlinTestInfo
++import org.junit.jupiter.api.BeforeEach
++import org.junit.jupiter.api.Test
++import org.junit.jupiter.api.TestInfo
++import java.io.File
++import kotlin.reflect.jvm.jvmName
++import kotlinx.coroutines.*
++import org.jetbrains.kotlin.test.services.KotlinTestInfo
++import java.util.concurrent.atomic.AtomicInteger
++import kotlin.time.measureTime
++import kotlin.random.Random
++import kotlin.system.exitProcess
++
++@OptIn(ExperimentalStdlibApi::class)
++class CodeSmithDifferentialTest {
++    companion object {
++        val logFile = File(System.getProperty("codesmith.logger.outdir"))
++    }
++
++    interface IDifferentialTest {
++        val jdk: TestJdkKind
++        fun testProgram(fileContent: String): TestResult {
++            val tempFile = File.createTempFile("code-smith", ".kt")
++            tempFile.writeText("// JDK_KIND: ${jdk.name}\n$fileContent")
++            try {
++                runTest(tempFile.absolutePath)
++            } catch (e: Throwable) {
++                return TestResult(e, fileContent, this::class.simpleName!!)
++            }
++            return TestResult(null, fileContent, this::class.simpleName!!)
++        }
++
++        fun runTest(filePath: String)
++        fun initTestInfo(testInfo: KotlinTestInfo)
++    }
++
++    object K1Jdk8Test : AbstractIrBlackBoxCodegenTest(), IDifferentialTest {
++        override val jdk: TestJdkKind = TestJdkKind.FULL_JDK
++    }
++
++    object K1Jdk11Test : AbstractIrBlackBoxCodegenTest(), IDifferentialTest {
++        override val jdk: TestJdkKind = TestJdkKind.FULL_JDK_11
++    }
++
++    object K1Jdk17Test : AbstractIrBlackBoxCodegenTest(), IDifferentialTest {
++        override val jdk: TestJdkKind = TestJdkKind.FULL_JDK_17
++    }
++
++    object K2Jdk8Test : AbstractFirPsiBlackBoxCodegenTest(), IDifferentialTest {
++        override val jdk: TestJdkKind = TestJdkKind.FULL_JDK
++    }
++
++    object K2Jdk11Test : AbstractFirPsiBlackBoxCodegenTest(), IDifferentialTest {
++        override val jdk: TestJdkKind = TestJdkKind.FULL_JDK_11
++    }
++
++    object K2Jdk17Test : AbstractFirPsiBlackBoxCodegenTest(), IDifferentialTest {
++        override val jdk: TestJdkKind = TestJdkKind.FULL_JDK_17
++    }
++
++    private val testers = listOf<IDifferentialTest>(
++        K1Jdk8Test, K1Jdk11Test, K1Jdk17Test,
++        K2Jdk8Test, K2Jdk11Test, K2Jdk17Test,
++    )
++
++    @BeforeEach
++    fun initTestInfo(testInfo: TestInfo) {
++        testers.forEach { it.initTestInfo(testInfo.toKotlinTestInfo()) }
++    }
++
++    class TestResult(
++        val e: Throwable?,
++        val fileContent: String,
++        val testName: String,
++    ) {
++        override fun equals(other: Any?): Boolean {
++            if (this === other) return true
++            if (other !is TestResult) return false
++
++            if (e == null && other.e != null) return false
++            if (e != null && other.e == null) return false
++//            if (e is JavaCompilationError) return other.e is JavaCompilationError
++//            if (other.e is JavaCompilationError) return e is JavaCompilationError
++            if (fileContent != other.fileContent) return false
++
++            return true
++        }
++
++        override fun hashCode(): Int {
++            var result = if (e == null) {
++                0
++            } else {
++                1
++            }
++            result = 31 * result + fileContent.hashCode()
++            return result
++        }
++    }
++
++    fun AbstractKotlinCompilerTest.testProgram(fileContent: String): TestResult {
++        val tempFile = File.createTempFile("code-smith", ".kt")
++        tempFile.writeText(fileContent)
++        try {
++            runTest(tempFile.absolutePath)
++        } catch (e: Throwable) {
++            return TestResult(e, fileContent, this::class.jvmName)
++        }
++        return TestResult(null, fileContent, this::class.jvmName)
++    }
++
++    fun doOneRound(fileContent: String, throwException: Boolean) {
++        val testResults = testers.map { it.testProgram(fileContent) }
++        if (testResults.toSet().size != 1) {
++            val dir = File(logFile, System.currentTimeMillis().toHexString())
++            if (!dir.exists()) {
++                dir.mkdirs()
++            }
++            File(dir, "main.kt").writeText(fileContent)
++            File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
++            for (result in testResults) {
++                if (result.e != null) {
++                    val writer = File(dir, "exception-${result.testName}.txt").printWriter()
++                    result.e.printStackTrace(writer)
++                    writer.flush()
++                }
++            }
++            if (throwException) {
++                throw RuntimeException()
++            }
++        }
++    }
++
++    @Test
++    fun test() {
++        val i = AtomicInteger(0)
++        val throwException = false
++        val parallelSize = 16
++        runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
++            val jobs = mutableListOf<Job>()
++            repeat(parallelSize) {
++                val job = launch {
++                    var enableGeneric: Boolean
++                    val threadName = Thread.currentThread().name
++                    while (true) {
++                        enableGeneric = Random.nextBoolean(0.15f)
++//                        enableGeneric = false
++                        val printer = IrProgramPrinter()
++                        val generator = IrDeclGeneratorImpl(
++                            GeneratorConfig(
++                                /*classHasTypeParameterProbability = if (enableGeneric) {
++                                    Random.nextFloat() / 4f
++                                } else {
++                                    0f
++                                }*/
++                            )
++                        )
++                        val prog = generator.genProgram()
++                        repeat(5) {
++                            val fileContent = printer.printToSingle(prog)
++                            val dur = measureTime { doOneRound(fileContent, throwException) }
++                            println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
++                            generator.shuffleLanguage(prog)
++                        }
++                        /*val config = MutatorConfig.allZero.copy(
++                            mutateParameterNullabilityWeight = 1
++                        )*/
++                        val config = MutatorConfig.default
++                        val mutator = IrMutatorImpl(
++                            config,
++                            generator = generator
++                        )
++                        if (mutator.mutate(prog)) {
++                            repeat(5) {
++                                val fileContent = printer.printToSingle(prog)
++                                val dur = measureTime { doOneRound(fileContent, throwException) }
++                                println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
++                                generator.shuffleLanguage(prog)
++                            }
++                        }
++                    }
++                }
++                jobs.add(job)
++            }
++            jobs.joinAll()
++        }
++    }
++}
+Index: .idea/codeStyles/Project.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/codeStyles/Project.xml b/.idea/codeStyles/Project.xml
+--- a/.idea/codeStyles/Project.xml	(revision 9df698ee9f3693d2002b269ab944d0f5dcb75481)
++++ b/.idea/codeStyles/Project.xml	(date 1750475401972)
+@@ -20,6 +20,9 @@
+     <MarkdownNavigatorCodeStyleSettings>
+       <option name="RIGHT_MARGIN" value="72" />
+     </MarkdownNavigatorCodeStyleSettings>
++    <ScalaCodeStyleSettings>
++      <option name="MULTILINE_STRING_CLOSING_QUOTES_ON_NEW_LINE" value="true" />
++    </ScalaCodeStyleSettings>
+     <codeStyleSettings language="HTML">
+       <indentOptions>
+         <option name="INDENT_SIZE" value="2" />
+Index: compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithTest.kt b/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithTest.kt
+new file mode 100644
+--- /dev/null	(date 1750475401972)
++++ b/compiler/tests-common-new/tests/org/jetbrains/kotlin/test/CodeSmithTest.kt	(date 1750475401972)
+@@ -0,0 +1,117 @@
++/*
++ * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
++ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
++ */
++
++package org.jetbrains.kotlin.test
++
++import com.github.xyzboom.codesmith.generator.GeneratorConfig
++import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
++import com.github.xyzboom.codesmith.ir.IrProgram
++import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
++import com.github.xyzboom.codesmith.mutator.MutatorConfig
++import com.github.xyzboom.codesmith.printer.IrProgramPrinter
++import com.github.xyzboom.codesmith.runner.CoverageRunner
++import com.github.xyzboom.codesmith.serde.defaultIrMapper
++import org.jetbrains.kotlin.test.runners.codegen.AbstractFirPsiBlackBoxCodegenTest
++import org.jetbrains.kotlin.test.runners.codegen.AbstractIrBlackBoxCodegenTest
++import org.junit.jupiter.api.Disabled
++import org.junit.jupiter.api.Test
++import org.junit.runners.model.MultipleFailureException
++import org.opentest4j.AssertionFailedError
++import org.opentest4j.MultipleFailuresError
++import java.io.File
++import java.nio.file.Files
++import java.nio.file.Path
++import java.time.LocalDateTime
++import java.util.concurrent.atomic.AtomicInteger
++import kotlin.io.path.writeText
++import kotlin.jvm.Throws
++import kotlin.random.Random
++import kotlin.time.Duration
++import kotlin.time.measureTime
++import kotlinx.coroutines.*
++
++@OptIn(ExperimentalStdlibApi::class)
++class CodeSmithTest : AbstractIrBlackBoxCodegenTest() {
++    companion object {
++        val logFile = File(System.getProperty("codesmith.logger.outdir"))
++    }
++
++    fun doOneRound(throwException: Boolean): Pair<String, Duration> {
++        val printer = IrProgramPrinter()
++        val prog = IrDeclGeneratorImpl(
++            GeneratorConfig()
++        ).genProgram()
++        val fileContent = printer.printToSingle(prog)
++        val tempFile = File.createTempFile("code-smith", ".kt")
++        tempFile.writeText("// JDK_KIND: FULL_JDK_11\n" + fileContent)
++        val dur: Duration = try {
++            measureTime {
++                runTest(tempFile.absolutePath)
++            }
++        } catch (e: Throwable) {
++            recordException(e, fileContent, throwException, prog)
++        }
++        return fileContent to dur
++        /*val jacocoRuntimeData = CoverageRunner.getJacocoRuntimeData()
++        val coverage = CoverageRunner.getBundleCoverage(
++            jacocoRuntimeData,
++            listOf("compiler", "core")
++        )
++        println(coverage.branchCounter.coveredCount)
++        println(coverage.branchCounter.totalCount)*/
++    }
++
++    private fun recordException(
++        e: Throwable, fileContent: String, throwException: Boolean,
++        prog: IrProgram
++    ): Duration {
++        e.printStackTrace()
++        val dir = File(logFile, System.currentTimeMillis().toHexString())
++        if (!dir.exists()) {
++            dir.mkdirs()
++        }
++        val writer = File(dir, "exception.txt").printWriter()
++        e.printStackTrace(writer)
++        writer.flush()
++        File(dir, "main.kt").writeText(fileContent)
++        File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
++        val jsonFile = File(dir, "program.json")
++        defaultIrMapper.writeValue(jsonFile, prog)
++        if (throwException) {
++            throw e
++        }
++        return Duration.ZERO
++    }
++
++    @Test
++    fun test() {
++        val i = AtomicInteger(1)
++        val throwException = true
++        val parallelSize = 1
++        doOneRound(throwException)
++        runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
++            val jobs = mutableListOf<Job>()
++            repeat(32) {
++                val job = launch {
++                    while (true) {
++                        val (fileContent, dur) = doOneRound(throwException)
++                        println("${Thread.currentThread().name} ${i.incrementAndGet()}:${dur}\t\t")
++                        /*if (dur > Duration.parse("2s")) {
++                            val dir = File(logFile, System.currentTimeMillis().toHexString())
++                            if (!dir.exists()) {
++                                dir.mkdirs()
++                            }
++                            File(dir, "timeout").writeText("timeout: $dur")
++                            File(dir, "main.kt").writeText(fileContent)
++                            File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
++                        }*/
++                    }
++                }
++                jobs.add(job)
++            }
++            jobs.joinAll()
++        }
++    }
++}
+\ No newline at end of file
+Index: compiler/tests-common-new/build.gradle.kts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/compiler/tests-common-new/build.gradle.kts b/compiler/tests-common-new/build.gradle.kts
+--- a/compiler/tests-common-new/build.gradle.kts	(revision 9df698ee9f3693d2002b269ab944d0f5dcb75481)
++++ b/compiler/tests-common-new/build.gradle.kts	(date 1750475401972)
+@@ -1,10 +1,28 @@
++import java.util.Properties
++
+ plugins {
+     kotlin("jvm")
+     id("jps-compatible")
+     id("compiler-tests-convention")
+ }
+ 
++repositories {
++    maven("https://jitpack.io/")
++    mavenLocal()
++}
++
++configurations {
++    all {
++        exclude("org.slf4j", "log4j-over-slf4j")
++    }
++}
++
+ dependencies {
++    implementation("com.fasterxml.jackson.core:jackson-annotations:2.18.+")
++    implementation("com.fasterxml.jackson.core:jackson-core:2.18.+")
++    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.+")
++    testImplementation("com.github.XYZboom:CodeSmith:1.0-SNAPSHOT")
++    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+     testApi(project(":compiler:fir:entrypoint"))
+     testApi(project(":compiler:fir:fir-serialization"))
+     testApi(project(":compiler:fir:fir2ir:jvm-backend"))
+@@ -96,3 +114,20 @@
+ }
+ 
+ testsJar()
++
++tasks.test {
++    systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
++    systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
++    systemProperties["codesmith.logger.traceFile.ImmediateFlush"] =
++        System.getProperty("codesmith.logger.traceFile.ImmediateFlush") ?: "false"
++    val jacocoAgentPath = System.getProperty("jacoco.agent.path")
++    if (jacocoAgentPath != null) {
++        jvmArgs("-javaagent:${jacocoAgentPath}=output=none")
++    }
++    val tmpPath = System.getProperty("java.io.tmpdir")
++    if (tmpPath != null) {
++        systemProperties["java.io.tmpdir"] = tmpPath
++    }
++    systemProperties["codesmith.logger.outdir"] = System.getProperty("codesmith.logger.outdir")
++//    jvmArgs("-Xmx64g")
++}
+\ No newline at end of file
