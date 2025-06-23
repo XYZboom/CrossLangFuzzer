@@ -1,7 +1,8 @@
-package io.github.xyzboom.crosslangfuzzer.tree.generator
+package io.github.xyzboom.crosslangfuzzer.tree.generator.printer
 
 import io.github.xyzboom.crosslangfuzzer.tree.generator.model.Element
 import io.github.xyzboom.crosslangfuzzer.tree.generator.model.Field
+import io.github.xyzboom.crosslangfuzzer.tree.generator.irVisitorType
 import org.jetbrains.kotlin.generators.tree.AbstractElementPrinter
 import org.jetbrains.kotlin.generators.tree.AbstractFieldPrinter
 import org.jetbrains.kotlin.generators.tree.printer.ImportCollectingPrinter
@@ -15,7 +16,7 @@ internal class ElementPrinter(printer: ImportCollectingPrinter) : AbstractElemen
         val kind = element.kind ?: error("Expected non-null element kind")
         with(element) {
             val treeName = "IR"
-            printAcceptMethod(element, visitorType, hasImplementation = true, treeName = treeName)
+            printAcceptMethod(element, irVisitorType, hasImplementation = true, treeName = treeName)
 
             /*printTransformMethod(
                 element = element,
