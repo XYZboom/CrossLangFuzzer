@@ -19,7 +19,7 @@ fun type(
     exactPackage: Boolean = false,
     kind: TypeKind = TypeKind.Interface,
 ): ClassRef<PositionTypeParameterRef> {
-    val realPackage = if (exactPackage) packageName else packageName.let { "org.jetbrains.kotlin.$it" }
+    val realPackage = if (exactPackage) packageName else packageName.let { "io.github.xyzboom.crosslangfuzzer.$it" }
     return type(realPackage, type, kind)
 }
 

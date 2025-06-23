@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.generators.tree.TypeRef
 import org.jetbrains.kotlin.generators.tree.TypeRefWithNullability
 import org.jetbrains.kotlin.generators.tree.config.AbstractElementConfigurator
 
-class TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>() {
+object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>() {
     override val rootElement: Element by element(Element.Kind.Other, name = "Element") {
         hasAcceptChildrenMethod = true
         hasTransformChildrenMethod = true
