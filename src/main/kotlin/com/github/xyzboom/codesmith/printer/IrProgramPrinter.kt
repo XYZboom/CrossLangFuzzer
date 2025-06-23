@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.ScalaIrClassPrinter

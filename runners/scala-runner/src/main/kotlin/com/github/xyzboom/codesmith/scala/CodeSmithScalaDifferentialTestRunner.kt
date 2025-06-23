@@ -4,7 +4,7 @@ import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
-import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl

@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith
 
-import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File

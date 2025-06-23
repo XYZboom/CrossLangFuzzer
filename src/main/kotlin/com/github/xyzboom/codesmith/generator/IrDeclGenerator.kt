@@ -1,16 +1,16 @@
 package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.container.IrContainer
-import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.expressions.IrExpressionContainer
-import com.github.xyzboom.codesmith.ir.expressions.IrFunctionCall
-import com.github.xyzboom.codesmith.ir.expressions.IrNew
-import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
-import com.github.xyzboom.codesmith.ir.types.IrClassType
-import com.github.xyzboom.codesmith.ir.types.IrType
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.container.IrContainer
+import com.github.xyzboom.codesmith.ir_old.declarations.*
+import com.github.xyzboom.codesmith.ir_old.expressions.IrExpressionContainer
+import com.github.xyzboom.codesmith.ir_old.expressions.IrFunctionCall
+import com.github.xyzboom.codesmith.ir_old.expressions.IrNew
+import com.github.xyzboom.codesmith.ir_old.expressions.constant.IrInt
+import com.github.xyzboom.codesmith.ir_old.types.IrClassType
+import com.github.xyzboom.codesmith.ir_old.types.IrType
+import com.github.xyzboom.codesmith.ir_old.types.IrTypeParameter
 
 interface IrDeclGenerator {
     fun randomName(startsWithUpper: Boolean): String

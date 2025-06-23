@@ -2,8 +2,8 @@ package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
-import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
-import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
+import com.github.xyzboom.codesmith.ir_old.types.builtin.ALL_BUILTINS
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 

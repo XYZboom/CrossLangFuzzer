@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.printer
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
 import com.github.xyzboom.codesmith.serde.defaultIrMapper

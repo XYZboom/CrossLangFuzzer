@@ -1,17 +1,17 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
-import com.github.xyzboom.codesmith.ir.IrParameterList
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
-import com.github.xyzboom.codesmith.ir.expressions.*
-import com.github.xyzboom.codesmith.ir.types.*
-import com.github.xyzboom.codesmith.ir.types.IrClassType.*
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
-import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
-import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
-import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.ir_old.IrParameterList
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrPropertyDeclaration
+import com.github.xyzboom.codesmith.ir_old.expressions.*
+import com.github.xyzboom.codesmith.ir_old.types.*
+import com.github.xyzboom.codesmith.ir_old.types.IrClassType.*
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrBuiltInType
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrNothing
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
 
 class ScalaIrClassPrinter : AbstractIrClassPrinter() {

@@ -1,8 +1,8 @@
 package com.github.xyzboom.codesmith.mutator
 
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
 import kotlin.random.Random
 
 inline fun IrProgram.randomTraverseClasses(random: Random, visitor: (IrClassDeclaration) -> Boolean) {

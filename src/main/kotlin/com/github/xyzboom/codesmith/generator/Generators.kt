@@ -1,14 +1,14 @@
 package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.container.IrContainer
-import com.github.xyzboom.codesmith.ir.declarations.IrClassMember
-import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.expressions.IrExpression
-import com.github.xyzboom.codesmith.ir.expressions.IrExpressionContainer
-import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.container.IrContainer
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassMember
+import com.github.xyzboom.codesmith.ir_old.declarations.IrDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir_old.expressions.IrExpression
+import com.github.xyzboom.codesmith.ir_old.expressions.IrExpressionContainer
+import com.github.xyzboom.codesmith.ir_old.types.IrType
 
 typealias IrExpressionGenerator = (
     block: IrExpressionContainer,
