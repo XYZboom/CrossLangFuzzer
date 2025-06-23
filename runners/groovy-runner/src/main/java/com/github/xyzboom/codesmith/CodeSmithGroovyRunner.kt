@@ -7,7 +7,7 @@ import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
+import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
@@ -92,7 +92,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private fun doDifferentialTestingOneRound() {
         val printer = IrProgramPrinter(false)
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig(
                 classMemberIsPropertyWeight = 0,
                 allowUnitInTypeArgument = true,
@@ -129,7 +129,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
     private fun doOneRound() {
         for (groovyCompiler in groovyCompilers) {
             val printer = IrProgramPrinter(false)
-            val generator = IrDeclGeneratorImpl(
+            val generator = IrDeclGeneratorImplOld(
                 GeneratorConfig(
                     classMemberIsPropertyWeight = 0,
                     allowUnitInTypeArgument = true,

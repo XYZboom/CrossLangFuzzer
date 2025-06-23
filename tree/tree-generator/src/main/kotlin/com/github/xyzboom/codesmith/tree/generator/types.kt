@@ -15,4 +15,6 @@ val irDefaultVisitorType = generatedType("visitors", "IrDefaultVisitor")
 val irDefaultVisitorVoidType = generatedType("visitors", "IrDefaultVisitorVoid")
 val irTransformerType = generatedType("visitors", "IrTransformer")
 
+val classKindType = type("ir", "ClassKind")
+
 val transformInPlaceImport = ArbitraryImportable(VISITOR_PACKAGE, "transformInplace")

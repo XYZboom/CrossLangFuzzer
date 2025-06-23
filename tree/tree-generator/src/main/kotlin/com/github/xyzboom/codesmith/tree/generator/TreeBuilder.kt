@@ -5,9 +5,11 @@ import com.github.xyzboom.codesmith.tree.generator.model.Field
 import com.github.xyzboom.codesmith.tree.generator.model.ListField
 import com.github.xyzboom.codesmith.tree.generator.model.SimpleField
 import org.jetbrains.kotlin.generators.tree.ElementOrRef
+import org.jetbrains.kotlin.generators.tree.StandardTypes
 import org.jetbrains.kotlin.generators.tree.TypeRef
 import org.jetbrains.kotlin.generators.tree.TypeRefWithNullability
 import org.jetbrains.kotlin.generators.tree.config.AbstractElementConfigurator
+import org.jetbrains.kotlin.generators.tree.withArgs
 
 object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>() {
     override val rootElement: Element by element(Element.Kind.Other, name = "Element") {
@@ -21,17 +23,23 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     }
 
     val declaration: Element by element(Element.Kind.Declaration, name = "Declaration") {
-
+        +field("name", StandardTypes.string)
     }
 
     val classDecl: Element by element(Element.Kind.Declaration, name= "ClassDeclaration") {
         parent(declaration)
         parent(funcContainer)
         parent(typeParameterContainer)
+
+        +field("classKind", classKindType)
     }
 
     val funcDecl: Element by element(Element.Kind.Declaration, name= "FunctionDeclaration") {
         parent(declaration)
+    }
+
+    val parameter: Element by element(Element.Kind.Declaration, name = "Parameter") {
+
     }
 
     val classContainer: Element by element(Element.Kind.Container, name = "ClassContainer") {
@@ -46,12 +54,32 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +listField("typeParameters", typeParameter)
     }
 
+    val parameterList: Element by element(Element.Kind.Other, name = "ParameterList") {
+        +listField("parameters", parameter)
+    }
+
     val type: Element by element(Element.Kind.Type, name= "Type") {
 
     }
 
     val typeParameter: Element by element(Element.Kind.Type, name= "TypeParameter") {
         parent(type)
+    }
+
+    val classifier: Element by sealedElement(Element.Kind.Type, name= "Classifier") {
+        parent(type)
+
+        +field("classDecl", classDecl)
+    }
+
+    val simpleClassifier: Element by element(Element.Kind.Type, name = "SimpleClassifier") {
+        parent(classifier)
+    }
+
+    val parameterizedClassifier: Element by element(Element.Kind.Type, name = "ParameterizedClassifier") {
+        parent(classifier)
+
+        +field("arguments", StandardTypes.hashMap.withArgs(typeParameter, type))
     }
 
     fun field(

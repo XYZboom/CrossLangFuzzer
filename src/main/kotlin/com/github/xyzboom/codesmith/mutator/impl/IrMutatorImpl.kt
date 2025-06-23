@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.mutator.impl
 
 import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
+import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
@@ -18,7 +18,7 @@ private val logger = KotlinLogging.logger { }
 
 class IrMutatorImpl(
     private val config: MutatorConfig = MutatorConfig.default,
-    private val generator: IrDeclGeneratorImpl,
+    private val generator: IrDeclGeneratorImplOld,
 ) : IrMutator() {
     private val random: Random = generator.random
 

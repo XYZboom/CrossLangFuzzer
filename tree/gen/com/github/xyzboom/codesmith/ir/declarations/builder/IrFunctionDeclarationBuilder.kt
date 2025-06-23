@@ -7,9 +7,26 @@
 
 package com.github.xyzboom.codesmith.ir.declarations.builder
 
+import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionDeclarationImpl
+import kotlin.contracts.*
 
-fun buildFunctionDeclaration(): IrFunctionDeclaration {
-    return IrFunctionDeclarationImpl()
+@BuilderDsl
+class IrFunctionDeclarationBuilder {
+    lateinit var name: String
+
+    fun build(): IrFunctionDeclaration {
+        return IrFunctionDeclarationImpl(
+            name,
+        )
+    }
+}
+
+@OptIn(ExperimentalContracts::class)
+inline fun buildFunctionDeclaration(init: IrFunctionDeclarationBuilder.() -> Unit): IrFunctionDeclaration {
+    contract {
+        callsInPlace(init, InvocationKind.EXACTLY_ONCE)
+    }
+    return IrFunctionDeclarationBuilder().apply(init).build()
 }

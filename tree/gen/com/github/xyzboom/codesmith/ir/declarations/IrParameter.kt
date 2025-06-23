@@ -10,15 +10,13 @@ import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 /**
- * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.declaration]
+ * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.parameter]
  */
-abstract class IrDeclaration : IrElement {
-    abstract val name: String
-
+abstract class IrParameter : IrElement {
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
-        visitor.visitDeclaration(this, data)
+        visitor.visitParameter(this, data)
 
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
-        transformer.transformDeclaration(this, data) as E
+        transformer.transformParameter(this, data) as E
 }

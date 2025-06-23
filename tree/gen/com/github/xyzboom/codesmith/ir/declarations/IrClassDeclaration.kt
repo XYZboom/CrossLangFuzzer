@@ -5,6 +5,7 @@
 
 package com.github.xyzboom.codesmith.ir.declarations
 
+import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
@@ -16,8 +17,10 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classDecl]
  */
 abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypeParameterContainer {
+    abstract override val name: String
     abstract override val functions: List<IrFunctionDeclaration>
     abstract override val typeParameters: List<IrTypeParameter>
+    abstract val classKind: ClassKind
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitClassDeclaration(this, data)
