@@ -16,7 +16,7 @@ import com.github.xyzboom.codesmith.utils.rouletteSelection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
-open class IrDeclGeneratorImpl(
+open class IrDeclGeneratorImplOld(
     private val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
     private val majorLanguage: Language = Language.KOTLIN
@@ -569,7 +569,7 @@ open class IrDeclGeneratorImpl(
                 val generator: IrClassMemberGenerator = if (classType != IrClassType.INTERFACE) {
                     randomClassMemberGenerator()
                 } else {
-                    this@IrDeclGeneratorImpl::genFunction
+                    this@IrDeclGeneratorImplOld::genFunction
                 }
                 generator(
                     context,

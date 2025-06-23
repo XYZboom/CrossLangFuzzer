@@ -7,6 +7,7 @@
 
 package com.github.xyzboom.codesmith.ir.declarations.impl
 
+import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
@@ -15,8 +16,10 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 
 internal class IrClassDeclarationImpl(
+    override val name: String,
     override val functions: MutableList<IrFunctionDeclaration>,
     override val typeParameters: MutableList<IrTypeParameter>,
+    override val classKind: ClassKind,
 ) : IrClassDeclaration() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {

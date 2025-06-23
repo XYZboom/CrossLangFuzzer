@@ -6,6 +6,9 @@
 package com.github.xyzboom.codesmith.ir.visitors
 
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.types.IrClassifier
+import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 
 /**
@@ -18,6 +21,18 @@ abstract class IrDefaultVisitorVoid : IrVisitorVoid() {
 
     override fun visitTypeParameter(typeParameter: IrTypeParameter) {
         visitType(typeParameter)
+    }
+
+    override fun visitClassifier(classifier: IrClassifier) {
+        visitType(classifier)
+    }
+
+    override fun visitSimpleClassifier(simpleClassifier: IrSimpleClassifier) {
+        visitClassifier(simpleClassifier)
+    }
+
+    override fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier) {
+        visitClassifier(parameterizedClassifier)
     }
 
 }

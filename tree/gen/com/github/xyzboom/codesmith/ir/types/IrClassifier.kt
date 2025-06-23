@@ -3,22 +3,23 @@
 // This file was generated automatically. See README.md.
 // DO NOT MODIFY IT MANUALLY.
 
-package com.github.xyzboom.codesmith.ir.declarations
+package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 /**
- * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.declaration]
+ * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classifier]
  */
-abstract class IrDeclaration : IrElement {
-    abstract val name: String
+sealed class IrClassifier : IrType() {
+    abstract val classDecl: IrClassDeclaration
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
-        visitor.visitDeclaration(this, data)
+        visitor.visitClassifier(this, data)
 
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
-        transformer.transformDeclaration(this, data) as E
+        transformer.transformClassifier(this, data) as E
 }

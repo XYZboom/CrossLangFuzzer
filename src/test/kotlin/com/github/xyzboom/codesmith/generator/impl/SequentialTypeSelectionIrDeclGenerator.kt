@@ -7,7 +7,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 
 class SequentialTypeSelectionIrDeclGenerator(
     typeList: List<IrType>
-) : IrDeclGeneratorImpl() {
+) : IrDeclGeneratorImplOld() {
     private val iterator = typeList.iterator()
     override fun randomType(
         from: IrContainer,

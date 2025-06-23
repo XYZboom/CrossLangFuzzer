@@ -7,17 +7,15 @@
 
 package com.github.xyzboom.codesmith.ir.declarations.impl
 
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
-internal class IrFunctionDeclarationImpl(
-    override val name: String,
-) : IrFunctionDeclaration() {
+internal class IrParameterImpl : IrParameter() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {}
 
-    override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
+    override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrParameterImpl {
         return this
     }
 }

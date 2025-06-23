@@ -13,6 +13,8 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.funcDecl]
  */
 abstract class IrFunctionDeclaration : IrDeclaration() {
+    abstract override val name: String
+
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitFunctionDeclaration(this, data)
 

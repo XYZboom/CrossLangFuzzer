@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith.scala
 
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImpl
+import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.tempDir
@@ -11,7 +11,7 @@ import kotlin.time.measureTime
 
 private fun doOneRound(stopOnErrors: Boolean = false) {
     val printer = IrProgramPrinter(false)
-    val generator = IrDeclGeneratorImpl(
+    val generator = IrDeclGeneratorImplOld(
         GeneratorConfig(
             classMemberIsPropertyWeight = 0,
             allowUnitInTypeArgument = true

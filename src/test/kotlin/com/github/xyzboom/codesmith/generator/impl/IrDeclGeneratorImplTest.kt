@@ -99,7 +99,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testGenOverrideFromAbstractSuperAndAnInterface0() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -127,7 +127,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testGenOverrideWhenSuperFunctionsAreConflict() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -157,7 +157,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testGenOverrideForAbstractWhenSuperFunctionsAreConflict() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -187,7 +187,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testShouldOverrideWhenSuperAbstractShadowDefaultImplInIntf() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superName = "Parent"
@@ -216,7 +216,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testShouldOverrideWhenSuperSuperShadowDefaultImplInIntf() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superName = "GrandParent"
@@ -270,7 +270,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testGenOverrideComplex() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
 
@@ -341,7 +341,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testStubForFinalIsStillFinal() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superClass = IrClassDeclaration("P", IrClassType.OPEN)
@@ -370,7 +370,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testStubForFinalStubIsStillFinal() {
-        val generator = IrDeclGeneratorImpl(
+        val generator = IrDeclGeneratorImplOld(
             GeneratorConfig.testDefault
         )
         val superClass = IrClassDeclaration("P", IrClassType.OPEN)
@@ -401,7 +401,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testChildAbstractInIntfShouldShadowParentIntf() {
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
 
         val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
         val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
@@ -436,7 +436,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testMustOverrideWhenSuperStubConflictWithIntf() {
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
 
         /**
          * I0&
@@ -496,7 +496,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testMustOverrideWhenOverrideOfSuperStubWasOverrideByIntf() {
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
 
         /**
          * I0#
@@ -558,7 +558,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          * # means implement function
          * ^ means stub function
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
         val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
         i1.implementedTypes.add(i0.type)
@@ -605,7 +605,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          * # means implement function
          * ^ means stub function
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val i0 = IrClassDeclaration("I0", IrClassType.INTERFACE)
         val i1 = IrClassDeclaration("I1", IrClassType.INTERFACE)
         val p = IrClassDeclaration("P", IrClassType.OPEN)
@@ -642,7 +642,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
 
     @Test
     fun testOverrideStubIsNotMustOverride() {
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val gp = IrClassDeclaration("GP", IrClassType.OPEN)
         val p = IrClassDeclaration("P", IrClassType.OPEN).apply {
             superType = gp.type
@@ -690,7 +690,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          * C<T2>: P<T2>#
          * # means implement function
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val t0 = IrTypeParameter.create("T0", IrAny)
         val t1 = IrTypeParameter.create("T1", IrAny)
         val t2 = IrTypeParameter.create("T2", IrAny)
@@ -762,7 +762,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          *
          * func(GP<T0>)
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val t0 = IrTypeParameter.create("T0", IrAny)
         val t1 = IrTypeParameter.create("T1", IrAny)
         val t2 = IrTypeParameter.create("T2", IrAny)
@@ -846,7 +846,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          *
          * func(GP<T0>)
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val t0 = IrTypeParameter.create("T0", IrAny)
         val t1 = IrTypeParameter.create("T1", IrAny)
         val t2 = IrTypeParameter.create("T2", IrAny)
@@ -959,7 +959,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          *
          * func(P<T1, T0>)
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val t0 = IrTypeParameter.create("T0", IrAny)
         val t1 = IrTypeParameter.create("T1", IrAny)
         val t2 = IrTypeParameter.create("T2", IrAny)
@@ -1022,7 +1022,7 @@ class IrDeclGeneratorImplTest /*: AnnotationSpec()*/ {
          *
          * func(I<T0>)
          */
-        val generator = IrDeclGeneratorImpl(GeneratorConfig.testDefault)
+        val generator = IrDeclGeneratorImplOld(GeneratorConfig.testDefault)
         val t0 = IrTypeParameter.create("T0", IrAny)
         val i = IrClassDeclaration("I", IrClassType.INTERFACE).apply {
             typeParameters.add(t0)
