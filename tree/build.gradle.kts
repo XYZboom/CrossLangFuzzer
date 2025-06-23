@@ -110,5 +110,5 @@ generatedSourcesTask(
     taskName = "generateTree",
     generatorProject = ":tree:tree-generator",
     generatorRoot = "tree/tree-generator/src/",
-    generatorMainClass = "io.github.xyzboom.crosslangfuzzer.tree.generator.MainKt",
+    generatorMainClass = "com.github.xyzboom.codesmith.tree.generator.MainKt",
 )
