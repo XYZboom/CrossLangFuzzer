@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
-import com.github.xyzboom.codesmith.ir.expressions.IrExpression
-import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir_old.expressions.IrExpression
+import com.github.xyzboom.codesmith.ir_old.types.IrType
 import org.reflections.Reflections
 
 

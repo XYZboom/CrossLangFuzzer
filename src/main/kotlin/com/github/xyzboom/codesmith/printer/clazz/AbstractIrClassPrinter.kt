@@ -1,11 +1,11 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.IrElement
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.types.IrClassType
-import com.github.xyzboom.codesmith.ir.types.IrType
-import com.github.xyzboom.codesmith.ir.visitor.IrTopDownVisitor
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.IrElement
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.types.IrClassType
+import com.github.xyzboom.codesmith.ir_old.types.IrType
+import com.github.xyzboom.codesmith.ir_old.visitor.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinter
 import com.github.xyzboom.codesmith.printer.TypeContext
 import java.util.*

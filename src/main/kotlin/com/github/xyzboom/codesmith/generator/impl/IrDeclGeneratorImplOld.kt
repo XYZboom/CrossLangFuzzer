@@ -2,14 +2,14 @@ package com.github.xyzboom.codesmith.generator.impl
 
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.*
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.container.IrContainer
-import com.github.xyzboom.codesmith.ir.container.IrTypeParameterContainer
-import com.github.xyzboom.codesmith.ir.declarations.*
-import com.github.xyzboom.codesmith.ir.expressions.*
-import com.github.xyzboom.codesmith.ir.expressions.constant.IrInt
-import com.github.xyzboom.codesmith.ir.types.*
-import com.github.xyzboom.codesmith.ir.types.builtin.*
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.container.IrContainer
+import com.github.xyzboom.codesmith.ir_old.container.IrTypeParameterContainer
+import com.github.xyzboom.codesmith.ir_old.declarations.*
+import com.github.xyzboom.codesmith.ir_old.expressions.*
+import com.github.xyzboom.codesmith.ir_old.expressions.constant.IrInt
+import com.github.xyzboom.codesmith.ir_old.types.*
+import com.github.xyzboom.codesmith.ir_old.types.builtin.*
 import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import com.github.xyzboom.codesmith.utils.rouletteSelection

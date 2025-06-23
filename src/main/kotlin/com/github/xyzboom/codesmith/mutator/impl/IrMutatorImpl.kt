@@ -2,11 +2,11 @@ package com.github.xyzboom.codesmith.mutator.impl
 
 import com.github.xyzboom.codesmith.Language
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.types.IrNullableType
-import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.types.IrNullableType
+import com.github.xyzboom.codesmith.ir_old.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrAny
 import com.github.xyzboom.codesmith.mutator.*
 import com.github.xyzboom.codesmith.utils.rouletteSelection
 import io.github.oshai.kotlinlogging.KotlinLogging

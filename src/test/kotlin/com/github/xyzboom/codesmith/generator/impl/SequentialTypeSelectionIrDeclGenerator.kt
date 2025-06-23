@@ -1,9 +1,9 @@
 package com.github.xyzboom.codesmith.generator.impl
 
-import com.github.xyzboom.codesmith.ir.container.IrContainer
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir_old.container.IrContainer
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir_old.types.IrType
 
 class SequentialTypeSelectionIrDeclGenerator(
     typeList: List<IrType>

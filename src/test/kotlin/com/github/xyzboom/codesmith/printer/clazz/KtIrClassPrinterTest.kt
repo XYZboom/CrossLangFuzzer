@@ -1,13 +1,13 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrParameter
-import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
-import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.expressions.IrNew
-import com.github.xyzboom.codesmith.ir.types.IrClassType
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir_old.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir_old.declarations.IrPropertyDeclaration
+import com.github.xyzboom.codesmith.ir_old.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir_old.expressions.IrNew
+import com.github.xyzboom.codesmith.ir_old.types.IrClassType
+import com.github.xyzboom.codesmith.ir_old.types.builtin.IrAny
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
