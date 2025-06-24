@@ -28,4 +28,20 @@ abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypePara
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformClassDeclaration(this, data) as E
+
+    abstract override fun replaceName(newName: String)
+
+    abstract override fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>)
+
+    abstract override fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>)
+
+    abstract fun replaceClassKind(newClassKind: ClassKind)
+
+    abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrClassDeclaration
+
+    abstract override fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrClassDeclaration
+
+    abstract override fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrClassDeclaration
+
+    abstract fun <D> transformClassKind(transformer: IrTransformer<D>, data: D): IrClassDeclaration
 }

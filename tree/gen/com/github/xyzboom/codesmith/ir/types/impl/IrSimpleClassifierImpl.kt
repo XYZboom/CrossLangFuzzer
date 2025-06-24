@@ -21,7 +21,16 @@ internal class IrSimpleClassifierImpl(
     }
 
     override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrSimpleClassifierImpl {
+        transformClassDecl(transformer, data)
+        return this
+    }
+
+    override fun <D> transformClassDecl(transformer: IrTransformer<D>, data: D): IrSimpleClassifierImpl {
         classDecl = classDecl.transform(transformer, data)
         return this
+    }
+
+    override fun replaceClassDecl(newClassDecl: IrClassDeclaration) {
+        classDecl = newClassDecl
     }
 }

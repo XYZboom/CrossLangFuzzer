@@ -22,4 +22,8 @@ interface IrTypeParameterContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformTypeParameterContainer(this, data) as E
+
+    fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>)
+
+    fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrTypeParameterContainer
 }

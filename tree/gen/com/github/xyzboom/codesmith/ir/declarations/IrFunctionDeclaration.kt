@@ -21,4 +21,8 @@ abstract class IrFunctionDeclaration : IrDeclaration() {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformFunctionDeclaration(this, data) as E
+
+    abstract override fun replaceName(newName: String)
+
+    abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 }

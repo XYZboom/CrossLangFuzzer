@@ -22,4 +22,8 @@ abstract class IrClassContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformClassContainer(this, data) as E
+
+    abstract fun replaceClasses(newClasses: List<IrClassDeclaration>)
+
+    abstract fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrClassContainer
 }

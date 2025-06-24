@@ -16,7 +16,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 internal class IrParameterizedClassifierImpl(
     override var classDecl: IrClassDeclaration,
-    override val arguments: HashMap<IrTypeParameter, IrType>,
+    override var arguments: HashMap<IrTypeParameter, IrType>,
 ) : IrParameterizedClassifier() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -24,7 +24,24 @@ internal class IrParameterizedClassifierImpl(
     }
 
     override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrParameterizedClassifierImpl {
+        transformClassDecl(transformer, data)
+        return this
+    }
+
+    override fun <D> transformClassDecl(transformer: IrTransformer<D>, data: D): IrParameterizedClassifierImpl {
         classDecl = classDecl.transform(transformer, data)
         return this
+    }
+
+    override fun <D> transformArguments(transformer: IrTransformer<D>, data: D): IrParameterizedClassifierImpl {
+        return this
+    }
+
+    override fun replaceClassDecl(newClassDecl: IrClassDeclaration) {
+        classDecl = newClassDecl
+    }
+
+    override fun replaceArguments(newArguments: HashMap<IrTypeParameter, IrType>) {
+        arguments = newArguments
     }
 }

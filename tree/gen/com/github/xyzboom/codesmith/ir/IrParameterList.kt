@@ -21,4 +21,8 @@ abstract class IrParameterList : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformParameterList(this, data) as E
+
+    abstract fun replaceParameters(newParameters: List<IrParameter>)
+
+    abstract fun <D> transformParameters(transformer: IrTransformer<D>, data: D): IrParameterList
 }

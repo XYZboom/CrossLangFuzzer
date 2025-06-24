@@ -22,4 +22,8 @@ sealed class IrClassifier : IrType() {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformClassifier(this, data) as E
+
+    abstract fun replaceClassDecl(newClassDecl: IrClassDeclaration)
+
+    abstract fun <D> transformClassDecl(transformer: IrTransformer<D>, data: D): IrClassifier
 }

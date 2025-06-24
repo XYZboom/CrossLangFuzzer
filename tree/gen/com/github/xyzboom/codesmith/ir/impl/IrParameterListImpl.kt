@@ -22,7 +22,18 @@ internal class IrParameterListImpl(
     }
 
     override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrParameterListImpl {
+        transformParameters(transformer, data)
+        return this
+    }
+
+    override fun <D> transformParameters(transformer: IrTransformer<D>, data: D): IrParameterListImpl {
         parameters.transformInplace(transformer, data)
         return this
+    }
+
+    override fun replaceParameters(newParameters: List<IrParameter>) {
+        if (parameters === newParameters) return
+        parameters.clear()
+        parameters.addAll(newParameters)
     }
 }

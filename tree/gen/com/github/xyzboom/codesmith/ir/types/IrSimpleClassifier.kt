@@ -22,4 +22,8 @@ abstract class IrSimpleClassifier : IrClassifier() {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformSimpleClassifier(this, data) as E
+
+    abstract override fun replaceClassDecl(newClassDecl: IrClassDeclaration)
+
+    abstract override fun <D> transformClassDecl(transformer: IrTransformer<D>, data: D): IrSimpleClassifier
 }
