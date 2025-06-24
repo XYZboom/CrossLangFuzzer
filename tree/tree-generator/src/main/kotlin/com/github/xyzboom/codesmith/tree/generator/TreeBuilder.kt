@@ -86,8 +86,8 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         name: String,
         type: TypeRefWithNullability,
         nullable: Boolean = false,
-        withReplace: Boolean = false,
-        withTransform: Boolean = false,
+        withReplace: Boolean = true,
+        withTransform: Boolean = true,
         isChild: Boolean = true,
         initializer: SimpleField.() -> Unit = {},
     ): SimpleField {
@@ -105,8 +105,8 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     fun listField(
         name: String,
         baseType: TypeRef,
-        withReplace: Boolean = false,
-        withTransform: Boolean = false,
+        withReplace: Boolean = true,
+        withTransform: Boolean = true,
         useMutableOrEmpty: Boolean = false,
         isChild: Boolean = true,
         initializer: ListField.() -> Unit = {},

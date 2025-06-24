@@ -22,4 +22,8 @@ interface IrFuncContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformFuncContainer(this, data) as E
+
+    fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>)
+
+    fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrFuncContainer
 }
