@@ -9,5 +9,7 @@ include("runners:common-runner")
 findProject(":runners:common-runner")?.name = "common-runner"
 include("runners:groovy-runner")
 findProject(":runners:groovy-runner")?.name = "groovy-runner"
+include("runners:kotlin-runner")
+findProject(":runners:kotlin-runner")?.name = "kotlin-runner"
 include("tree")
 include("tree:tree-generator")
