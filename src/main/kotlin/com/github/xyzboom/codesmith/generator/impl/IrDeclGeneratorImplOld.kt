@@ -20,7 +20,7 @@ open class IrDeclGeneratorImplOld(
     private val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
     private val majorLanguage: Language = Language.KOTLIN
-) : IrDeclGenerator {
+) : IrDeclGeneratorOld {
 
     private val logger = KotlinLogging.logger {}
 

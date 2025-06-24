@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.IrDeclGenerator
+import com.github.xyzboom.codesmith.generator.IrDeclGeneratorOld
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
@@ -65,7 +65,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private fun runDifferential(
         groovyCompilers: List<GroovyCompilerWrapper>,
-        generator: IrDeclGenerator,
+        generator: IrDeclGeneratorOld,
         printer: IrProgramPrinter,
         program: IrProgram,
         stopOnErrors: Boolean

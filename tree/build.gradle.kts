@@ -112,3 +112,7 @@ generatedSourcesTask(
     generatorRoot = "tree/tree-generator/src/",
     generatorMainClass = "com.github.xyzboom.codesmith.tree.generator.MainKt",
 )
+
+kotlin {
+    jvmToolchain(8)
+}

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+  <Properties>
+    <Property name="codesmith.logger.console">DEBUG</Property>
+    <Property name="codesmith.logger.traceFile">TRACE</Property>
+    <Property name="codesmith.logger.traceFile.ImmediateFlush">true</Property>
+  </Properties>
+
+  <!-- 定义 Appenders -->
+  <Appenders>
+    <!-- 控制台 Appender -->
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="[%t] %-5p %l %x - %m%n"/>
+      <ThresholdFilter level="${sys:codesmith.logger.console:-DEBUG}" onMatch="ACCEPT" onMismatch="DENY"/>
+    </Console>
+
+    <!-- INFO 文件 Appender -->
+    <RollingRandomAccessFile name="InfoFile"
+                             fileName="codesmith-info.log"
+                             filePattern="codesmith-info-%d{yyyy-MM-dd}-%i.log">
+      <PatternLayout pattern="[%t] %-5p %l %x - %m%n"/>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="10 MB"/>
+        <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+      </Policies>
+      <DefaultRolloverStrategy max="1"/>
+      <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+    </RollingRandomAccessFile>
+
+    <!-- TRACE 文件 Appender -->
+    <RollingRandomAccessFile name="TraceFile"
+                             fileName="codesmith-trace.log"
+                             filePattern="codesmith-trace-%d{yyyy-MM-dd}-%i.log"
+                             immediateFlush="${sys:codesmith.logger.traceFile.ImmediateFlush:-true}">
+      <PatternLayout pattern="[%t] %-5p %l %x - %m%n"/>
+      <Policies>
+        <SizeBasedTriggeringPolicy size="20 MB"/>
+        <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+      </Policies>
+      <DefaultRolloverStrategy max="1"/>
+      <ThresholdFilter level="${sys:codesmith.logger.traceFile:-TRACE}" onMatch="ACCEPT" onMismatch="DENY"/>
+    </RollingRandomAccessFile>
+  </Appenders>
+
+  <!-- 定义 Loggers -->
+  <Loggers>
+    <!-- 特定包名的 Logger -->
+    <Logger name="com.github.xyzboom.codesmith" level="TRACE" additivity="false">
+      <AppenderRef ref="InfoFile"/>
+      <AppenderRef ref="TraceFile"/>
+    </Logger>
+
+    <!-- 根 Logger -->
+    <Root level="INFO">
+      <AppenderRef ref="Console"/>
+    </Root>
+  </Loggers>
+</Configuration>
