@@ -7,17 +7,20 @@ package com.github.xyzboom.codesmith.ir
 
 import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
+import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.program]
  */
-abstract class IrProgram : IrClassContainer(), IrFuncContainer {
+abstract class IrProgram : IrClassContainer(), IrFuncContainer, IrPropertyContainer {
     abstract override val classes: List<IrClassDeclaration>
     abstract override val functions: List<IrFunctionDeclaration>
+    abstract override val properties: List<IrPropertyDeclaration>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitProgram(this, data)
@@ -30,7 +33,11 @@ abstract class IrProgram : IrClassContainer(), IrFuncContainer {
 
     abstract override fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>)
 
+    abstract override fun replaceProperties(newProperties: List<IrPropertyDeclaration>)
+
     abstract override fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrProgram
 
     abstract override fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrProgram
+
+    abstract override fun <D> transformProperties(transformer: IrTransformer<D>, data: D): IrProgram
 }

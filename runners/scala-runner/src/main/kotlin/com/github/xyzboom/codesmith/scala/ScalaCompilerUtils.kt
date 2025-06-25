@@ -3,7 +3,7 @@ package com.github.xyzboom.codesmith.scala
 import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.JavaCompilerWrapper
 import com.github.xyzboom.codesmith.ir_old.IrProgram
-import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import com.github.xyzboom.codesmith.newTempPath
 import dotty.tools.dotc.core.Contexts

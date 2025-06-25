@@ -8,7 +8,7 @@ import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
-import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
 import com.github.xyzboom.codesmith.tempDir
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File

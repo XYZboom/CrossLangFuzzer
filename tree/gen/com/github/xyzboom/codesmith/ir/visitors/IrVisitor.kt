@@ -10,11 +10,9 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
+import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -36,6 +34,9 @@ abstract class IrVisitor<out R, in D> {
     open fun visitFunctionDeclaration(functionDeclaration: IrFunctionDeclaration, data: D): R =
         visitElement(functionDeclaration, data)
 
+    open fun visitPropertyDeclaration(propertyDeclaration: IrPropertyDeclaration, data: D): R =
+        visitElement(propertyDeclaration, data)
+
     open fun visitParameter(parameter: IrParameter, data: D): R =
         visitElement(parameter, data)
 
@@ -45,6 +46,9 @@ abstract class IrVisitor<out R, in D> {
     open fun visitFuncContainer(funcContainer: IrFuncContainer, data: D): R =
         visitElement(funcContainer, data)
 
+    open fun visitPropertyContainer(propertyContainer: IrPropertyContainer, data: D): R =
+        visitElement(propertyContainer, data)
+
     open fun visitTypeParameterContainer(typeParameterContainer: IrTypeParameterContainer, data: D): R =
         visitElement(typeParameterContainer, data)
 
@@ -53,6 +57,9 @@ abstract class IrVisitor<out R, in D> {
 
     open fun visitType(type: IrType, data: D): R =
         visitElement(type, data)
+
+    open fun visitNullableType(nullableType: IrNullableType, data: D): R =
+        visitElement(nullableType, data)
 
     open fun visitTypeParameter(typeParameter: IrTypeParameter, data: D): R =
         visitElement(typeParameter, data)

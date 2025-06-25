@@ -10,11 +10,9 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
+import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -60,6 +58,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
         return transformFunctionDeclaration(functionDeclaration, data)
     }
 
+    open fun transformPropertyDeclaration(propertyDeclaration: IrPropertyDeclaration, data: D): IrPropertyDeclaration {
+        return transformElement(propertyDeclaration, data)
+    }
+
+    final override fun visitPropertyDeclaration(propertyDeclaration: IrPropertyDeclaration, data: D): IrPropertyDeclaration {
+        return transformPropertyDeclaration(propertyDeclaration, data)
+    }
+
     open fun transformParameter(parameter: IrParameter, data: D): IrParameter {
         return transformElement(parameter, data)
     }
@@ -82,6 +88,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
 
     final override fun visitFuncContainer(funcContainer: IrFuncContainer, data: D): IrFuncContainer {
         return transformFuncContainer(funcContainer, data)
+    }
+
+    open fun transformPropertyContainer(propertyContainer: IrPropertyContainer, data: D): IrPropertyContainer {
+        return transformElement(propertyContainer, data)
+    }
+
+    final override fun visitPropertyContainer(propertyContainer: IrPropertyContainer, data: D): IrPropertyContainer {
+        return transformPropertyContainer(propertyContainer, data)
     }
 
     open fun transformTypeParameterContainer(typeParameterContainer: IrTypeParameterContainer, data: D): IrTypeParameterContainer {
@@ -108,35 +122,43 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
         return transformType(type, data)
     }
 
-    open fun transformTypeParameter(typeParameter: IrTypeParameter, data: D): IrTypeParameter {
+    open fun transformNullableType(nullableType: IrNullableType, data: D): IrType {
+        return transformElement(nullableType, data)
+    }
+
+    final override fun visitNullableType(nullableType: IrNullableType, data: D): IrType {
+        return transformNullableType(nullableType, data)
+    }
+
+    open fun transformTypeParameter(typeParameter: IrTypeParameter, data: D): IrType {
         return transformElement(typeParameter, data)
     }
 
-    final override fun visitTypeParameter(typeParameter: IrTypeParameter, data: D): IrTypeParameter {
+    final override fun visitTypeParameter(typeParameter: IrTypeParameter, data: D): IrType {
         return transformTypeParameter(typeParameter, data)
     }
 
-    open fun transformClassifier(classifier: IrClassifier, data: D): IrClassifier {
+    open fun transformClassifier(classifier: IrClassifier, data: D): IrType {
         return transformElement(classifier, data)
     }
 
-    final override fun visitClassifier(classifier: IrClassifier, data: D): IrClassifier {
+    final override fun visitClassifier(classifier: IrClassifier, data: D): IrType {
         return transformClassifier(classifier, data)
     }
 
-    open fun transformSimpleClassifier(simpleClassifier: IrSimpleClassifier, data: D): IrSimpleClassifier {
+    open fun transformSimpleClassifier(simpleClassifier: IrSimpleClassifier, data: D): IrType {
         return transformElement(simpleClassifier, data)
     }
 
-    final override fun visitSimpleClassifier(simpleClassifier: IrSimpleClassifier, data: D): IrSimpleClassifier {
+    final override fun visitSimpleClassifier(simpleClassifier: IrSimpleClassifier, data: D): IrType {
         return transformSimpleClassifier(simpleClassifier, data)
     }
 
-    open fun transformParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): IrParameterizedClassifier {
+    open fun transformParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): IrType {
         return transformElement(parameterizedClassifier, data)
     }
 
-    final override fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): IrParameterizedClassifier {
+    final override fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): IrType {
         return transformParameterizedClassifier(parameterizedClassifier, data)
     }
 }

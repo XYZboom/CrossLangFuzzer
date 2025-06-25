@@ -1,9 +1,9 @@
-package com.github.xyzboom.codesmith.printer
+package com.github.xyzboom.codesmith.printer_old
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
-import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
+import com.github.xyzboom.codesmith.printer_old.clazz.JavaIrClassPrinter
+import com.github.xyzboom.codesmith.printer_old.clazz.KtIrClassPrinter
 import com.github.xyzboom.codesmith.serde.defaultIrMapper
 import org.opentest4j.MultipleFailuresError
 import java.io.File

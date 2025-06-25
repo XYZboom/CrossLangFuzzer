@@ -8,28 +8,41 @@
 package com.github.xyzboom.codesmith.ir.declarations.builder
 
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
+import com.github.xyzboom.codesmith.ir.containers.builder.IrTypeParameterContainerBuilder
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrClassDeclarationImpl
+import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import kotlin.contracts.*
 
 @BuilderDsl
-class IrClassDeclarationBuilder {
+class IrClassDeclarationBuilder : IrTypeParameterContainerBuilder {
     lateinit var name: String
+    lateinit var language: Language
     val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
-    val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
+    override val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
     lateinit var classKind: ClassKind
+    var superType: IrType? = null
+    lateinit var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>
+    val implementedTypes: MutableList<IrType> = mutableListOf()
 
-    fun build(): IrClassDeclaration {
+    override fun build(): IrClassDeclaration {
         return IrClassDeclarationImpl(
             name,
+            language,
             functions,
             typeParameters,
             classKind,
+            superType,
+            allSuperTypeArguments,
+            implementedTypes,
         )
     }
+
 }
 
 @OptIn(ExperimentalContracts::class)

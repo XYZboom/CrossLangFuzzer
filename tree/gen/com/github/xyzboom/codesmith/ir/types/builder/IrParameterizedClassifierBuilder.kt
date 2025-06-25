@@ -12,13 +12,14 @@ import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.impl.IrParameterizedClassifierImpl
 import kotlin.contracts.*
 
 @BuilderDsl
 class IrParameterizedClassifierBuilder {
     lateinit var classDecl: IrClassDeclaration
-    lateinit var arguments: HashMap<IrTypeParameter, IrType>
+    lateinit var arguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>
 
     fun build(): IrParameterizedClassifier {
         return IrParameterizedClassifierImpl(

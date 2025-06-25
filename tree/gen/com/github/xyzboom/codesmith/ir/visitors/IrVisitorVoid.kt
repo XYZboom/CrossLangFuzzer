@@ -10,11 +10,9 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
+import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -60,6 +58,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
         visitElement(functionDeclaration)
     }
 
+    final override fun visitPropertyDeclaration(propertyDeclaration: IrPropertyDeclaration, data: Nothing?) {
+        visitPropertyDeclaration(propertyDeclaration)
+    }
+
+    open fun visitPropertyDeclaration(propertyDeclaration: IrPropertyDeclaration) {
+        visitElement(propertyDeclaration)
+    }
+
     final override fun visitParameter(parameter: IrParameter, data: Nothing?) {
         visitParameter(parameter)
     }
@@ -84,6 +90,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
         visitElement(funcContainer)
     }
 
+    final override fun visitPropertyContainer(propertyContainer: IrPropertyContainer, data: Nothing?) {
+        visitPropertyContainer(propertyContainer)
+    }
+
+    open fun visitPropertyContainer(propertyContainer: IrPropertyContainer) {
+        visitElement(propertyContainer)
+    }
+
     final override fun visitTypeParameterContainer(typeParameterContainer: IrTypeParameterContainer, data: Nothing?) {
         visitTypeParameterContainer(typeParameterContainer)
     }
@@ -106,6 +120,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
 
     open fun visitType(type: IrType) {
         visitElement(type)
+    }
+
+    final override fun visitNullableType(nullableType: IrNullableType, data: Nothing?) {
+        visitNullableType(nullableType)
+    }
+
+    open fun visitNullableType(nullableType: IrNullableType) {
+        visitElement(nullableType)
     }
 
     final override fun visitTypeParameter(typeParameter: IrTypeParameter, data: Nothing?) {

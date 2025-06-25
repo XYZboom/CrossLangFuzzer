@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.printer.clazz
+package com.github.xyzboom.codesmith.printer_old.clazz
 
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
@@ -8,18 +8,17 @@ import com.github.xyzboom.codesmith.ir_old.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir_old.expressions.IrNew
 import com.github.xyzboom.codesmith.ir_old.types.IrClassType
 import com.github.xyzboom.codesmith.ir_old.types.builtin.IrAny
-import org.junit.jupiter.api.Disabled
+import com.github.xyzboom.codesmith.printer_old.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class ScalaClassPrinterTest {
+class JavaIrClassPrinterTest {
     companion object {
-        private val todoFunctionBody = "${" ".repeat(4)}???\n"
+        private val todoFunctionBody = "${" ".repeat(8)}throw new RuntimeException();\n"
     }
-
     @Test
     fun testPrintSimpleClassWithSimpleFunction() {
-        val printer = ScalaIrClassPrinter()
+        val printer = JavaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -29,16 +28,18 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "class $clazzName {\n" +
-                "  def $funcName(): Unit = \n" +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                "public final class $clazzName {\n" +
+                "    public final /*@NotNull*/ void $funcName() {\n" +
                 todoFunctionBody +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
 
     @Test
     fun testPrintSimpleClassWithSimpleStubFunction() {
-        val printer = ScalaIrClassPrinter()
+        val printer = JavaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -50,19 +51,21 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "class $clazzName {\n" +
-                "  // stub\n" +
-                "  /*\n" +
-                "  override def $funcName(): Unit = \n" +
-                "    ???\n" +
-                "  */\n" +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                "public final class $clazzName {\n" +
+                "    // stub\n"+
+                "    /*\n"+
+                "    public final @NotNull void $funcName() {\n" +
+                todoFunctionBody +
+                "    }\n" +
+                "    */\n"+
                 "}\n"
         assertEquals(expect, result)
     }
 
     @Test
     fun testPrintSimpleClassWithFunctionHasParameter() {
-        val printer = ScalaIrClassPrinter()
+        val printer = JavaIrClassPrinter()
         val clazzName = "SimpleClassWithFunctionHasParameter"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -74,18 +77,19 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "class SimpleClassWithFunctionHasParameter {\n" +
-                "  def simple(arg0: Object, arg1: SimpleClassWithFunctionHasParameter): Unit = \n" +
-                "    ???\n" +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                "public final class $clazzName {\n" +
+                "    public final /*@NotNull*/ void $funcName(/*@NotNull*/ Object arg0, /*@NotNull*/ $clazzName arg1) {\n" +
+                todoFunctionBody +
+                "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
 
     //<editor-fold desc="Property">
     @Test
-    @Disabled
     fun testPrintSimpleProperty() {
-        val printer = ScalaIrClassPrinter()
+        val printer = JavaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val propertyTypeName = "PType"
         val propertyName = "simple"
@@ -98,7 +102,8 @@ class ScalaClassPrinterTest {
         }
         clazz.properties.add(property)
         val result = printer.print(clazz)
-        val expect = "public final class $clazzName {\n" +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                "public final class $clazzName {\n" +
                 "    public final /*@NotNull*/ $propertyTypeName " +
                 "get${propertyName.replaceFirstChar { it.uppercaseChar() }}() {\n" +
                 todoFunctionBody +
@@ -110,9 +115,8 @@ class ScalaClassPrinterTest {
 
     //<editor-fold desc="Expression">
     @Test
-    @Disabled
     fun testPrintNewExpression() {
-        val printer = ScalaIrClassPrinter()
+        val printer = JavaIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -124,11 +128,13 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "public final class $clazzName {\n" +
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                "public final class $clazzName {\n" +
                 "    public final /*@NotNull*/ void $funcName() {\n" +
                 "        new $clazzName();\n" +
                 "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
+    //</editor-fold>
 }

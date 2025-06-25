@@ -1,10 +1,9 @@
 package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
-import com.github.xyzboom.codesmith.ir_old.types.builtin.ALL_BUILTINS
-import com.github.xyzboom.codesmith.ir_old.types.builtin.IrBuiltInType
-import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
+import com.github.xyzboom.codesmith.generator.IrDeclGenerator
+import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
+import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 
 
@@ -16,17 +15,18 @@ fun main() {
     val temp = System.getProperty("java.io.tmpdir")
     val printer = IrProgramPrinter()
     for (i in 0 until 1) {
-        val generator = IrDeclGeneratorImplOld(
+        val generator = IrDeclGenerator(
             GeneratorConfig()
         )
         val prog = generator.genProgram()
+        println(prog)
         val fileContent = printer.printToSingle(prog)
         println(fileContent)
-        val mutator = IrMutatorImpl(generator = generator)
+        /*val mutator = IrMutatorImpl(generator = generator)
         mutator.mutate(prog)
         val fileContent1 = printer.printToSingle(prog)
         println("-----------------")
-        println(fileContent1)
+        println(fileContent1)*/
         /*val dir = File(temp, "code-smith-${LocalTime.now().nano}")
         printer.saveTo(dir.path, prog)
         val projectPath = dir.path*/
