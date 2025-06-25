@@ -8,11 +8,10 @@ package com.github.xyzboom.codesmith.ir.visitors
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
-import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
-import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
-import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
+import com.github.xyzboom.codesmith.ir.containers.*
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -52,6 +51,9 @@ abstract class IrVisitor<out R, in D> {
     open fun visitTypeParameterContainer(typeParameterContainer: IrTypeParameterContainer, data: D): R =
         visitElement(typeParameterContainer, data)
 
+    open fun visitExpressionContainer(expressionContainer: IrExpressionContainer, data: D): R =
+        visitElement(expressionContainer, data)
+
     open fun visitParameterList(parameterList: IrParameterList, data: D): R =
         visitElement(parameterList, data)
 
@@ -72,4 +74,10 @@ abstract class IrVisitor<out R, in D> {
 
     open fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): R =
         visitElement(parameterizedClassifier, data)
+
+    open fun visitExpression(expression: IrExpression, data: D): R =
+        visitElement(expression, data)
+
+    open fun visitBlock(block: IrBlock, data: D): R =
+        visitElement(block, data)
 }

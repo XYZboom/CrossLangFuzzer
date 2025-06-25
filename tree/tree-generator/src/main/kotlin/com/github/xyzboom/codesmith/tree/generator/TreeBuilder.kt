@@ -26,8 +26,8 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     }
 
     val declaration: Element by element(Element.Kind.Declaration, name = "Declaration") {
-        +field("name", StandardTypes.string)
-        +field("language", languageType)
+        +field("name", StandardTypes.string, isChild = false)
+        +field("language", languageType, isChild = false)
     }
 
     val classDecl: Element by element(Element.Kind.Declaration, name = "ClassDeclaration") {
@@ -35,15 +35,24 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         parent(funcContainer)
         parent(typeParameterContainer)
 
-        +field("classKind", classKindType)
-        +field("superType", type, nullable = true)
-        +field("allSuperTypeArguments", typeArgMapType)
-        +listField("implementedTypes", type)
+        +field("classKind", classKindType, isChild = false)
+        +field("superType", type, nullable = true, isChild = false)
+        +field("allSuperTypeArguments", typeArgMapType, isChild = false)
+        +listField("implementedTypes", type, isChild = false)
     }
 
     val funcDecl: Element by element(Element.Kind.Declaration, name = "FunctionDeclaration") {
         parent(declaration)
         parent(typeParameterContainer)
+
+        +field("printNullableAnnotations", StandardTypes.boolean, isChild = false)
+        +field("body", block, isChild = false, nullable = true)
+        +field("isOverride", StandardTypes.boolean, isChild = false)
+        +field("isOverrideStub", StandardTypes.boolean, isChild = false)
+        +listField("override", funcDecl, isChild = false)
+        +field("isFinal", StandardTypes.boolean, isChild = false)
+        +field("parameterList", parameterList, isChild = false)
+        +field("returnType", type, isChild = false)
     }
 
     val propertyDecl: Element by element(Element.Kind.Declaration, name = "PropertyDeclaration") {
@@ -51,7 +60,9 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     }
 
     val parameter: Element by element(Element.Kind.Declaration, name = "Parameter") {
-
+        +field("name", StandardTypes.string)
+        +field("type", type)
+        +field("defaultValue", expression, nullable = true)
     }
 
     val classContainer: Element by element(Element.Kind.Container, name = "ClassContainer") {
@@ -70,12 +81,16 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +listField("typeParameters", typeParameter)
     }
 
+    val expressionContainer: Element by element(Element.Kind.Container, name = "ExpressionContainer") {
+        +listField("expressions", expression)
+    }
+
     val parameterList: Element by element(Element.Kind.Other, name = "ParameterList") {
         +listField("parameters", parameter)
     }
 
     val type: Element by element(Element.Kind.Type, name = "Type") {
-        +field("classKind", classKindType, withReplace = false, withTransform = false)
+        +field("classKind", classKindType, withReplace = false, withTransform = false, isChild = false)
     }
 
     val nullableType: Element by element(Element.Kind.Type, name = "NullableType") {
@@ -87,7 +102,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     val typeParameter: Element by element(Element.Kind.Type, name = "TypeParameter") {
         parent(type)
 
-        +field("name", StandardTypes.string)
+        +field("name", StandardTypes.string, isChild = false)
         +field("upperbound", type)
     }
 
@@ -104,7 +119,15 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     val parameterizedClassifier: Element by element(Element.Kind.Type, name = "ParameterizedClassifier") {
         parent(classifier)
 
-        +field("arguments", typeArgMapType)
+        +field("arguments", typeArgMapType, isChild = false)
+    }
+
+    val expression: Element by element(Element.Kind.Expression, name = "Expression") {
+
+    }
+
+    val block: Element by element(Element.Kind.Expression, name = "Block") {
+        parent(expressionContainer)
     }
 
     fun field(

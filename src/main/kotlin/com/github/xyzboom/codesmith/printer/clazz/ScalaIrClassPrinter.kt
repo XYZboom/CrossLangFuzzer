@@ -127,7 +127,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         data.append(" {\n")
 
         indentCount++
-        clazz.functions.forEach { it.accept(this, data) }
+        super.visitClassDeclaration(clazz, data)
         indentCount--
 
         data.append(indent)

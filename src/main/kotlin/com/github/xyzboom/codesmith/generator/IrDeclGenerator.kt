@@ -1,32 +1,26 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.codesmith.ir.Language
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.builder.IrProgramBuilder
-import com.github.xyzboom.codesmith.ir.builder.buildProgram
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.ClassKind
-import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
-import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.builder.IrProgramBuilder
+import com.github.xyzboom.codesmith.ir.builder.buildParameterList
+import com.github.xyzboom.codesmith.ir.builder.buildProgram
+import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
 import com.github.xyzboom.codesmith.ir.containers.builder.IrTypeParameterContainerBuilder
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.builder.IrClassDeclarationBuilder
-import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
-import com.github.xyzboom.codesmith.ir.types.IrClassifier
-import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
-import com.github.xyzboom.codesmith.ir.types.IrType
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
+import com.github.xyzboom.codesmith.ir.declarations.IrParameter
+import com.github.xyzboom.codesmith.ir.declarations.asString
+import com.github.xyzboom.codesmith.ir.declarations.builder.*
+import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
+import com.github.xyzboom.codesmith.ir.types.*
+import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
-import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
-import com.github.xyzboom.codesmith.ir.types.copy
-import com.github.xyzboom.codesmith.ir.types.equalsIgnoreTypeArguments
-import com.github.xyzboom.codesmith.ir.types.getTypeArguments
-import com.github.xyzboom.codesmith.ir.types.putAllTypeArguments
-import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -289,63 +283,32 @@ class IrDeclGenerator(
                 }
             }
             genSuperTypes(context)
-        }.apply {
-            /*for (i in 0 until config.classMemberNumRange.random(random)) {
+            repeat(config.classMemberNumRange.random(random)) {
                 genFunction(
                     context,
                     this,
-                    classType == IrClassType.ABSTRACT,
-                    classType == IrClassType.INTERFACE,
+                    classKind == ClassKind.ABSTRACT,
+                    classKind == ClassKind.INTERFACE,
                     null,
                     randomName(false),
                     language
                 )
             }
-            genOverrides()*/
+        }.apply {
+            /*genOverrides()*/
         }
-        /*val classType = randomClassType()
-        return IrClassDeclaration(name, classType).apply {
-            this.language = language
-            context.classes.add(this)
-            if (random.nextBoolean(config.classHasTypeParameterProbability)) {
-                repeat(config.classTypeParameterNumberRange.random(random)) {
-                    genTypeParameter()
-                }
-            }
-            genSuperTypes(context)
-
-            for (i in 0 until config.classMemberNumRange.random(random)) {
-                val generator: IrClassMemberGenerator = if (classType != IrClassType.INTERFACE) {
-                    randomClassMemberGenerator()
-                } else {
-                    this@IrDeclGeneratorImplOld::genFunction
-                }
-                generator(
-                    context,
-                    this,
-                    classType == IrClassType.ABSTRACT,
-                    classType == IrClassType.INTERFACE,
-                    null,
-                    randomName(false),
-                    language
-                )
-            }
-            genOverrides()
-        }*/
     }
 
     fun genFunction(
-        classContainer: IrClassContainer,
-        funcContainer: IrFuncContainer,
+        classContainer: IrProgramBuilder,
+        funcContainer: IrFuncContainerBuilder,
         inAbstract: Boolean,
         inIntf: Boolean,
         returnType: IrType?,
         name: String,
         language: Language
     ): IrFunctionDeclaration? {
-        // TODO
-        return null
-        val topLevel = funcContainer is IrProgram
+        val topLevel = funcContainer is IrProgramBuilder
         logger.trace {
             val sb = StringBuilder("gen function $name for ")
             if (funcContainer is IrClassDeclaration) {
@@ -357,32 +320,34 @@ class IrDeclGenerator(
             sb.toString()
         }
         require(!topLevel || returnType !is IrTypeParameter)
-        /*return IrFunctionDeclaration(name, funcContainer).apply {
+        return buildFunctionDeclaration {
+            this.name = name
             this.language = language
-            funcContainer.functions.add(this)
             if ((!inIntf && (!inAbstract || random.nextBoolean())) || topLevel) {
-                body = IrBlock()
+                body = buildBlock()
                 isFinal = when {
                     topLevel -> true
-                    funcContainer is IrClassDeclaration && funcContainer.classType != IrClassType.INTERFACE ->
+                    funcContainer is IrClassDeclarationBuilder && funcContainer.classKind != ClassKind.INTERFACE ->
                         !config.noFinalFunction && random.nextBoolean()
 
                     else -> false
                 }
             }
-            for (i in 0 until config.functionParameterNumRange.random(random)) {
-                parameterList.parameters.add(
-                    genFunctionParameter(
-                        classContainer,
-                        funcContainer as? IrClassDeclaration,
-                        this
+            parameterList = buildParameterList {
+                for (i in 0 until config.functionParameterNumRange.random(random)) {
+                    parameters.add(
+                        genFunctionParameter(
+                            classContainer,
+                            funcContainer as? IrClassDeclarationBuilder,
+                            this@buildFunctionDeclaration
+                        )
                     )
-                )
+                }
             }
             if (returnType == null) {
-                genFunctionReturnType(classContainer, funcContainer as? IrClassDeclaration, this)
+                genFunctionReturnType(classContainer, funcContainer as? IrClassDeclarationBuilder, this)
             } else {
-                logger.trace { "use given return type: $returnType" }
+                logger.trace { "use given return type: ${returnType.render()}" }
                 this.returnType = returnType
             }
             require(!topLevel || this.returnType !is IrTypeParameter)
@@ -390,20 +355,79 @@ class IrDeclGenerator(
                 logger.trace { "make $name print nullable annotations" }
                 printNullableAnnotations = true
             }
-            val block = body
-            *//*if (block != null) {
-                repeat(config.functionExpressionNumRange.random(random)) {
-                    val expr = genExpression(block, this, classContainer.program)
-                    block.expressions.add(expr)
-                }
-                if (this.returnType !== IrUnit) {
-                    val returnExpr = genExpression(block, this, classContainer.program, this.returnType)
-                    block.expressions.add(IrReturnExpression(returnExpr))
-                } else {
-                    block.expressions.add(IrReturnExpression(null))
-                }
-            }*//*
-        }*/
+            // todo expressions here
+        }.also {
+            funcContainer.functions.add(it)
+        }
+    }
+
+    fun genFunctionParameter(
+        classContainer: IrProgramBuilder,
+        classContext: IrClassDeclarationBuilder?,
+        target: IrFunctionDeclarationBuilder,
+        name: String = randomName(false)
+    ): IrParameter {
+        val chooseType = randomType(classContainer, classContext?.typeParameters, target.typeParameters, true) {
+            if (classContext == null) {
+                it !is IrTypeParameter
+            } else {
+                true
+            } && it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
+        } ?: IrAny
+        logger.trace { "gen parameter: $name, $chooseType" }
+        val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)
+            || chooseType === IrNothing
+        ) {
+            buildNullableType {
+                innerType = chooseType
+            }
+        } else {
+            chooseType
+        }
+        return buildParameter {
+            this.name = name
+            this.type = makeNullableType
+        }
+    }
+
+    fun StringBuilder.traceFunc(
+        target: IrFunctionDeclarationBuilder,
+        classContext: IrClassDeclarationBuilder?
+    ) {
+        append(target.asString())
+        append(" from ")
+        if (classContext != null) {
+            append("class ")
+            append(classContext.name)
+        }
+    }
+
+    fun genFunctionReturnType(
+        classContainer: IrProgramBuilder,
+        classContext: IrClassDeclarationBuilder?,
+        target: IrFunctionDeclarationBuilder
+    ) {
+        val chooseType = randomType(classContainer, classContext?.typeParameters, target.typeParameters, true) {
+            if (classContext == null) {
+                it !is IrTypeParameter
+            } else {
+                true
+            } && it !== IrNothing || config.allowNothingInReturnType
+        }
+        logger.trace {
+            val sb = StringBuilder("gen return type for: ")
+            sb.traceFunc(target, classContext)
+            sb.append(". return type is: $chooseType")
+            sb.toString()
+        }
+        if (chooseType != null) {
+            val makeNullableType = if (random.nextBoolean(config.functionReturnTypeNullableProbability)) {
+                buildNullableType { innerType = chooseType }
+            } else {
+                chooseType
+            }
+            target.returnType = makeNullableType
+        }
     }
 
 }

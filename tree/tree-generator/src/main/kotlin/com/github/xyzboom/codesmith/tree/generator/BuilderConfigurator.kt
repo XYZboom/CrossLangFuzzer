@@ -28,5 +28,19 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
             parents += typeParameterContainerBuilder
         }
         noBuilder(nullableType)
+
+        val funcContainerBuilder by builder {
+            fields from funcContainer
+        }
+        builder(program) {
+            parents += funcContainerBuilder
+        }
+        builder(classDecl) {
+            parents += funcContainerBuilder
+        }
+
+        builder(funcDecl) {
+            defaultFalse("printNullableAnnotations", "isOverride", "isOverrideStub", "isFinal")
+        }
     }
 }

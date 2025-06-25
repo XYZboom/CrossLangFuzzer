@@ -12,4 +12,5 @@ abstract class IrType : IrElement() {
     open val unfinished: Boolean get() = false
     abstract fun equalsIgnoreTypeArguments(other: IrType): Boolean
     open fun copy(): IrType = this
+    abstract override fun toString(): String
 }

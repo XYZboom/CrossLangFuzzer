@@ -7,10 +7,13 @@
 
 package com.github.xyzboom.codesmith.ir.declarations.builder
 
+import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionDeclarationImpl
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import kotlin.contracts.*
 
@@ -19,14 +22,31 @@ class IrFunctionDeclarationBuilder {
     lateinit var name: String
     lateinit var language: Language
     val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
+    var printNullableAnnotations: Boolean = false
+    var body: IrBlock? = null
+    var isOverride: Boolean = false
+    var isOverrideStub: Boolean = false
+    val override: MutableList<IrFunctionDeclaration> = mutableListOf()
+    var isFinal: Boolean = false
+    lateinit var parameterList: IrParameterList
+    lateinit var returnType: IrType
 
     fun build(): IrFunctionDeclaration {
         return IrFunctionDeclarationImpl(
             name,
             language,
             typeParameters,
+            printNullableAnnotations,
+            body,
+            isOverride,
+            isOverrideStub,
+            override,
+            isFinal,
+            parameterList,
+            returnType,
         )
     }
+
 }
 
 @OptIn(ExperimentalContracts::class)
