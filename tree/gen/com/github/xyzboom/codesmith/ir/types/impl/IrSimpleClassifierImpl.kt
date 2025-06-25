@@ -7,6 +7,7 @@
 
 package com.github.xyzboom.codesmith.ir.types.impl
 
+import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
@@ -15,6 +16,8 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 internal class IrSimpleClassifierImpl(
     override var classDecl: IrClassDeclaration,
 ) : IrSimpleClassifier() {
+    override val classKind: ClassKind
+        get() = classDecl.classKind
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
         classDecl.accept(visitor, data)

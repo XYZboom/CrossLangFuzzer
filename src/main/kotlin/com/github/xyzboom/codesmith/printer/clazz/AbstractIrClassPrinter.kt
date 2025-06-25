@@ -1,18 +1,18 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
-import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir_old.IrElement
-import com.github.xyzboom.codesmith.ir_old.IrProgram
-import com.github.xyzboom.codesmith.ir_old.types.IrClassType
-import com.github.xyzboom.codesmith.ir_old.types.IrType
-import com.github.xyzboom.codesmith.ir_old.visitor.IrTopDownVisitor
+import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.visitors.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinter
 import com.github.xyzboom.codesmith.printer.TypeContext
 import java.util.*
 
 abstract class AbstractIrClassPrinter(
     var indentCount: Int = 0
-) : IrPrinter<IrClassDeclaration, String>, IrTopDownVisitor<StringBuilder> {
+) : IrPrinter<IrClassDeclaration, String>, IrTopDownVisitor<StringBuilder>() {
     val elementStack = Stack<IrElement>()
     open val spaceCountInIndent = 4
     override fun visitElement(element: IrElement, data: StringBuilder) {
@@ -23,7 +23,7 @@ abstract class AbstractIrClassPrinter(
 
     val indent get() = " ".repeat(spaceCountInIndent).repeat(indentCount)
 
-    abstract fun printIrClassType(irClassType: IrClassType): String
+    abstract fun printIrClassType(irClassType: ClassKind): String
 
     abstract fun IrClassDeclaration.printExtendList(superType: IrType?, implList: List<IrType>): String
 

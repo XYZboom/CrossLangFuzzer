@@ -1,5 +1,8 @@
 package com.github.xyzboom.codesmith.ir
 
-class ClassKind {
-
+enum class ClassKind {
+    ABSTRACT,
+    INTERFACE,
+    OPEN,
+    FINAL;
 }

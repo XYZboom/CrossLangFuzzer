@@ -1,11 +1,8 @@
 // auto generated, do not manually edit!
-package com.github.xyzboom.codesmith.printer.generated
+package com.github.xyzboom.codesmith.printer_old.generated
 
-import com.github.xyzboom.codesmith.printer.BaseClassPrinterTester
-import org.junit.jupiter.api.Nested
+import com.github.xyzboom.codesmith.printer_old.BaseClassPrinterTester
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Disabled
-import java.nio.file.Path
 
 class ClassPrinterTest : BaseClassPrinterTester() {
     @Test

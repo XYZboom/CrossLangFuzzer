@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.printer
 
-import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.ScalaIrClassPrinter
@@ -17,7 +17,8 @@ class IrProgramPrinter(
      * Print a file that contains a `box` function.
      * Use for Kotlin box test.
      */
-    private val printBox: Boolean = true
+    private val printBox: Boolean = true,
+    private val majorLanguage: Language = Language.KOTLIN
 ) : IrPrinter<IrProgram, Map<String, String>> {
     private lateinit var javaClassPrinter: JavaIrClassPrinter
     private val ktClassPrinter = KtIrClassPrinter()
@@ -56,9 +57,10 @@ class IrProgramPrinter(
 
     override fun print(element: IrProgram): Map<String, String> {
         val result = mutableMapOf<String, String>()
-        javaClassPrinter = JavaIrClassPrinter(element.majorLanguage)
+        javaClassPrinter = JavaIrClassPrinter(majorLanguage)
         for (clazz in element.classes) {
-            clazz.changeLanguageIfNotSuitable()
+            // todo
+//            clazz.changeLanguageIfNotSuitable()
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
                 Language.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)

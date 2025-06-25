@@ -1,20 +1,19 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
-import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.Language.*
-import com.github.xyzboom.codesmith.ir_old.IrElement
-import com.github.xyzboom.codesmith.ir_old.IrParameterList
-import com.github.xyzboom.codesmith.ir_old.IrProgram
-import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir_old.declarations.IrPropertyDeclaration
-import com.github.xyzboom.codesmith.ir_old.expressions.*
-import com.github.xyzboom.codesmith.ir_old.types.*
-import com.github.xyzboom.codesmith.ir_old.types.IrClassType.*
-import com.github.xyzboom.codesmith.ir_old.types.builtin.IrAny
-import com.github.xyzboom.codesmith.ir_old.types.builtin.IrBuiltInType
-import com.github.xyzboom.codesmith.ir_old.types.builtin.IrNothing
-import com.github.xyzboom.codesmith.ir_old.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Language.*
+import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrParameterList
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.types.*
+import com.github.xyzboom.codesmith.ir.ClassKind.*
+import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
+import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
 import com.github.xyzboom.codesmith.printer.TypeContext.*
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -69,7 +68,7 @@ class JavaIrClassPrinter(
 
     override fun print(element: IrClassDeclaration): String {
         val data = StringBuilder(imports)
-        visitClass(element, data)
+        visitClassDeclaration(element, data)
         return data.toString()
     }
 
@@ -79,10 +78,10 @@ class JavaIrClassPrinter(
         indentCount++
         elementStack.push(program)
         for (function in program.functions.filter { it.language == JAVA }) {
-            visitFunction(function, data)
+            visitFunctionDeclaration(function, data)
         }
         for (property in program.properties.filter { it.language == JAVA }) {
-            visitProperty(property, data)
+            visitPropertyDeclaration(property, data)
         }
         indentCount--
         data.append("}")
@@ -90,7 +89,7 @@ class JavaIrClassPrinter(
         return data.toString()
     }
 
-    override fun printIrClassType(irClassType: IrClassType): String {
+    override fun printIrClassType(irClassType: ClassKind): String {
         return when (irClassType) {
             ABSTRACT -> "abstract class "
             INTERFACE -> "interface "
@@ -138,7 +137,7 @@ class JavaIrClassPrinter(
                             val (_, typeArg) = pair
                             sb.append(
                                 printType(
-                                    typeArg,
+                                    typeArg.second,
                                     typeContext = TypeArgument,
                                     printNullableAnnotation = printNullableAnnotation,
                                     noNullabilityAnnotation = noNullabilityAnnotation,
@@ -182,7 +181,7 @@ class JavaIrClassPrinter(
             sb.append(" ")
         }
         if (implList.isNotEmpty()) {
-            if (classType != INTERFACE) {
+            if (classKind != INTERFACE) {
                 sb.append("implements ")
             } else {
                 sb.append("extends ")
@@ -197,10 +196,10 @@ class JavaIrClassPrinter(
         return sb.toString()
     }
 
-    override fun visitClass(clazz: IrClassDeclaration, data: StringBuilder) {
+    override fun visitClassDeclaration(clazz: IrClassDeclaration, data: StringBuilder) {
         data.append(indent)
         data.append("public ")
-        data.append(printIrClassType(clazz.classType))
+        data.append(printIrClassType(clazz.classKind))
         data.append(clazz.name)
         val typeParameters = clazz.typeParameters
         if (typeParameters.isNotEmpty()) {
@@ -217,89 +216,89 @@ class JavaIrClassPrinter(
         data.append(" {\n")
 
         indentCount++
-        super.visitClass(clazz, data)
+        clazz.functions.forEach { it.accept(this, data) }
         indentCount--
 
         data.append(indent)
         data.append("}\n")
     }
 
-    override fun visitFunction(function: IrFunctionDeclaration, data: StringBuilder) {
-        val functionContainer: IrElement = elementStack.peek()
-        elementStack.push(function)
-        /**
-         * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
-         * so multi line comments in stubs need to be disabled.
-         */
-        val printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
-        if (function.isOverrideStub) {
-            data.append(indent)
-            data.append("// stub\n")
-            data.append(indent)
-            data.append("/*\n")
-        }
-        data.append(indent)
-        data.append("public ")
-        if (function.body == null) {
-            data.append("abstract ")
-        } else {
-            if (functionContainer is IrClassDeclaration && functionContainer.classType == INTERFACE) {
-                data.append("default ")
-            }
-        }
-        if (function.isFinal) {
-            if (function.topLevel) {
-                data.append("static ")
-            } else {
-                data.append("final ")
-            }
-        }
-        // IrUnit in Java is void if it is not type argument. It's Void otherwise.
-        var anyOverrideReturnTypeIsTypeParameter = false
-        function.traverseOverride {
-            val returnType = it.returnType
-            logger.trace { returnType.toString() }
-            if (returnType is IrTypeParameter ||
-                (returnType is IrNullableType && returnType.innerType is IrTypeParameter)
-            ) {
-                anyOverrideReturnTypeIsTypeParameter = true
-            }
-        }
-        data.append(
-            printType(
-                function.returnType, printNullableAnnotation = printNullableAnnotation,
-                typeContext = if (anyOverrideReturnTypeIsTypeParameter) {
-                    TypeArgument
-                } else {
-                    Other
-                }
-            )
-        )
-        data.append(" ")
-        data.append(function.name)
-        data.append("(")
-        visitParameterList(function.parameterList, data)
-        data.append(")")
-        val body = function.body
-        if (body != null) {
-            data.append(" {\n")
-            indentCount++
-            visitBlock(body, data)
-            indentCount--
-            data.append(indent)
-            data.append("}")
-        } else {
-            data.append(";")
-        }
-        data.append("\n")
-        if (function.isOverrideStub) {
-            data.append(indent)
-            data.append("*/\n")
-        }
-        require(elementStack.pop() === function)
-    }
+//    override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+//        val functionContainer: IrElement = elementStack.peek()
+//        elementStack.push(function)
+//        /**
+//         * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
+//         * so multi line comments in stubs need to be disabled.
+//         */
+//        val printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
+//        if (function.isOverrideStub) {
+//            data.append(indent)
+//            data.append("// stub\n")
+//            data.append(indent)
+//            data.append("/*\n")
+//        }
+//        data.append(indent)
+//        data.append("public ")
+//        if (function.body == null) {
+//            data.append("abstract ")
+//        } else {
+//            if (functionContainer is IrClassDeclaration && functionContainer.classKind == INTERFACE) {
+//                data.append("default ")
+//            }
+//        }
+//        if (function.isFinal) {
+//            if (function.topLevel) {
+//                data.append("static ")
+//            } else {
+//                data.append("final ")
+//            }
+//        }
+//        // IrUnit in Java is void if it is not type argument. It's Void otherwise.
+//        var anyOverrideReturnTypeIsTypeParameter = false
+//        function.traverseOverride {
+//            val returnType = it.returnType
+//            logger.trace { returnType.toString() }
+//            if (returnType is IrTypeParameter ||
+//                (returnType is IrNullableType && returnType.innerType is IrTypeParameter)
+//            ) {
+//                anyOverrideReturnTypeIsTypeParameter = true
+//            }
+//        }
+//        data.append(
+//            printType(
+//                function.returnType, printNullableAnnotation = printNullableAnnotation,
+//                typeContext = if (anyOverrideReturnTypeIsTypeParameter) {
+//                    TypeArgument
+//                } else {
+//                    Other
+//                }
+//            )
+//        )
+//        data.append(" ")
+//        data.append(function.name)
+//        data.append("(")
+//        visitParameterList(function.parameterList, data)
+//        data.append(")")
+//        val body = function.body
+//        if (body != null) {
+//            data.append(" {\n")
+//            indentCount++
+//            visitBlock(body, data)
+//            indentCount--
+//            data.append(indent)
+//            data.append("}")
+//        } else {
+//            data.append(";")
+//        }
+//        data.append("\n")
+//        if (function.isOverrideStub) {
+//            data.append(indent)
+//            data.append("*/\n")
+//        }
+//        require(elementStack.pop() === function)
+//    }
 
-    override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
+    /*override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters
         val func = elementStack.peek() as IrFunctionDeclaration
         for ((index, parameter) in parameters.withIndex()) {
@@ -315,9 +314,9 @@ class JavaIrClassPrinter(
                 data.append(", ")
             }
         }
-    }
+    }*/
 
-    override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
+    /*override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
         val propertyContainer: IrElement = elementStack.peek()
         val printNullableAnnotation = property.printNullableAnnotations
 
@@ -367,9 +366,9 @@ class JavaIrClassPrinter(
         if (!property.readonly) {
             buildGetterOrSetter(true)
         }
-    }
+    }*/
 
-    override fun visitBlock(block: IrBlock, data: StringBuilder) {
+    /*override fun visitBlock(block: IrBlock, data: StringBuilder) {
         val function = elementStack.peek() as IrFunctionDeclaration
         if (block.expressions.isEmpty()) {
             data.append(indent)
@@ -382,9 +381,9 @@ class JavaIrClassPrinter(
             expression.accept(this, data)
             data.append(";\n")
         }
-    }
+    }*/
 
-    override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
+    /*override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
         data.append("new ")
         data.append(
             printType(
@@ -428,5 +427,5 @@ class JavaIrClassPrinter(
 
     override fun visitDefaultImplExpression(defaultImpl: IrDefaultImpl, data: StringBuilder) {
         data.append("null")
-    }
+    }*/
 }

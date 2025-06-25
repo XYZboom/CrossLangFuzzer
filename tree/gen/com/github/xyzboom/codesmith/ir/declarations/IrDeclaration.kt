@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
@@ -14,6 +15,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  */
 abstract class IrDeclaration : IrElement {
     abstract val name: String
+    abstract val language: Language
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitDeclaration(this, data)
@@ -24,5 +26,9 @@ abstract class IrDeclaration : IrElement {
 
     abstract fun replaceName(newName: String)
 
+    abstract fun replaceLanguage(newLanguage: Language)
+
     abstract fun <D> transformName(transformer: IrTransformer<D>, data: D): IrDeclaration
+
+    abstract fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrDeclaration
 }

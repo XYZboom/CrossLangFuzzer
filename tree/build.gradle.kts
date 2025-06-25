@@ -9,6 +9,10 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
+}
+
 sourceSets {
     project.sourceSets.maybeCreate("main").apply {
         java.srcDir("src")

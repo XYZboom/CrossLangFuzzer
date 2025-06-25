@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.printer.clazz
+package com.github.xyzboom.codesmith.printer_old.clazz
 
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
@@ -8,17 +8,19 @@ import com.github.xyzboom.codesmith.ir_old.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir_old.expressions.IrNew
 import com.github.xyzboom.codesmith.ir_old.types.IrClassType
 import com.github.xyzboom.codesmith.ir_old.types.builtin.IrAny
-import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-class JavaIrClassPrinterTest {
+class KtIrClassPrinterTest {
     companion object {
-        private val todoFunctionBody = "${" ".repeat(8)}throw new RuntimeException();\n"
+        private val todoFunctionBody = "${" ".repeat(8)}throw RuntimeException()\n"
+        private val todoPropertyInitExpr = "TODO()"
     }
+
+    //<editor-fold desc="Function">
     @Test
     fun testPrintSimpleClassWithSimpleFunction() {
-        val printer = JavaIrClassPrinter()
+        val printer = KtIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -28,9 +30,8 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = NULLABILITY_ANNOTATION_IMPORTS +
-                "public final class $clazzName {\n" +
-                "    public final /*@NotNull*/ void $funcName() {\n" +
+        val expect = "public class $clazzName {\n" +
+                "    fun $funcName(): Unit {\n" +
                 todoFunctionBody +
                 "    }\n" +
                 "}\n"
@@ -39,7 +40,7 @@ class JavaIrClassPrinterTest {
 
     @Test
     fun testPrintSimpleClassWithSimpleStubFunction() {
-        val printer = JavaIrClassPrinter()
+        val printer = KtIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -51,21 +52,20 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = NULLABILITY_ANNOTATION_IMPORTS +
-                "public final class $clazzName {\n" +
-                "    // stub\n"+
-                "    /*\n"+
-                "    public final @NotNull void $funcName() {\n" +
+        val expect = "public class $clazzName {\n" +
+                "    // stub\n" +
+                "    /*\n" +
+                "    override fun $funcName(): Unit {\n" +
                 todoFunctionBody +
                 "    }\n" +
-                "    */\n"+
+                "    */\n" +
                 "}\n"
         assertEquals(expect, result)
     }
 
     @Test
     fun testPrintSimpleClassWithFunctionHasParameter() {
-        val printer = JavaIrClassPrinter()
+        val printer = KtIrClassPrinter()
         val clazzName = "SimpleClassWithFunctionHasParameter"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -77,37 +77,31 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = NULLABILITY_ANNOTATION_IMPORTS +
-                "public final class $clazzName {\n" +
-                "    public final /*@NotNull*/ void $funcName(/*@NotNull*/ Object arg0, /*@NotNull*/ $clazzName arg1) {\n" +
+        val expect = "public class $clazzName {\n" +
+                "    fun $funcName(arg0: Any, arg1: $clazzName): Unit {\n" +
                 todoFunctionBody +
                 "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
+    //</editor-fold>
 
     //<editor-fold desc="Property">
     @Test
     fun testPrintSimpleProperty() {
-        val printer = JavaIrClassPrinter()
+        val printer = KtIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
-        val propertyTypeName = "PType"
         val propertyName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
-        val pClass = IrClassDeclaration(propertyTypeName, IrClassType.FINAL)
         val property = IrPropertyDeclaration(propertyName, clazz).apply {
             isFinal = true
-            type = pClass.type
+            type = IrAny
             readonly = true
         }
         clazz.properties.add(property)
         val result = printer.print(clazz)
-        val expect = NULLABILITY_ANNOTATION_IMPORTS +
-                "public final class $clazzName {\n" +
-                "    public final /*@NotNull*/ $propertyTypeName " +
-                "get${propertyName.replaceFirstChar { it.uppercaseChar() }}() {\n" +
-                todoFunctionBody +
-                "    }\n" +
+        val expect = "public class $clazzName {\n" +
+                "    val $propertyName: Any = $todoPropertyInitExpr\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -116,7 +110,7 @@ class JavaIrClassPrinterTest {
     //<editor-fold desc="Expression">
     @Test
     fun testPrintNewExpression() {
-        val printer = JavaIrClassPrinter()
+        val printer = KtIrClassPrinter()
         val clazzName = "SimpleClassWithSimpleFunction"
         val funcName = "simple"
         val clazz = IrClassDeclaration(clazzName, IrClassType.FINAL)
@@ -128,13 +122,13 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = NULLABILITY_ANNOTATION_IMPORTS +
-                "public final class $clazzName {\n" +
-                "    public final /*@NotNull*/ void $funcName() {\n" +
-                "        new $clazzName();\n" +
+        val expect = "public class $clazzName {\n" +
+                "    fun $funcName(): Unit {\n" +
+                "        $clazzName()\n" +
                 "    }\n" +
                 "}\n"
         assertEquals(expect, result)
     }
     //</editor-fold>
+
 }

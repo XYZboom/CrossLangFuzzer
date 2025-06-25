@@ -27,9 +27,12 @@ fun main() {
         InterfaceAndAbstractClassConfigurator((model.elements + implementations))
             .configureInterfacesAndAbstractClasses()
 
+        val builderConfigurator = BuilderConfigurator(model)
+        builderConfigurator.configureBuilders()
+
         printElements(model, ::ElementPrinter)
         printElementImplementations(implementations, ::ImplementationPrinter)
-        printElementBuilders(implementations.mapNotNull { it.builder }, ::BuilderPrinter)
+        printElementBuilders(implementations.mapNotNull { it.builder } + builderConfigurator.intermediateBuilders, ::BuilderPrinter)
         printVisitors(
             model,
             listOf(

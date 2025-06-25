@@ -7,18 +7,24 @@
 
 package com.github.xyzboom.codesmith.ir.declarations.builder
 
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionDeclarationImpl
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import kotlin.contracts.*
 
 @BuilderDsl
 class IrFunctionDeclarationBuilder {
     lateinit var name: String
+    lateinit var language: Language
+    val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
 
     fun build(): IrFunctionDeclaration {
         return IrFunctionDeclarationImpl(
             name,
+            language,
+            typeParameters,
         )
     }
 }
