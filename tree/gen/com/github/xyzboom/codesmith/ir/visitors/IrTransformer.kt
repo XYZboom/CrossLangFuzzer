@@ -8,11 +8,10 @@ package com.github.xyzboom.codesmith.ir.visitors
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
-import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
-import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
-import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
+import com.github.xyzboom.codesmith.ir.containers.*
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -106,6 +105,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
         return transformTypeParameterContainer(typeParameterContainer, data)
     }
 
+    open fun transformExpressionContainer(expressionContainer: IrExpressionContainer, data: D): IrExpressionContainer {
+        return transformElement(expressionContainer, data)
+    }
+
+    final override fun visitExpressionContainer(expressionContainer: IrExpressionContainer, data: D): IrExpressionContainer {
+        return transformExpressionContainer(expressionContainer, data)
+    }
+
     open fun transformParameterList(parameterList: IrParameterList, data: D): IrParameterList {
         return transformElement(parameterList, data)
     }
@@ -160,5 +167,21 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
 
     final override fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): IrType {
         return transformParameterizedClassifier(parameterizedClassifier, data)
+    }
+
+    open fun transformExpression(expression: IrExpression, data: D): IrExpression {
+        return transformElement(expression, data)
+    }
+
+    final override fun visitExpression(expression: IrExpression, data: D): IrExpression {
+        return transformExpression(expression, data)
+    }
+
+    open fun transformBlock(block: IrBlock, data: D): IrBlock {
+        return transformElement(block, data)
+    }
+
+    final override fun visitBlock(block: IrBlock, data: D): IrBlock {
+        return transformBlock(block, data)
     }
 }

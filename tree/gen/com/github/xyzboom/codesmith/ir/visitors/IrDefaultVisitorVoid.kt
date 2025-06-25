@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.visitors
 
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -34,6 +35,10 @@ abstract class IrDefaultVisitorVoid : IrVisitorVoid() {
 
     override fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier) {
         visitClassifier(parameterizedClassifier)
+    }
+
+    override fun visitBlock(block: IrBlock) {
+        visitExpressionContainer(block)
     }
 
 }

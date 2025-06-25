@@ -32,15 +32,11 @@ internal class IrClassDeclarationImpl(
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
         functions.forEach { it.accept(visitor, data) }
         typeParameters.forEach { it.accept(visitor, data) }
-        superType?.accept(visitor, data)
-        implementedTypes.forEach { it.accept(visitor, data) }
     }
 
     override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrClassDeclarationImpl {
         transformFunctions(transformer, data)
         transformTypeParameters(transformer, data)
-        transformSuperType(transformer, data)
-        transformImplementedTypes(transformer, data)
         return this
     }
 

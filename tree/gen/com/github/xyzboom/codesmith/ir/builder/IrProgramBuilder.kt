@@ -8,6 +8,7 @@
 package com.github.xyzboom.codesmith.ir.builder
 
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
@@ -15,12 +16,12 @@ import com.github.xyzboom.codesmith.ir.impl.IrProgramImpl
 import kotlin.contracts.*
 
 @BuilderDsl
-class IrProgramBuilder {
+class IrProgramBuilder : IrFuncContainerBuilder {
     val classes: MutableList<IrClassDeclaration> = mutableListOf()
-    val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
+    override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
     val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
 
-    fun build(): IrProgram {
+    override fun build(): IrProgram {
         return IrProgramImpl(
             classes,
             functions,

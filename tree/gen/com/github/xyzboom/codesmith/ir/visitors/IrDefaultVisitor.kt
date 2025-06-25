@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.visitors
 
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -30,4 +31,7 @@ abstract class IrDefaultVisitor<out R, in D> : IrVisitor<R, D>() {
 
     override fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier, data: D): R =
         visitClassifier(parameterizedClassifier, data)
+
+    override fun visitBlock(block: IrBlock, data: D): R =
+        visitExpressionContainer(block, data)
 }

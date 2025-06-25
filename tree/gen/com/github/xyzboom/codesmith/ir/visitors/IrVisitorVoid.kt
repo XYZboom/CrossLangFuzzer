@@ -8,11 +8,10 @@ package com.github.xyzboom.codesmith.ir.visitors
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
-import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
-import com.github.xyzboom.codesmith.ir.containers.IrPropertyContainer
-import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
+import com.github.xyzboom.codesmith.ir.containers.*
 import com.github.xyzboom.codesmith.ir.declarations.*
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.*
 
 /**
@@ -106,6 +105,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
         visitElement(typeParameterContainer)
     }
 
+    final override fun visitExpressionContainer(expressionContainer: IrExpressionContainer, data: Nothing?) {
+        visitExpressionContainer(expressionContainer)
+    }
+
+    open fun visitExpressionContainer(expressionContainer: IrExpressionContainer) {
+        visitElement(expressionContainer)
+    }
+
     final override fun visitParameterList(parameterList: IrParameterList, data: Nothing?) {
         visitParameterList(parameterList)
     }
@@ -160,5 +167,21 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
 
     open fun visitParameterizedClassifier(parameterizedClassifier: IrParameterizedClassifier) {
         visitElement(parameterizedClassifier)
+    }
+
+    final override fun visitExpression(expression: IrExpression, data: Nothing?) {
+        visitExpression(expression)
+    }
+
+    open fun visitExpression(expression: IrExpression) {
+        visitElement(expression)
+    }
+
+    final override fun visitBlock(block: IrBlock, data: Nothing?) {
+        visitBlock(block)
+    }
+
+    open fun visitBlock(block: IrBlock) {
+        visitElement(block)
     }
 }
