@@ -8,6 +8,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.ClassKind.*
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
@@ -134,45 +135,45 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         data.append("}\n")
     }
 
-//    override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
-//        elementStack.push(function)
-//        /**
-//         * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
-//         * so multi line comments in stubs need to be disabled.
-//         */
-//        if (function.isOverrideStub) {
-//            data.append(indent)
-//            data.append("// stub\n")
-//            data.append(indent)
-//            data.append("/*\n")
-//        }
-//        data.append(indent)
-//        if (function.isOverride) {
-//            data.append("override ")
-//        }
-//        data.append("def ")
-//        data.append(function.name)
-//        data.append("(")
-//        visitParameterList(function.parameterList, data)
-//        data.append("): ")
-//        data.append(printType(function.returnType))
-//        val body = function.body
-//        if (body != null) {
-//            data.append(" = \n")
-//            indentCount++
-//            visitBlock(body, data)
-//            indentCount--
-//        } else {
-//            data.append("\n")
-//        }
-//        if (function.isOverrideStub) {
-//            data.append(indent)
-//            data.append("*/\n")
-//        }
-//        require(elementStack.pop() === function)
-//    }
+    override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+        elementStack.push(function)
+        /**
+         * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
+         * so multi line comments in stubs need to be disabled.
+         */
+        if (function.isOverrideStub) {
+            data.append(indent)
+            data.append("// stub\n")
+            data.append(indent)
+            data.append("/*\n")
+        }
+        data.append(indent)
+        if (function.isOverride) {
+            data.append("override ")
+        }
+        data.append("def ")
+        data.append(function.name)
+        data.append("(")
+        visitParameterList(function.parameterList, data)
+        data.append("): ")
+        data.append(printType(function.returnType))
+        val body = function.body
+        if (body != null) {
+            data.append(" = \n")
+            indentCount++
+            visitBlock(body, data)
+            indentCount--
+        } else {
+            data.append("\n")
+        }
+        if (function.isOverrideStub) {
+            data.append(indent)
+            data.append("*/\n")
+        }
+        require(elementStack.pop() === function)
+    }
 
-    /*override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
+    override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters
         for ((index, parameter) in parameters.withIndex()) {
             data.append(parameter.name)
@@ -182,11 +183,11 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(", ")
             }
         }
-    }*/
+    }
 
     /*override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
         TODO()
-    }
+    }*/
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
         val function = elementStack.peek() as IrFunctionDeclaration
@@ -194,7 +195,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
             data.append(indent)
             data.append("???\n")
         } else {
-            require(function.returnType === IrUnit || block.expressions.last() is IrReturnExpression)
+            require(function.returnType === IrUnit /*|| block.expressions.last() is IrReturnExpression*/)
         }
         for (expression in block.expressions) {
             data.append(indent)
@@ -203,7 +204,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
+    /*override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
         data.append("new ")
         data.append(
             printType(

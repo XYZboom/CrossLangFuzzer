@@ -9,6 +9,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.ClassKind.*
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
@@ -149,48 +150,48 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         data.append("}\n")
     }
 
-//    override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
-//        if (function.isOverrideStub) {
-//            data.append(indent)
-//            data.append("// stub\n")
-//            data.append(indent)
-//            data.append("/*\n")
-//        }
-//        data.append(indent)
-//        if (function.body == null) {
-//            data.append("abstract ")
-//        }
-//        if (function.isOverride) {
-//            data.append("override ")
-//        }
-//        if (!function.isFinal && !function.topLevel) {
-//            data.append("open ")
-//        }
-//        data.append("fun ")
-//        data.append(function.name)
-//        data.append("(")
-//        visitParameterList(function.parameterList, data)
-//        data.append("): ")
-//        data.append(printType(function.returnType))
-//        val body = function.body
-//        if (body != null) {
-//            data.append(" {\n")
-//            indentCount++
-//            elementStack.push(function)
-//            visitBlock(body, data)
-//            require(elementStack.pop() === function)
-//            indentCount--
-//            data.append(indent)
-//            data.append("}")
-//        }
-//        data.append("\n")
-//        if (function.isOverrideStub) {
-//            data.append(indent)
-//            data.append("*/\n")
-//        }
-//    }
+    override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+        if (function.isOverrideStub) {
+            data.append(indent)
+            data.append("// stub\n")
+            data.append(indent)
+            data.append("/*\n")
+        }
+        data.append(indent)
+        if (function.body == null) {
+            data.append("abstract ")
+        }
+        if (function.isOverride) {
+            data.append("override ")
+        }
+        if (!function.isFinal && !function.topLevel) {
+            data.append("open ")
+        }
+        data.append("fun ")
+        data.append(function.name)
+        data.append("(")
+        visitParameterList(function.parameterList, data)
+        data.append("): ")
+        data.append(printType(function.returnType))
+        val body = function.body
+        if (body != null) {
+            data.append(" {\n")
+            indentCount++
+            elementStack.push(function)
+            visitBlock(body, data)
+            require(elementStack.pop() === function)
+            indentCount--
+            data.append(indent)
+            data.append("}")
+        }
+        data.append("\n")
+        if (function.isOverrideStub) {
+            data.append(indent)
+            data.append("*/\n")
+        }
+    }
 
-    /*override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
+    override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters
         for ((index, parameter) in parameters.withIndex()) {
             data.append(parameter.name)
@@ -200,7 +201,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(", ")
             }
         }
-    }*/
+    }
 
     /*override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
         data.append(indent)
@@ -224,13 +225,13 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         data.append("\n")
     }*/
 
-    /*override fun visitBlock(block: IrBlock, data: StringBuilder) {
+    override fun visitBlock(block: IrBlock, data: StringBuilder) {
         val function = elementStack.peek() as IrFunctionDeclaration
         if (block.expressions.isEmpty()) {
             data.append(indent)
             data.append("throw RuntimeException()\n")
         } else {
-            require(function.returnType === IrUnit || block.expressions.last() is IrReturnExpression)
+            require(function.returnType === IrUnit /*|| block.expressions.last() is IrReturnExpression*/)
         }
         for (expression in block.expressions) {
             data.append(indent)
@@ -239,7 +240,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
+    /*override fun visitNewExpression(newExpression: IrNew, data: StringBuilder) {
         data.append(printType(newExpression.createType))
         data.append("()")
     }
