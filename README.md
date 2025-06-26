@@ -12,9 +12,30 @@ Using CrossLangFuzzer, we discovered 24 compilers bugs. The details is shown in 
 - JDK 17
 
 As no bugs were found currently in JDK 11 and 17, you can use any build version of these two.
+You should set `JDK_HOME=/path/to/jdk_1.8`, `JDK_HOME_11=/path/to/jdk_11` and `JDK_HOME_17=/path/to/jdk_17` to 
+make sure the Kotlin Runner know where the JDK is.
 The Kotlin Compiler will be tested directly in a forked Kotlin repository.
 The Scala and Groovy Compiler will be tested through published jars.
 These requirements will be installed automatically by gradle.
+
+# Quick Run
+
+This quick run section is for Groovy Runner, see [Usage](#usage) for more details.
+First, clone [CrossLangFuzzer](https://github.com/XYZboom/CrossLangFuzzer)
+```bash
+git clone https://github.com/XYZboom/CrossLangFuzzer.git
+cd CrossLangFuzzer
+```
+Then, run the Groovy Runner.
+```bash
+./gradlew :runners:groovy-runner:run --args="--gv 4.0.26,5.0.0-alpha-12" -Dorg.gradle.java.home=/path/to/jdk_greater_11
+```
+Replace `/path/to/jdk_over_11` to a JDK whose version greater than 11.
+
+Gradle may take some time to download the required dependencies, approximately 5 to 20 minutes.
+
+The runner **NEVER STOP**, press `Ctrl+C` to stop it manually.
+If some bugs were detected, the output can be seen in `CrossLangFuzzer/runners/groovy-runner/out`
 
 # Usage
 
@@ -33,6 +54,8 @@ All runners **NEVER STOP**, you should stop the runner yourself.
 Currently, due to certain restrictions (see [KT-78477](https://youtrack.jetbrains.com/issue/KT-78477/Support-External-Compiler-Test-Suites-Outside-Kotlin-Repository)), 
 we cannot use the Kotlin compiler's test suite outside of the Kotlin compiler itself. 
 Therefore, some of the test code for Kotlin Runner is located within a forked Kotlin compiler repository.
+It may take about 1-2 hours for Gradle to download the required dependencies **in Kotlin Runner**.
+And about 15 minutes to compile the Kotlin Runner. We will make an independent Kotlin Runner in the future.
 
 For Kotlin Runner, you should publish CrossLangFuzzer into your local maven repository.
 ```bash
@@ -76,8 +99,9 @@ Then you can run the tests as introduced above.
 ## Groovy Runner
 ```bash
 # in CrossLangFuzzer
-./gradlew :runners:groovy-runner:run --args="--gv 4.0.26,5.0.0-alpha-12"
+./gradlew :runners:groovy-runner:run --args="--gv 4.0.26,5.0.0-alpha-12" -Dorg.gradle.java.home=/path/to/jdk_greater_11
 ```
+Replace `/path/to/jdk_over_11` to a JDK whose version greater than 11.
 `--gv` means the groovy version you want to test. 
 If two versions were given, the runner will run differential testing. 
 Otherwise, the runner will run normal testing.
