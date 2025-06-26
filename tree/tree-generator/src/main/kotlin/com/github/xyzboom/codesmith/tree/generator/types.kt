@@ -24,6 +24,11 @@ val languageType = type("ir", "Language")
 val transformInPlaceImport = ArbitraryImportable(VISITOR_PACKAGE, "transformInplace")
 
 val irTypeParameterNameType = type("ir.types", "IrTypeParameterName", kind = TypeKind.Class)
+val concreteTypeArgMapType = org.jetbrains.kotlin.generators.tree.type("kotlin.collections", "MutableMap").withArgs(
+    irTypeParameterNameType,
+    org.jetbrains.kotlin.generators.tree.type<Pair<*, *>>().withArgs(typeParameter, TreeBuilder.type)
+)
+
 val typeArgMapType = org.jetbrains.kotlin.generators.tree.type("kotlin.collections", "MutableMap").withArgs(
     irTypeParameterNameType,
     org.jetbrains.kotlin.generators.tree.type<Pair<*, *>>().withArgs(typeParameter, TreeBuilder.type.copy(nullable = true))

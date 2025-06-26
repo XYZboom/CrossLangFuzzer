@@ -21,9 +21,24 @@ import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
+import com.github.xyzboom.codesmith.ir.declarations.Signature
+import com.github.xyzboom.codesmith.ir.declarations.SuperAndIntfFunctions
+import com.github.xyzboom.codesmith.ir.declarations.signature
+import com.github.xyzboom.codesmith.ir.declarations.traceFunc
+import com.github.xyzboom.codesmith.ir.declarations.traverseOverride
+import com.github.xyzboom.codesmith.ir.copyForOverride
+import com.github.xyzboom.codesmith.ir_old.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir_old.types.IrClassType
 import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
+import kotlin.collections.plus
+import kotlin.collections.plusAssign
+import kotlin.collections.toList
 import kotlin.random.Random
 
 class IrDeclGenerator(
@@ -270,6 +285,233 @@ class IrDeclGenerator(
         }
     }
 
+    /**
+     * collect a map whose value is a set of function inherited directly from the supers
+     * and whose key is the signature of whose value.
+     */
+    fun IrClassDeclarationBuilder.collectFunctionSignatureMap(): FunctionSignatureMap {
+        logger.trace { "start collectFunctionSignatureMap for class: $name" }
+        val result = mutableMapOf<Signature,
+                Pair<IrFunctionDeclaration?, MutableSet<IrFunctionDeclaration>>>()
+        //           ^^^^^^^^^^^^^^^^^^^^^ decl in super
+        //           functions in interfaces ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        for (superType in implementedTypes) {
+            superType as? IrClassifier ?: continue
+            for (func in superType.classDecl.functions) {
+                val signature = func.signature
+                result.getOrPut(signature) { null to mutableSetOf() }.second.add(func)
+            }
+        }
+        for ((_, pair) in result) {
+            val (_, funcs) = pair
+            val willRemove = mutableSetOf<IrFunctionDeclaration>()
+            for (func in funcs) {
+                var found = false
+                func.traverseOverride {
+                    if (it in funcs) {
+                        found = true
+                        logger.trace {
+                            val sb = StringBuilder("found a override in collected that is: ")
+                            sb.traceFunc(it)
+                            sb.toString()
+                        }
+                        willRemove.add(it)
+                    }
+                }
+                if (found) {
+                    logger.trace {
+                        val sb = StringBuilder("found a override, will remove. For function: ")
+                        sb.traceFunc(func)
+                        sb.toString()
+                    }
+                }
+            }
+            funcs.removeAll(willRemove)
+        }
+        val superType = superType
+        if (superType is IrClassifier) {
+            for (function in superType.classDecl.functions) {
+                val signature = function.signature
+                val pair = result[signature]
+                if (pair == null) {
+                    result[signature] = function to mutableSetOf()
+                } else {
+                    result[signature] = function to pair.second
+                }
+            }
+        }
+        logger.trace { "end collectFunctionSignatureMap for class: $name" }
+        return result
+    }
+
+    fun IrClassDeclarationBuilder.genOverrides() {
+        logger.trace { "start gen overrides for: ${this.name}" }
+
+        val signatureMap = collectFunctionSignatureMap()
+        val mustOverrides = mutableListOf<SuperAndIntfFunctions>()
+        val canOverride = mutableListOf<SuperAndIntfFunctions>()
+        val stubOverride = mutableListOf<SuperAndIntfFunctions>()
+        for ((signature, pair) in signatureMap) {
+            val (superFunction, functions) = pair
+            logger.debug { "name: ${signature.name}" }
+            logger.trace { "parameter: (${signature.parameterTypes.joinToString(", ")})" }
+            logger.trace {
+                val sb = StringBuilder("super function: \n")
+                if (superFunction != null) {
+                    sb.append("\t\t")
+                    sb.traceFunc(superFunction)
+                    sb.append("\n")
+                } else {
+                    sb.append("\t\tnull\n")
+                }
+
+                sb.append("intf functions: \n")
+
+                for (function in functions) {
+                    sb.append("\t\t")
+                    sb.traceFunc(function)
+                    sb.append("\n")
+                }
+                sb.toString()
+            }
+
+            val nonAbstractCount = functions.count { it.body != null }
+            logger.debug { "nonAbstractCount: $nonAbstractCount" }
+            var notMustOverride = true
+            if (superFunction == null) {
+                if (functions.size > 1 || nonAbstractCount != 1) {
+                    //             ^^^ conflict in intf
+                    //                    abstract in intf ^^^^
+                    logger.debug { "must override because [conflict or all abstract] and no final" }
+                    mustOverrides.add(pair)
+                    notMustOverride = false
+                }
+            } else if (superFunction.isFinal) {
+                if (nonAbstractCount > 0) {
+                    logger.trace { "final conflict and could not override, change to Java" }
+                    language = Language.JAVA
+                }
+                stubOverride.add(pair)
+                notMustOverride = false
+            } else if (superFunction.body == null) {
+                mustOverrides.add(pair)
+                notMustOverride = false
+            } else if (nonAbstractCount > 0) {
+                logger.debug { "must override because super and intf is conflict and no final" }
+                mustOverrides.add(pair)
+                notMustOverride = false
+            } else if (superFunction.isOverrideStub) {
+                /**
+                 * handle such situation:
+                 * ```kotlin
+                 * interface I0 {
+                 *     fun func() {}
+                 * }
+                 * interface I1: I0 {
+                 *     abstract override fun func()
+                 * }
+                 * class P: I0
+                 * class C: P(), I1
+                 * ```
+                 * A stub of 'func' will be generated in class 'P',
+                 * but 'func' in 'I1' actually override it, so we should do a must override for 'func'.
+                 * And this situation:
+                 * ```kotlin
+                 * interface I0 {
+                 *     fun func() {}
+                 * }
+                 * open class P: I0
+                 * interface I1 {
+                 *     fun func()
+                 * }
+                 * class C: P(), I1
+                 * ```
+                 * A stub of 'func' will be generated in class 'P',
+                 * but 'func' in 'I1' conflict with the one in 'P'(actually 'I0'),
+                 * so we should do a must override for 'func'.
+                 */
+                val nonStubOverrides = mutableSetOf<IrFunctionDeclaration>()
+                // collect all non stubs
+                superFunction.traverseOverride {
+                    if (!it.isOverrideStub) {
+                        nonStubOverrides.add(it)
+                    }
+                }
+
+                for (func in functions) {
+                    if (!func.isOverrideStub) {
+                        nonStubOverrides.add(func)
+                    } else {
+                        func.traverseOverride {
+                            if (!it.isOverrideStub) {
+                                nonStubOverrides.add(it)
+                            }
+                        }
+                    }
+                }
+                val nonStubNonAbstractCount = nonStubOverrides.count { it.body != null }
+                if (nonStubNonAbstractCount > 0 && nonStubOverrides.size > 1) {
+                    //                      ^^^ may conflict
+                    //    override several functions, conflict confirmed ^^^
+                    mustOverrides.add(pair)
+                    notMustOverride = false
+                }
+            }
+
+            logger.trace { "not must override: $notMustOverride" }
+            if (notMustOverride) {
+                require(pair.first?.isFinal != true)
+                require(pair.second.all { !it.isFinal })
+                canOverride.add(pair)
+            }
+        }
+
+        for ((superFunc, intfFunc) in mustOverrides) {
+            val superAndIntf = if (superFunc != null) {
+                intfFunc + superFunc
+            } else intfFunc
+            logger.trace { "must override" }
+            genOverrideFunction(
+                superAndIntf.toList(), makeAbstract = false,
+                isStub = false, superFunc?.isFinal, language = this.language, allSuperTypeArguments
+            )
+        }
+
+        for ((superFunc, intfFunc) in stubOverride) {
+            val superAndIntf = if (superFunc != null) {
+                intfFunc + superFunc
+            } else intfFunc
+            logger.trace { "stub override" }
+            genOverrideFunction(
+                superAndIntf.toList(), makeAbstract = false,
+                isStub = true, superFunc?.isFinal, language = this.language, allSuperTypeArguments
+            )
+        }
+
+        for ((superFunc, intfFunc) in canOverride) {
+            val superAndIntf = if (superFunc != null) {
+                intfFunc + superFunc
+            } else intfFunc
+            val doOverride = /*if (classType == IrClassType.OPEN || classType == IrClassType.FINAL) {
+                false
+            } else {*/
+                !config.overrideOnlyMustOnes && random.nextBoolean()
+            //}
+            val makeAbstract = if (doOverride) {
+                // if doOverride is true, that means config.overrideOnlyMustOnes is already false
+                // So no more judgment is needed.
+                random.nextBoolean()
+            } else {
+                false
+            }
+            val isFinal = doOverride && !makeAbstract && classKind != ClassKind.INTERFACE
+            logger.trace { "can override" }
+            genOverrideFunction(
+                superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language, allSuperTypeArguments
+            )
+        }
+    }
+
     fun genClass(
         context: IrProgramBuilder, name: String = randomName(true), language: Language = randomLanguage()
     ): IrClassDeclaration {
@@ -294,8 +536,7 @@ class IrDeclGenerator(
                     language
                 )
             }
-        }.apply {
-            /*genOverrides()*/
+            genOverrides()
         }
     }
 
@@ -323,6 +564,9 @@ class IrDeclGenerator(
         return buildFunctionDeclaration {
             this.name = name
             this.language = language
+            if (funcContainer is IrClassDeclarationBuilder) {
+                this.containingClassName = funcContainer.name
+            }
             if ((!inIntf && (!inAbstract || random.nextBoolean())) || topLevel) {
                 body = buildBlock()
                 isFinal = when {
@@ -361,6 +605,92 @@ class IrDeclGenerator(
         }
     }
 
+    /**
+     * ```kotlin
+     * interface I<T0> {
+     *     fun func(i: I<Any>)
+     * }
+     * ```
+     * For `i` in `func`, its type is "I(T0 [ Any ])".
+     * If we have a class implements I<String>, the [typeArguments] here will be "T0 [ String ]".
+     * For such situation, [onlyValue] must be `true`.
+     * @see [IrParameterizedClassifier.putAllTypeArguments]
+     */
+    private fun getActualTypeFromArguments(
+        oriType: IrType,
+        typeArguments: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
+        onlyValue: Boolean
+    ): IrType {
+        if (oriType is IrParameter) {
+            val oriName = IrTypeParameterName(oriType.name)
+            if (oriName in typeArguments) {
+                // replace type parameter in super with type argument
+                return typeArguments[oriName]!!.second
+            }
+        }
+        if (oriType is IrNullableType) {
+            return buildNullableType {
+                innerType = getActualTypeFromArguments(oriType.innerType, typeArguments, onlyValue)
+            }
+        }
+        if (oriType is IrParameterizedClassifier) {
+            oriType.putAllTypeArguments(typeArguments, onlyValue)
+        }
+        return oriType
+    }
+
+    fun IrClassDeclarationBuilder.genOverrideFunction(
+        from: List<IrFunctionDeclaration>,
+        makeAbstract: Boolean,
+        isStub: Boolean,
+        isFinal: Boolean?,
+        language: Language,
+        putAllTypeArguments: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
+    ) {
+        logger.trace {
+            val sb = StringBuilder("gen override for class: $name\n")
+            for (func in from) {
+                sb.append("\t\t")
+                sb.traceFunc(func)
+                sb.append("\n")
+            }
+            sb.append("\t\tstillAbstract: $makeAbstract, isStub: $isStub, isFinal: $isFinal")
+            sb.toString()
+        }
+        val first = from.first()
+        val function = buildFunctionDeclaration {
+            this.language = language
+            isOverride = true
+            isOverrideStub = isStub
+            override += from
+            parameterList = first.parameterList.copyForOverride()
+            for (param in parameterList.parameters) {
+                param.replaceType(getActualTypeFromArguments(param.type, putAllTypeArguments, true))
+            }
+            val returnType = first.returnType.copy()
+            this.returnType = getActualTypeFromArguments(returnType, putAllTypeArguments, true)
+            if (!makeAbstract) {
+                body = build
+
+                this.isFinal = isFinal ?: if (classType != IrClassType.INTERFACE) {
+                    !config.noFinalFunction && !isStub && random.nextBoolean()
+                } else {
+                    false
+                }
+            } else {
+                if (isFinal != null) {
+                    this.isFinal = !isStub && isFinal
+                }
+            }
+            require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
+            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
+                logger.trace { "make $name print nullable annotations" }
+                printNullableAnnotations = true
+            }
+        }
+        functions.add(function)
+    }
+
     fun genFunctionParameter(
         classContainer: IrProgramBuilder,
         classContext: IrClassDeclarationBuilder?,
@@ -387,18 +717,6 @@ class IrDeclGenerator(
         return buildParameter {
             this.name = name
             this.type = makeNullableType
-        }
-    }
-
-    fun StringBuilder.traceFunc(
-        target: IrFunctionDeclarationBuilder,
-        classContext: IrClassDeclarationBuilder?
-    ) {
-        append(target.asString())
-        append(" from ")
-        if (classContext != null) {
-            append("class ")
-            append(classContext.name)
         }
     }
 

@@ -13,7 +13,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.nullableType]
  */
-abstract class IrNullableType : IrType() {
+abstract class IrNullableType : IrType {
     abstract override val classKind: ClassKind
     abstract val innerType: IrType
 

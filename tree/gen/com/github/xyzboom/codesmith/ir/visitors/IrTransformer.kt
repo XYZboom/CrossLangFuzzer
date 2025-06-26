@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.visitors
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrNamedElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.*
@@ -23,6 +24,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
 
     final override fun visitElement(element: IrElement, data: D): IrElement {
         return transformElement(element, data)
+    }
+
+    open fun transformNamedElement(namedElement: IrNamedElement, data: D): IrNamedElement {
+        return transformElement(namedElement, data)
+    }
+
+    final override fun visitNamedElement(namedElement: IrNamedElement, data: D): IrNamedElement {
+        return transformNamedElement(namedElement, data)
     }
 
     open fun transformProgram(program: IrProgram, data: D): IrProgram {

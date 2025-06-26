@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.visitors
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrNamedElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.*
@@ -20,6 +21,9 @@ import com.github.xyzboom.codesmith.ir.types.*
 abstract class IrVisitor<out R, in D> {
 
     abstract fun visitElement(element: IrElement, data: D): R
+
+    open fun visitNamedElement(namedElement: IrNamedElement, data: D): R =
+        visitElement(namedElement, data)
 
     open fun visitProgram(program: IrProgram, data: D): R =
         visitElement(program, data)

@@ -22,13 +22,13 @@ import kotlin.contracts.*
 
 @BuilderDsl
 class IrClassDeclarationBuilder : IrTypeParameterContainerBuilder, IrFuncContainerBuilder {
-    lateinit var name: String
+    override lateinit var name: String
     lateinit var language: Language
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
     override val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
     lateinit var classKind: ClassKind
     var superType: IrType? = null
-    lateinit var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>
+    lateinit var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
     val implementedTypes: MutableList<IrType> = mutableListOf()
 
     override fun build(): IrClassDeclaration {

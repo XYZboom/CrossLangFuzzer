@@ -29,6 +29,7 @@ internal class IrFunctionDeclarationImpl(
     override var isFinal: Boolean,
     override var parameterList: IrParameterList,
     override var returnType: IrType,
+    override var containingClassName: String?,
 ) : IrFunctionDeclaration() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -89,6 +90,10 @@ internal class IrFunctionDeclarationImpl(
         return this
     }
 
+    override fun <D> transformContainingClassName(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
+        return this
+    }
+
     override fun replaceName(newName: String) {
         name = newName
     }
@@ -135,5 +140,9 @@ internal class IrFunctionDeclarationImpl(
 
     override fun replaceReturnType(newReturnType: IrType) {
         returnType = newReturnType
+    }
+
+    override fun replaceContainingClassName(newContainingClassName: String?) {
+        containingClassName = newContainingClassName
     }
 }
