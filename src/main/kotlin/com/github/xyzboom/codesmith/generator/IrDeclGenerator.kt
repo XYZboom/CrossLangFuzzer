@@ -670,9 +670,9 @@ class IrDeclGenerator(
             val returnType = first.returnType.copy()
             this.returnType = getActualTypeFromArguments(returnType, putAllTypeArguments, true)
             if (!makeAbstract) {
-                body = build
+                body = buildBlock()
 
-                this.isFinal = isFinal ?: if (classType != IrClassType.INTERFACE) {
+                this.isFinal = isFinal ?: if (this@genOverrideFunction.classKind != ClassKind.INTERFACE) {
                     !config.noFinalFunction && !isStub && random.nextBoolean()
                 } else {
                     false

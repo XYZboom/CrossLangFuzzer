@@ -2,11 +2,11 @@ package com.github.xyzboom.codesmith.kotlin
 
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
+import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
-import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
@@ -162,7 +162,7 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                         enableGeneric = Random.nextBoolean(0.15f)
 //                        enableGeneric = false
                         val printer = IrProgramPrinter()
-                        val generator = IrDeclGeneratorImplOld(
+                        val generator = IrDeclGenerator(
                             GeneratorConfig(
                                 /*classHasTypeParameterProbability = if (enableGeneric) {
                                     Random.nextFloat() / 4f

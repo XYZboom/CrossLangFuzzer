@@ -37,7 +37,7 @@ publishing {
     }
 }
 dependencies {
-    implementation(project(":tree"))
+    api(project(":tree"))
     implementation("org.reflections:reflections:0.10.2")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.18.+")
     implementation("com.fasterxml.jackson.core:jackson-core:2.18.+")
