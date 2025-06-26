@@ -4,6 +4,7 @@ import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitors.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinter
@@ -22,6 +23,12 @@ abstract class AbstractIrClassPrinter(
     }
 
     val indent get() = " ".repeat(spaceCountInIndent).repeat(indentCount)
+
+    val IrFunctionDeclaration.topLevel: Boolean
+        get() {
+            require(elementStack.peek() === this)
+            return elementStack.size > 1 && elementStack[1] is IrProgram
+        }
 
     abstract fun printIrClassType(irClassType: ClassKind): String
 

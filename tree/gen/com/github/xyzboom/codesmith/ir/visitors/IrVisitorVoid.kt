@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.visitors
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrNamedElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.*
@@ -24,6 +25,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
     }
 
     abstract fun visitElement(element: IrElement)
+
+    final override fun visitNamedElement(namedElement: IrNamedElement, data: Nothing?) {
+        visitNamedElement(namedElement)
+    }
+
+    open fun visitNamedElement(namedElement: IrNamedElement) {
+        visitElement(namedElement)
+    }
 
     final override fun visitProgram(program: IrProgram, data: Nothing?) {
         visitProgram(program)

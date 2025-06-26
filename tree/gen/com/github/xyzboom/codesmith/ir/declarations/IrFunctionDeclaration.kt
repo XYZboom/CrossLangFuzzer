@@ -30,6 +30,7 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
     abstract val isFinal: Boolean
     abstract val parameterList: IrParameterList
     abstract val returnType: IrType
+    abstract val containingClassName: String?
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitFunctionDeclaration(this, data)
@@ -60,6 +61,8 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
 
     abstract fun replaceReturnType(newReturnType: IrType)
 
+    abstract fun replaceContainingClassName(newContainingClassName: String?)
+
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 
     abstract override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
@@ -81,4 +84,6 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
     abstract fun <D> transformParameterList(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 
     abstract fun <D> transformReturnType(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
+
+    abstract fun <D> transformContainingClassName(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 }

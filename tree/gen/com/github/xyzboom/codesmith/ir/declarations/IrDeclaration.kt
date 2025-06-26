@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrNamedElement
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
@@ -13,8 +14,8 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.declaration]
  */
-abstract class IrDeclaration : IrElement {
-    abstract val name: String
+abstract class IrDeclaration : IrNamedElement {
+    abstract override val name: String
     abstract val language: Language
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
@@ -24,11 +25,11 @@ abstract class IrDeclaration : IrElement {
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformDeclaration(this, data) as E
 
-    abstract fun replaceName(newName: String)
+    abstract override fun replaceName(newName: String)
 
     abstract fun replaceLanguage(newLanguage: Language)
 
-    abstract fun <D> transformName(transformer: IrTransformer<D>, data: D): IrDeclaration
+    abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrDeclaration
 
     abstract fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrDeclaration
 }

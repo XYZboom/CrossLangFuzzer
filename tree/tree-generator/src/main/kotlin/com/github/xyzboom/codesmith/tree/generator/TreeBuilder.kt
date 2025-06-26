@@ -19,6 +19,11 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         hasTransformChildrenMethod = true
     }
 
+    val namedElement: Element by element(Element.Kind.Other, name = "NamedElement") {
+        kind = ImplementationKind.Interface
+        +field("name", StandardTypes.string, isChild = false)
+    }
+
     val program: Element by element(Element.Kind.Other, name = "Program") {
         parent(classContainer)
         parent(funcContainer)
@@ -26,7 +31,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     }
 
     val declaration: Element by element(Element.Kind.Declaration, name = "Declaration") {
-        +field("name", StandardTypes.string, isChild = false)
+        parent(namedElement)
         +field("language", languageType, isChild = false)
     }
 
@@ -37,7 +42,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
 
         +field("classKind", classKindType, isChild = false)
         +field("superType", type, nullable = true, isChild = false)
-        +field("allSuperTypeArguments", typeArgMapType, isChild = false)
+        +field("allSuperTypeArguments", concreteTypeArgMapType, isChild = false)
         +listField("implementedTypes", type, isChild = false)
     }
 
@@ -53,6 +58,8 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +field("isFinal", StandardTypes.boolean, isChild = false)
         +field("parameterList", parameterList, isChild = false)
         +field("returnType", type, isChild = false)
+
+        +field("containingClassName", StandardTypes.string, isChild = false, nullable = true)
     }
 
     val propertyDecl: Element by element(Element.Kind.Declaration, name = "PropertyDeclaration") {
@@ -101,8 +108,8 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
 
     val typeParameter: Element by element(Element.Kind.Type, name = "TypeParameter") {
         parent(type)
+        parent(namedElement)
 
-        +field("name", StandardTypes.string, isChild = false)
         +field("upperbound", type)
     }
 

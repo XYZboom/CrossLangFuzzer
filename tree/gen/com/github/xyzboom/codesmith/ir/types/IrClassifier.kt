@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classifier]
  */
-sealed class IrClassifier : IrType() {
+sealed class IrClassifier : IrType {
     abstract override val classKind: ClassKind
     abstract val classDecl: IrClassDeclaration
 

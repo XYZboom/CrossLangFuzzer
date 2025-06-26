@@ -25,7 +25,7 @@ internal class IrClassDeclarationImpl(
     override val typeParameters: MutableList<IrTypeParameter>,
     override var classKind: ClassKind,
     override var superType: IrType?,
-    override var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>,
+    override var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
     override val implementedTypes: MutableList<IrType>,
 ) : IrClassDeclaration() {
 
@@ -104,7 +104,7 @@ internal class IrClassDeclarationImpl(
         superType = newSuperType
     }
 
-    override fun replaceAllSuperTypeArguments(newAllSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>) {
+    override fun replaceAllSuperTypeArguments(newAllSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>) {
         allSuperTypeArguments = newAllSuperTypeArguments
     }
 

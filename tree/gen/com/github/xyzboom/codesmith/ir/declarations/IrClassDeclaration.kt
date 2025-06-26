@@ -26,7 +26,7 @@ abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypePara
     abstract override val typeParameters: List<IrTypeParameter>
     abstract val classKind: ClassKind
     abstract val superType: IrType?
-    abstract val allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>
+    abstract val allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
     abstract val implementedTypes: List<IrType>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
@@ -48,7 +48,7 @@ abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypePara
 
     abstract fun replaceSuperType(newSuperType: IrType?)
 
-    abstract fun replaceAllSuperTypeArguments(newAllSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>)
+    abstract fun replaceAllSuperTypeArguments(newAllSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>)
 
     abstract fun replaceImplementedTypes(newImplementedTypes: List<IrType>)
 

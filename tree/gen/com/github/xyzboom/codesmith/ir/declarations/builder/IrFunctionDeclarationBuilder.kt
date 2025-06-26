@@ -30,6 +30,7 @@ class IrFunctionDeclarationBuilder {
     var isFinal: Boolean = false
     lateinit var parameterList: IrParameterList
     lateinit var returnType: IrType
+    var containingClassName: String? = null
 
     fun build(): IrFunctionDeclaration {
         return IrFunctionDeclarationImpl(
@@ -44,6 +45,7 @@ class IrFunctionDeclarationBuilder {
             isFinal,
             parameterList,
             returnType,
+            containingClassName,
         )
     }
 
