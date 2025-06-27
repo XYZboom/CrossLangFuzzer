@@ -1,15 +1,18 @@
 # CrossLangFuzzer
 CrossLangFuzzer is an innovative fuzzing tool designed specifically for testing JVM-based language compilers.
-Currently, it can generate structurally valid cross-language programs in Kotlin, Java, Groovy, Scala 2, 
-and Scala 3 languages. Currently three mutators are designed to diversify the generated programs.
+It currently supports generating structurally valid cross-language programs in Kotlin,
+Java, Groovy, Scala 2, and Scala 3.
+Three mutators have been designed to diversify the generated programs.
 
-Using CrossLangFuzzer, we discovered 24 compilers bugs. The details is shown in [this repo](https://github.com/XYZboom/CrossLangFuzzerData)
+# Bugs Found by CrossLangFuzzer
+24 compiler bugs are shown in [this repo](https://github.com/XYZboom/CrossLangFuzzerData).
 
 # Requirements
-- git
-- JDK 1.8(build 1.8.0_432-b06 to reproduce [JDK-8352290](https://bugs.openjdk.org/browse/JDK-8352290?filter=allissues))
+- Git
+- JDK 1.8
 - JDK 11
 - JDK 17
+- JDK 21 (to build Kotlin Runner)
 
 As no bugs were found currently in JDK 11 and 17, you can use any build version of these two.
 You should set `JDK_HOME=/path/to/jdk_1.8`, `JDK_HOME_11=/path/to/jdk_11` and `JDK_HOME_17=/path/to/jdk_17` to 
@@ -17,6 +20,10 @@ make sure the Kotlin Runner know where the JDK is.
 The Kotlin Compiler will be tested directly in a forked Kotlin repository.
 The Scala and Groovy Compiler will be tested through published jars.
 These requirements will be installed automatically by gradle.
+
+Note that we may need JDK 1.8 build 1.8.0_432-b06 to reproduce [JDK-8352290](https://bugs.openjdk.org/browse/JDK-8352290?filter=allissues)).
+Due to the difficulty of installing old JDK builds on Linux, you can use the latest build version, 
+but we cannot guarantee that this issue can be reproduced(Other issues can be guaranteed to be reproduced).
 
 # Quick Run
 
@@ -67,18 +74,23 @@ cd CrossLangFuzzer
 ### Run using forked repository
 Clone the forked Kotlin compiler repository and checkout the branch `crosslangfuzzer-dev-9df698e`
 ```bash
-git clone https://github.com/XYZboom/kotlin
+git clone --single-branch --branch crosslangfuzzer-dev-9df698e --depth 1 https://github.com/XYZboom/kotlin
 cd kotlin
-git checkout crosslangfuzzer-dev-9df698e
 ```
-(Strange name code-smith in this branch? Haha, that's because CrossLangFuzzer was previously called CodeSmith.)
 - Run Differential Test
 ```bash
-./gradlew :compiler:tests-common-new:test --tests "org.jetbrains.kotlin.test.CodeSmithDifferentialTest.test" -Dcodesmith.logger.outdir=/path/to/logdir
+./gradlew :compiler:tests-common-new:test --tests \
+  "org.jetbrains.kotlin.test.CodeSmithDifferentialTest.test" \
+  -Dcodesmith.logger.outdir=/path/to/logdir \
+  -Dorg.gradle.java.home=/path/to/jdk21
 ```
+(Strange name code-smith here? Haha, that's because CrossLangFuzzer was previously called CodeSmith.)
 - Run Normal Test
 ```bash
-./gradlew :compiler:tests-common-new:test --tests "org.jetbrains.kotlin.test.CodeSmithTest.test" -Dcodesmith.logger.outdir=/path/to/logdir
+./gradlew :compiler:tests-common-new:test --tests \
+  "org.jetbrains.kotlin.test.CodeSmithTest.test" \
+  -Dcodesmith.logger.outdir=/path/to/logdir \
+  -Dorg.gradle.java.home=/path/to/jdk21
 ```
 
 Remember to replace `/path/to/logdir` into your own path.
@@ -107,6 +119,7 @@ If two versions were given, the runner will run differential testing.
 Otherwise, the runner will run normal testing.
 Currently, we only support `4.0.24`, `4.0.26`, `5.0.0-alpha-11` and `5.0.0-alpha-12`.
 You can add more new versions [here](./runners/groovy-runner/src/main/resources/groovyJars)
+Once a bug is detected, the output will be shown in `CrossLangFuzzer/runners/groovy-runner/out`
 
 ## Scala Runner
 ```bash
@@ -114,3 +127,4 @@ You can add more new versions [here](./runners/groovy-runner/src/main/resources/
 ```
 This will run the differential testing for Scala 2.13.15 and Scala 3.6.4-RC1-bin-20241231-1f0c576-NIGHTLY.
 See [here](./runners/scala-runner/build.gradle.kts) for more Scala version information.
+Once a bug is detected, the output will be shown in `CrossLangFuzzer/runners/scala-runner/out`
