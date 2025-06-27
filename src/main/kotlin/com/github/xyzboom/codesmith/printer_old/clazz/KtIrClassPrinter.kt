@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.printer_old.clazz
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrParameterList
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
@@ -40,10 +40,10 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
     override fun printTopLevelFunctionsAndProperties(program: IrProgram): String {
         val data = StringBuilder()
         elementStack.push(program)
-        for (function in program.functions.filter { it.language == Language.KOTLIN }) {
+        for (function in program.functions.filter { it.language == LanguageOld.KOTLIN }) {
             visitFunction(function, data)
         }
-        for (property in program.properties.filter { it.language == Language.KOTLIN }) {
+        for (property in program.properties.filter { it.language == LanguageOld.KOTLIN }) {
             visitProperty(property, data)
         }
         require(elementStack.pop() === program)
@@ -250,7 +250,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         if (receiver != null) {
             receiver.accept(this, data)
             data.append(".")
-        } else if (target.language == Language.JAVA && target.topLevel) {
+        } else if (target.language == LanguageOld.JAVA && target.topLevel) {
             data.append(JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME)
             data.append(".")
         }

@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith
 
-enum class Language(
+enum class LanguageOld(
     val extension: String
 ) {
     KOTLIN("kt"),

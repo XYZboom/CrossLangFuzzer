@@ -20,14 +20,14 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classDecl]
  */
 abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypeParameterContainer {
-    abstract override val name: String
-    abstract override val language: Language
-    abstract override val functions: List<IrFunctionDeclaration>
-    abstract override val typeParameters: List<IrTypeParameter>
-    abstract val classKind: ClassKind
-    abstract val superType: IrType?
-    abstract val allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
-    abstract val implementedTypes: List<IrType>
+    abstract override var name: String
+    abstract override var language: Language
+    abstract override var functions: MutableList<IrFunctionDeclaration>
+    abstract override var typeParameters: MutableList<IrTypeParameter>
+    abstract var classKind: ClassKind
+    abstract var superType: IrType?
+    abstract var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
+    abstract var implementedTypes: MutableList<IrType>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitClassDeclaration(this, data)
@@ -35,22 +35,6 @@ abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypePara
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformClassDeclaration(this, data) as E
-
-    abstract override fun replaceName(newName: String)
-
-    abstract override fun replaceLanguage(newLanguage: Language)
-
-    abstract override fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>)
-
-    abstract override fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>)
-
-    abstract fun replaceClassKind(newClassKind: ClassKind)
-
-    abstract fun replaceSuperType(newSuperType: IrType?)
-
-    abstract fun replaceAllSuperTypeArguments(newAllSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>)
-
-    abstract fun replaceImplementedTypes(newImplementedTypes: List<IrType>)
 
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrClassDeclaration
 

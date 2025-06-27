@@ -88,7 +88,7 @@ class ListField(
         get() = super.typeRef
 
     override val listType: ClassRef<PositionTypeParameterRef>
-        get() = StandardTypes.list
+        get() = if (isMutableOrEmptyList) StandardTypes.mutableList else StandardTypes.list
 
     override var isVolatile: Boolean = false
     override var isFinal: Boolean = false

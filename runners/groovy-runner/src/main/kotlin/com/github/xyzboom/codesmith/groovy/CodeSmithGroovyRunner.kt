@@ -1,19 +1,25 @@
-package com.github.xyzboom.codesmith
+package com.github.xyzboom.codesmith.groovy
 
 import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
+import com.github.xyzboom.codesmith.CommonCompilerRunner
+import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.IrDeclGeneratorOld
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
-import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.generator.IrDeclGenerator
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.setMajorLanguage
+import com.github.xyzboom.codesmith.logFile
+import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
-import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImplOld
-import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.tempDir
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
+import kotlin.collections.iterator
 import kotlin.system.exitProcess
 import kotlin.time.measureTime
 
@@ -21,7 +27,7 @@ import kotlin.time.measureTime
 class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private val groovyVersions by option("--gv")
-        .choice(*GroovyCompilerWrapper.groovyJarsWithVersion.keys.toTypedArray())
+        .choice(*GroovyCompilerWrapper.Companion.groovyJarsWithVersion.keys.toTypedArray())
         .split(",")
         .required()
 
@@ -40,7 +46,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         } else {
             doOneRoundFunction = ::doOneRound
         }
-        println("start at: $tempDir")
+        println("start at: ${tempDir}")
         var i = 0
         while (true) {
             val dur = measureTime { doOneRoundFunction() }
@@ -65,16 +71,16 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private fun runDifferential(
         groovyCompilers: List<GroovyCompilerWrapper>,
-        generator: IrDeclGeneratorOld,
+        generator: IrDeclGenerator,
         printer: IrProgramPrinter,
         program: IrProgram,
         stopOnErrors: Boolean
     ) {
         val compileResults = groovyCompilers.associate { compiler ->
             if (compiler.isGroovy5) {
-                program.majorLanguage = Language.GROOVY5
+                program.setMajorLanguage(Language.GROOVY5)
             } else {
-                program.majorLanguage = Language.GROOVY4
+                program.setMajorLanguage(Language.GROOVY4)
             }
             // Due to the compatibility between Groovy syntax and Java,
             // it is reasonable to conduct differential testing directly using the 'shuffle language'
@@ -92,7 +98,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private fun doDifferentialTestingOneRound() {
         val printer = IrProgramPrinter(false)
-        val generator = IrDeclGeneratorImplOld(
+        val generator = IrDeclGenerator(
             GeneratorConfig(
                 classMemberIsPropertyWeight = 0,
                 allowUnitInTypeArgument = true,
@@ -107,7 +113,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             }
             generator.shuffleLanguage(program)
         }
-        val mutator = IrMutatorImplOld(
+        val mutator = IrMutator(
             generator = generator,
             config = MutatorConfig(
                 mutateGenericArgumentInParentWeight = 1,
@@ -129,7 +135,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
     private fun doOneRound() {
         for (groovyCompiler in groovyCompilers) {
             val printer = IrProgramPrinter(false)
-            val generator = IrDeclGeneratorImplOld(
+            val generator = IrDeclGenerator(
                 GeneratorConfig(
                     classMemberIsPropertyWeight = 0,
                     allowUnitInTypeArgument = true,
@@ -141,7 +147,11 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             repeat(langShuffleTimesBeforeMutate) {
                 val compileResult = groovyCompiler.compileGroovyWithJava(printer, program)
                 if (!compileResult.success) {
-                    recordCompileResult(groovyCompiler.language, printer.printToSingle(program), compileResult)
+                    com.github.xyzboom.codesmith.recordCompileResult(
+                        groovyCompiler.language,
+                        printer.printToSingle(program),
+                        compileResult
+                    )
                     if (stopOnErrors) {
                         exitProcess(-1)
                     }

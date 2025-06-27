@@ -15,9 +15,9 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.parameter]
  */
 abstract class IrParameter : IrElement {
-    abstract val name: String
-    abstract val type: IrType
-    abstract val defaultValue: IrExpression?
+    abstract var name: String
+    abstract var type: IrType
+    abstract var defaultValue: IrExpression?
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitParameter(this, data)
@@ -25,12 +25,6 @@ abstract class IrParameter : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformParameter(this, data) as E
-
-    abstract fun replaceName(newName: String)
-
-    abstract fun replaceType(newType: IrType)
-
-    abstract fun replaceDefaultValue(newDefaultValue: IrExpression?)
 
     abstract fun <D> transformName(transformer: IrTransformer<D>, data: D): IrParameter
 

@@ -1,14 +1,14 @@
 package com.github.xyzboom.codesmith.scala
 
 import com.github.xyzboom.codesmith.CompileResult
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
-import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
-import com.github.xyzboom.codesmith.ir_old.IrProgram
+import com.github.xyzboom.codesmith.generator.IrDeclGenerator
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
-import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImplOld
-import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
+import com.github.xyzboom.codesmith.mutator.IrMutator
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.tempDir
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
@@ -34,7 +34,7 @@ private fun recordCompileResult(
 
 private fun doOneRound(stopOnErrors: Boolean = false) {
     val printer = IrProgramPrinter(false)
-    val generator = IrDeclGeneratorImplOld(
+    val generator = IrDeclGenerator(
         GeneratorConfig(
             classMemberIsPropertyWeight = 0,
             allowUnitInTypeArgument = true
@@ -48,7 +48,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
         }
         generator.shuffleLanguage(program)
     }
-    val mutator = IrMutatorImplOld(
+    val mutator = IrMutator(
         generator = generator,
         config = MutatorConfig(
             mutateGenericArgumentInParentWeight = 0,

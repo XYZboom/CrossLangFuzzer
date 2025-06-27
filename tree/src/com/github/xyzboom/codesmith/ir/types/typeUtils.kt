@@ -7,8 +7,6 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
 import kotlin.collections.component2
-import kotlin.collections.containsKey
-import kotlin.collections.get
 import kotlin.collections.iterator
 
 private val logger = KotlinLogging.logger {}
@@ -89,5 +87,41 @@ fun IrParameterizedClassifier.putAllTypeArguments(
                 putTypeArgument(typeParam, args[typeArgAsTypeParameterName]!!.second)
             }
         }
+    }
+}
+
+fun areEqualTypes(a: IrType?, b: IrType?): Boolean {
+    return when {
+        a is IrParameterizedClassifier -> {
+            if (b !is IrParameterizedClassifier) return false
+            for ((paramName, pair) in a.arguments) {
+                val (_, arg) = pair
+                if (paramName !in b.arguments) {
+                    return false
+                }
+                if (!areEqualTypes(arg, b.arguments[paramName]!!.second)) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        a is IrClassifier -> {
+            if (b !is IrClassifier) return false
+            if (a.classDecl !== b.classDecl) return false
+            true
+        }
+
+        a is IrNullableType -> {
+            if (b !is IrNullableType) return false
+            areEqualTypes(a.innerType, b.innerType)
+        }
+
+        a is IrTypeParameter -> {
+            if (b !is IrTypeParameter) return false
+            a.name == b.name
+        }
+
+        else -> a === b
     }
 }

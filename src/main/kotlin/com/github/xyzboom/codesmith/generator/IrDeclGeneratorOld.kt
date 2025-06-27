@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
 import com.github.xyzboom.codesmith.ir_old.declarations.*
@@ -19,26 +19,26 @@ interface IrDeclGeneratorOld {
 
     fun genProgram(): IrProgram
 
-    fun genTopLevelClass(context: IrProgram, language: Language): IrClassDeclaration {
+    fun genTopLevelClass(context: IrProgram, language: LanguageOld): IrClassDeclaration {
         return genClass(context, language = language)
     }
 
-    fun genTopLevelFunction(context: IrProgram, language: Language): IrFunctionDeclaration {
+    fun genTopLevelFunction(context: IrProgram, language: LanguageOld): IrFunctionDeclaration {
         return genFunction(context, context, inAbstract = false, inIntf = false, null, language = language)
     }
 
-    fun genTopLevelFunction(context: IrProgram, language: Language, returnType: IrType): IrFunctionDeclaration {
+    fun genTopLevelFunction(context: IrProgram, language: LanguageOld, returnType: IrType): IrFunctionDeclaration {
         return genFunction(context, context, inAbstract = false, inIntf = false, returnType, language = language)
     }
 
-    fun genTopLevelProperty(context: IrProgram, language: Language): IrPropertyDeclaration {
+    fun genTopLevelProperty(context: IrProgram, language: LanguageOld): IrPropertyDeclaration {
         return genProperty(context, context, inAbstract = false, inIntf = false, null, language = language)
     }
 
     fun genClass(
         context: IrContainer,
         name: String = randomName(true),
-        language: Language
+        language: LanguageOld
     ): IrClassDeclaration
 
     fun genFunction(
@@ -48,7 +48,7 @@ interface IrDeclGeneratorOld {
         inIntf: Boolean,
         returnType: IrType?,
         name: String = randomName(false),
-        language: Language = Language.KOTLIN
+        language: LanguageOld = LanguageOld.KOTLIN
     ): IrFunctionDeclaration
 
     fun randomClassType(): IrClassType
@@ -73,7 +73,7 @@ interface IrDeclGeneratorOld {
         makeAbstract: Boolean,
         isStub: Boolean,
         isFinal: Boolean?,
-        language: Language,
+        language: LanguageOld,
         putAllTypeArguments: Map<IrTypeParameter, IrType>
     )
 
@@ -119,7 +119,7 @@ interface IrDeclGeneratorOld {
         inIntf: Boolean,
         type: IrType?,
         name: String = randomName(false),
-        language: Language = Language.KOTLIN
+        language: LanguageOld = LanguageOld.KOTLIN
     ): IrPropertyDeclaration
 
     @Suppress("unused")

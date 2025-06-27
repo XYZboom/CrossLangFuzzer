@@ -16,8 +16,8 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  */
 abstract class IrTypeParameter : IrType, IrNamedElement {
     abstract override val classKind: ClassKind
-    abstract override val name: String
-    abstract val upperbound: IrType
+    abstract override var name: String
+    abstract var upperbound: IrType
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitTypeParameter(this, data)
@@ -25,10 +25,6 @@ abstract class IrTypeParameter : IrType, IrNamedElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformTypeParameter(this, data) as E
-
-    abstract override fun replaceName(newName: String)
-
-    abstract fun replaceUpperbound(newUpperbound: IrType)
 
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrTypeParameter
 

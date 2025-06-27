@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassMember
@@ -20,7 +20,7 @@ typealias IrExpressionGenerator = (
 
 typealias IrTopLevelDeclGenerator = (
     program: IrProgram,
-    language: Language
+    language: LanguageOld
 ) -> IrDeclaration
 
 typealias IrClassMemberGenerator = (
@@ -30,5 +30,5 @@ typealias IrClassMemberGenerator = (
     inIntf: Boolean,
     type: IrType?,
     name: String,
-    language: Language
+    language: LanguageOld
 ) -> IrClassMember

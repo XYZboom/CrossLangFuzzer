@@ -21,12 +21,12 @@ import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 internal class IrClassDeclarationImpl(
     override var name: String,
     override var language: Language,
-    override val functions: MutableList<IrFunctionDeclaration>,
-    override val typeParameters: MutableList<IrTypeParameter>,
+    override var functions: MutableList<IrFunctionDeclaration>,
+    override var typeParameters: MutableList<IrTypeParameter>,
     override var classKind: ClassKind,
     override var superType: IrType?,
     override var allSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
-    override val implementedTypes: MutableList<IrType>,
+    override var implementedTypes: MutableList<IrType>,
 ) : IrClassDeclaration() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -74,43 +74,5 @@ internal class IrClassDeclarationImpl(
     override fun <D> transformImplementedTypes(transformer: IrTransformer<D>, data: D): IrClassDeclarationImpl {
         implementedTypes.transformInplace(transformer, data)
         return this
-    }
-
-    override fun replaceName(newName: String) {
-        name = newName
-    }
-
-    override fun replaceLanguage(newLanguage: Language) {
-        language = newLanguage
-    }
-
-    override fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>) {
-        if (functions === newFunctions) return
-        functions.clear()
-        functions.addAll(newFunctions)
-    }
-
-    override fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>) {
-        if (typeParameters === newTypeParameters) return
-        typeParameters.clear()
-        typeParameters.addAll(newTypeParameters)
-    }
-
-    override fun replaceClassKind(newClassKind: ClassKind) {
-        classKind = newClassKind
-    }
-
-    override fun replaceSuperType(newSuperType: IrType?) {
-        superType = newSuperType
-    }
-
-    override fun replaceAllSuperTypeArguments(newAllSuperTypeArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>) {
-        allSuperTypeArguments = newAllSuperTypeArguments
-    }
-
-    override fun replaceImplementedTypes(newImplementedTypes: List<IrType>) {
-        if (implementedTypes === newImplementedTypes) return
-        implementedTypes.clear()
-        implementedTypes.addAll(newImplementedTypes)
     }
 }

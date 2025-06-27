@@ -43,16 +43,4 @@ internal class IrParameterImpl(
         defaultValue = defaultValue?.transform(transformer, data)
         return this
     }
-
-    override fun replaceName(newName: String) {
-        name = newName
-    }
-
-    override fun replaceType(newType: IrType) {
-        type = newType
-    }
-
-    override fun replaceDefaultValue(newDefaultValue: IrExpression?) {
-        defaultValue = newDefaultValue
-    }
 }

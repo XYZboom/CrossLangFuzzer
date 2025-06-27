@@ -20,7 +20,9 @@ import org.jetbrains.kotlin.generators.tree.printer.printTransformMethod
 
 internal class ElementPrinter(printer: ImportCollectingPrinter) : AbstractElementPrinter<Element, Field>(printer) {
 
-    override fun makeFieldPrinter(printer: ImportCollectingPrinter) = object : AbstractFieldPrinter<Field>(printer) {}
+    override fun makeFieldPrinter(printer: ImportCollectingPrinter) = object : AbstractFieldPrinter<Field>(printer) {
+        override fun forceMutable(field: Field) = field.isMutable
+    }
 
     override fun ImportCollectingPrinter.printAdditionalMethods(element: Element) {
         val kind = element.kind ?: error("Expected non-null element kind")

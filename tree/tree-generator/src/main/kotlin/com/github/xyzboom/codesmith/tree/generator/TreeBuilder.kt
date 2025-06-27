@@ -4,14 +4,11 @@ import com.github.xyzboom.codesmith.tree.generator.model.Element
 import com.github.xyzboom.codesmith.tree.generator.model.Field
 import com.github.xyzboom.codesmith.tree.generator.model.ListField
 import com.github.xyzboom.codesmith.tree.generator.model.SimpleField
-import org.jetbrains.kotlin.generators.tree.ElementOrRef
 import org.jetbrains.kotlin.generators.tree.ImplementationKind
 import org.jetbrains.kotlin.generators.tree.StandardTypes
 import org.jetbrains.kotlin.generators.tree.TypeRef
 import org.jetbrains.kotlin.generators.tree.TypeRefWithNullability
 import org.jetbrains.kotlin.generators.tree.config.AbstractElementConfigurator
-import org.jetbrains.kotlin.generators.tree.type
-import org.jetbrains.kotlin.generators.tree.withArgs
 
 object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>() {
     override val rootElement: Element by element(Element.Kind.Other, name = "Element") {
@@ -97,7 +94,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     }
 
     val type: Element by element(Element.Kind.Type, name = "Type") {
-        +field("classKind", classKindType, withReplace = false, withTransform = false, isChild = false)
+        +field("classKind", classKindType, withReplace = false, withTransform = false, isChild = false, isMutable = false)
     }
 
     val nullableType: Element by element(Element.Kind.Type, name = "NullableType") {
@@ -141,12 +138,12 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         name: String,
         type: TypeRefWithNullability,
         nullable: Boolean = false,
-        withReplace: Boolean = true,
+        isMutable: Boolean = true,
+        withReplace: Boolean = false,
         withTransform: Boolean = true,
         isChild: Boolean = true,
         initializer: SimpleField.() -> Unit = {},
     ): SimpleField {
-        val isMutable = type is ElementOrRef<*> || withReplace
         return SimpleField(
             name,
             type.copy(nullable),
@@ -160,9 +157,9 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     fun listField(
         name: String,
         baseType: TypeRef,
-        withReplace: Boolean = true,
+        withReplace: Boolean = false,
         withTransform: Boolean = true,
-        useMutableOrEmpty: Boolean = false,
+        useMutableOrEmpty: Boolean = true,
         isChild: Boolean = true,
         initializer: ListField.() -> Unit = {},
     ): Field {

@@ -13,7 +13,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.parameterList]
  */
 abstract class IrParameterList : IrElement {
-    abstract val parameters: List<IrParameter>
+    abstract var parameters: MutableList<IrParameter>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitParameterList(this, data)
@@ -21,8 +21,6 @@ abstract class IrParameterList : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformParameterList(this, data) as E
-
-    abstract fun replaceParameters(newParameters: List<IrParameter>)
 
     abstract fun <D> transformParameters(transformer: IrTransformer<D>, data: D): IrParameterList
 }

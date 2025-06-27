@@ -32,8 +32,4 @@ internal class IrNullableTypeImpl(
         innerType = innerType.transform(transformer, data)
         return this
     }
-
-    override fun replaceInnerType(newInnerType: IrType) {
-        innerType = newInnerType
-    }
 }

@@ -1,13 +1,13 @@
 package com.github.xyzboom.codesmith.ir_old
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir_old.declarations.IrPropertyDeclaration
 
 class IrProgram(
-    majorLanguage: Language = Language.KOTLIN
+    majorLanguage: LanguageOld = LanguageOld.KOTLIN
 ) : IrElement(), IrContainer {
     var majorLanguage = majorLanguage
         set(value) {

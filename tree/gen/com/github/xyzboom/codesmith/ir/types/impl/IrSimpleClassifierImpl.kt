@@ -32,8 +32,4 @@ internal class IrSimpleClassifierImpl(
         classDecl = classDecl.transform(transformer, data)
         return this
     }
-
-    override fun replaceClassDecl(newClassDecl: IrClassDeclaration) {
-        classDecl = newClassDecl
-    }
 }

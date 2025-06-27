@@ -37,12 +37,4 @@ internal class IrTypeParameterImpl(
         upperbound = upperbound.transform(transformer, data)
         return this
     }
-
-    override fun replaceName(newName: String) {
-        name = newName
-    }
-
-    override fun replaceUpperbound(newUpperbound: IrType) {
-        upperbound = newUpperbound
-    }
 }

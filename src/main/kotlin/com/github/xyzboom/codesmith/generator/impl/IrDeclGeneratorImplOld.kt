@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.generator.impl
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.generator.*
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
@@ -19,7 +19,7 @@ import kotlin.random.Random
 open class IrDeclGeneratorImplOld(
     private val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
-    private val majorLanguage: Language = Language.KOTLIN
+    private val majorLanguage: LanguageOld = LanguageOld.KOTLIN
 ) : IrDeclGeneratorOld {
 
     private val logger = KotlinLogging.logger {}
@@ -104,9 +104,9 @@ open class IrDeclGeneratorImplOld(
         return result.copy()
     }
 
-    fun randomLanguage(): Language {
+    fun randomLanguage(): LanguageOld {
         if (random.nextBoolean(config.javaRatio)) {
-            return Language.JAVA
+            return LanguageOld.JAVA
         }
         return majorLanguage
     }
@@ -430,7 +430,7 @@ open class IrDeclGeneratorImplOld(
             } else if (superFunction.isFinal) {
                 if (nonAbstractCount > 0) {
                     logger.trace { "final conflict and could not override, change to Java" }
-                    language = Language.JAVA
+                    language = LanguageOld.JAVA
                 }
                 stubOverride.add(pair)
                 notMustOverride = false
@@ -553,7 +553,7 @@ open class IrDeclGeneratorImplOld(
         }
     }
 
-    override fun genClass(context: IrContainer, name: String, language: Language): IrClassDeclaration {
+    override fun genClass(context: IrContainer, name: String, language: LanguageOld): IrClassDeclaration {
         val classType = randomClassType()
         return IrClassDeclaration(name, classType).apply {
             this.language = language
@@ -592,7 +592,7 @@ open class IrDeclGeneratorImplOld(
         inIntf: Boolean,
         returnType: IrType?,
         name: String,
-        language: Language
+        language: LanguageOld
     ): IrFunctionDeclaration {
         val topLevel = funcContainer is IrProgram
         logger.trace {
@@ -689,7 +689,7 @@ open class IrDeclGeneratorImplOld(
         makeAbstract: Boolean,
         isStub: Boolean,
         isFinal: Boolean?,
-        language: Language,
+        language: LanguageOld,
         putAllTypeArguments: Map<IrTypeParameter, IrType>
     ) {
         logger.trace {
@@ -742,7 +742,7 @@ open class IrDeclGeneratorImplOld(
         inIntf: Boolean,
         type: IrType?,
         name: String,
-        language: Language
+        language: LanguageOld
     ): IrPropertyDeclaration {
         val topLevel = propContainer is IrProgram
         logger.trace {

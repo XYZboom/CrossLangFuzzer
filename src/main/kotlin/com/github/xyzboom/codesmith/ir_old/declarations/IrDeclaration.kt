@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.ir_old.declarations
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrElement
 import com.github.xyzboom.codesmith.ir_old.visitor.IrVisitor
 
@@ -14,7 +14,7 @@ abstract class IrDeclaration(
     @get:JsonIgnore
     @set:JsonIgnore
     @field:JsonIgnore
-    var language = Language.KOTLIN
+    var language = LanguageOld.KOTLIN
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R {
         return visitor.visitDeclaration(this, data)
     }
