@@ -29,7 +29,7 @@ tasks.withType<JavaExec> {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(11)
     }
-    mainClass.set("com.github.xyzboom.codesmith.CodeSmithGroovyRunnerKt")
+    mainClass.set("com.github.xyzboom.codesmith.groovy.CodeSmithGroovyRunnerKt")
     systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
     systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
     systemProperties["codesmith.logger.traceFile.ImmediateFlush"] =

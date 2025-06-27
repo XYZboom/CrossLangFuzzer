@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.printer_old.clazz
 
-import com.github.xyzboom.codesmith.Language
-import com.github.xyzboom.codesmith.Language.*
+import com.github.xyzboom.codesmith.LanguageOld
+import com.github.xyzboom.codesmith.LanguageOld.*
 import com.github.xyzboom.codesmith.ir_old.IrElement
 import com.github.xyzboom.codesmith.ir_old.IrParameterList
 import com.github.xyzboom.codesmith.ir_old.IrProgram
@@ -20,7 +20,7 @@ import com.github.xyzboom.codesmith.printer_old.TypeContext.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class JavaIrClassPrinter(
-    private val majorLanguage: Language = KOTLIN
+    private val majorLanguage: LanguageOld = KOTLIN
 ) : AbstractIrClassPrinter() {
     private val builtInNamesInTypeArgument = buildMap {
         put(IrAny, "Object")

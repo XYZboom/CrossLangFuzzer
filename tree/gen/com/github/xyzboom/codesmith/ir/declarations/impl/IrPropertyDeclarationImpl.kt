@@ -30,12 +30,4 @@ internal class IrPropertyDeclarationImpl(
     override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrPropertyDeclarationImpl {
         return this
     }
-
-    override fun replaceName(newName: String) {
-        name = newName
-    }
-
-    override fun replaceLanguage(newLanguage: Language) {
-        language = newLanguage
-    }
 }

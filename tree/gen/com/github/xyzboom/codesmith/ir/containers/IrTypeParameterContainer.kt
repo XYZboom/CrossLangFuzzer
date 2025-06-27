@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.typeParameterContainer]
  */
 interface IrTypeParameterContainer : IrElement {
-    val typeParameters: List<IrTypeParameter>
+    var typeParameters: MutableList<IrTypeParameter>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitTypeParameterContainer(this, data)
@@ -22,8 +22,6 @@ interface IrTypeParameterContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformTypeParameterContainer(this, data) as E
-
-    fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>)
 
     fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrTypeParameterContainer
 }

@@ -14,8 +14,8 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.propertyDecl]
  */
 abstract class IrPropertyDeclaration : IrDeclaration() {
-    abstract override val name: String
-    abstract override val language: Language
+    abstract override var name: String
+    abstract override var language: Language
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitPropertyDeclaration(this, data)
@@ -23,10 +23,6 @@ abstract class IrPropertyDeclaration : IrDeclaration() {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformPropertyDeclaration(this, data) as E
-
-    abstract override fun replaceName(newName: String)
-
-    abstract override fun replaceLanguage(newLanguage: Language)
 
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrPropertyDeclaration
 

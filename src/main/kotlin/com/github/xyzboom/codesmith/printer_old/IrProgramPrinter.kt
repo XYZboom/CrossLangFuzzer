@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.printer_old
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.printer_old.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer_old.clazz.KtIrClassPrinter
@@ -60,10 +60,10 @@ class IrProgramPrinter(
         for (clazz in element.classes) {
             clazz.changeLanguageIfNotSuitable()
             val (fileName, content) = when (clazz.language) {
-                Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
-                Language.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)
-                Language.GROOVY4, Language.GROOVY5 -> "${clazz.name}.groovy" to javaClassPrinter.print(clazz)
-                Language.SCALA -> "${clazz.name}.scala" to scalaClassPrinter.print(clazz)
+                LanguageOld.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
+                LanguageOld.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)
+                LanguageOld.GROOVY4, LanguageOld.GROOVY5 -> "${clazz.name}.groovy" to javaClassPrinter.print(clazz)
+                LanguageOld.SCALA -> "${clazz.name}.scala" to scalaClassPrinter.print(clazz)
                 else -> TODO("The language ${clazz.language} has not been implemented yet")
             }
             result[fileName] = content

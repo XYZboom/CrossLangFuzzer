@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 
 internal class IrBlockImpl(
-    override val expressions: MutableList<IrExpression>,
+    override var expressions: MutableList<IrExpression>,
 ) : IrBlock() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -29,11 +29,5 @@ internal class IrBlockImpl(
     override fun <D> transformExpressions(transformer: IrTransformer<D>, data: D): IrBlockImpl {
         expressions.transformInplace(transformer, data)
         return this
-    }
-
-    override fun replaceExpressions(newExpressions: List<IrExpression>) {
-        if (expressions === newExpressions) return
-        expressions.clear()
-        expressions.addAll(newExpressions)
     }
 }

@@ -56,7 +56,7 @@ class IrMutator(
     fun removeOverrideMemberFunction(program: IrProgram): Boolean {
         program.randomTraverseMemberFunctions(random) { func, _ ->
             if (func.isOverride && !func.isOverrideStub) {
-                func.replaceIsOverrideStub(true)
+                func.isOverrideStub = true
                 return@removeOverrideMemberFunction true
             }
             false
@@ -105,14 +105,14 @@ class IrMutator(
             } ?: return@randomTraverseMemberFunctions false
             val type = param.type
             if (type is IrNullableType) {
-                param.replaceType(type.innerType)
+                param.type = type.innerType
             } else {
-                param.replaceType(buildNullableType {
+                param.type = buildNullableType {
                     this.innerType = type
-                })
+                }
             }
             if (func.language == Language.JAVA) {
-                func.replacePrintNullableAnnotations(true)
+                func.printNullableAnnotations = true
             }
             return@mutateParameterNullability true
         }

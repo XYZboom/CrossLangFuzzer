@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classContainer]
  */
 abstract class IrClassContainer : IrElement {
-    abstract val classes: List<IrClassDeclaration>
+    abstract var classes: MutableList<IrClassDeclaration>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitClassContainer(this, data)
@@ -22,8 +22,6 @@ abstract class IrClassContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformClassContainer(this, data) as E
-
-    abstract fun replaceClasses(newClasses: List<IrClassDeclaration>)
 
     abstract fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrClassContainer
 }

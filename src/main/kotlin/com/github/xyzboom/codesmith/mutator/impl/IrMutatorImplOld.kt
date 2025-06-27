@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.mutator.impl
 
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
@@ -105,7 +105,7 @@ class IrMutatorImplOld(
             } else {
                 param.type = IrNullableType.nullableOf(type)
             }
-            if (func.language == Language.JAVA) {
+            if (func.language == LanguageOld.JAVA) {
                 func.printNullableAnnotations = true
             }
             return@mutateParameterNullability true

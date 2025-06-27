@@ -19,18 +19,18 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.funcDecl]
  */
 abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer {
-    abstract override val name: String
-    abstract override val language: Language
-    abstract override val typeParameters: List<IrTypeParameter>
-    abstract val printNullableAnnotations: Boolean
-    abstract val body: IrBlock?
-    abstract val isOverride: Boolean
-    abstract val isOverrideStub: Boolean
-    abstract val override: List<IrFunctionDeclaration>
-    abstract val isFinal: Boolean
-    abstract val parameterList: IrParameterList
-    abstract val returnType: IrType
-    abstract val containingClassName: String?
+    abstract override var name: String
+    abstract override var language: Language
+    abstract override var typeParameters: MutableList<IrTypeParameter>
+    abstract var printNullableAnnotations: Boolean
+    abstract var body: IrBlock?
+    abstract var isOverride: Boolean
+    abstract var isOverrideStub: Boolean
+    abstract var override: MutableList<IrFunctionDeclaration>
+    abstract var isFinal: Boolean
+    abstract var parameterList: IrParameterList
+    abstract var returnType: IrType
+    abstract var containingClassName: String?
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitFunctionDeclaration(this, data)
@@ -38,30 +38,6 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformFunctionDeclaration(this, data) as E
-
-    abstract override fun replaceName(newName: String)
-
-    abstract override fun replaceLanguage(newLanguage: Language)
-
-    abstract override fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>)
-
-    abstract fun replacePrintNullableAnnotations(newPrintNullableAnnotations: Boolean)
-
-    abstract fun replaceBody(newBody: IrBlock?)
-
-    abstract fun replaceIsOverride(newIsOverride: Boolean)
-
-    abstract fun replaceIsOverrideStub(newIsOverrideStub: Boolean)
-
-    abstract fun replaceOverride(newOverride: List<IrFunctionDeclaration>)
-
-    abstract fun replaceIsFinal(newIsFinal: Boolean)
-
-    abstract fun replaceParameterList(newParameterList: IrParameterList)
-
-    abstract fun replaceReturnType(newReturnType: IrType)
-
-    abstract fun replaceContainingClassName(newContainingClassName: String?)
 
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 

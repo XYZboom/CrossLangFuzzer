@@ -16,7 +16,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  */
 sealed class IrClassifier : IrType {
     abstract override val classKind: ClassKind
-    abstract val classDecl: IrClassDeclaration
+    abstract var classDecl: IrClassDeclaration
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitClassifier(this, data)
@@ -24,8 +24,6 @@ sealed class IrClassifier : IrType {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformClassifier(this, data) as E
-
-    abstract fun replaceClassDecl(newClassDecl: IrClassDeclaration)
 
     abstract fun <D> transformClassDecl(transformer: IrTransformer<D>, data: D): IrClassifier
 }

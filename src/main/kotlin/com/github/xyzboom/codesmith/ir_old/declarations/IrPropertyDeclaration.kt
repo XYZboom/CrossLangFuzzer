@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.ir_old.declarations
 
 import com.fasterxml.jackson.annotation.JsonTypeName
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
 import com.github.xyzboom.codesmith.ir_old.types.IrType
@@ -15,7 +15,7 @@ class IrPropertyDeclaration(
 ) : IrDeclaration(name), IrClassMember {
 
     /**
-     * only available when [language] is [Language.JAVA]
+     * only available when [language] is [LanguageOld.JAVA]
      */
     var printNullableAnnotations: Boolean = false
     var isOverride: Boolean = false

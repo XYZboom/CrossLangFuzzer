@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.expressionContainer]
  */
 abstract class IrExpressionContainer : IrElement {
-    abstract val expressions: List<IrExpression>
+    abstract var expressions: MutableList<IrExpression>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitExpressionContainer(this, data)
@@ -22,8 +22,6 @@ abstract class IrExpressionContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformExpressionContainer(this, data) as E
-
-    abstract fun replaceExpressions(newExpressions: List<IrExpression>)
 
     abstract fun <D> transformExpressions(transformer: IrTransformer<D>, data: D): IrExpressionContainer
 }

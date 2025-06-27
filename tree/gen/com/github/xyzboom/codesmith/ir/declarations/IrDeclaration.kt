@@ -15,8 +15,8 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.declaration]
  */
 abstract class IrDeclaration : IrNamedElement {
-    abstract override val name: String
-    abstract val language: Language
+    abstract override var name: String
+    abstract var language: Language
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitDeclaration(this, data)
@@ -24,10 +24,6 @@ abstract class IrDeclaration : IrNamedElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformDeclaration(this, data) as E
-
-    abstract override fun replaceName(newName: String)
-
-    abstract fun replaceLanguage(newLanguage: Language)
 
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrDeclaration
 

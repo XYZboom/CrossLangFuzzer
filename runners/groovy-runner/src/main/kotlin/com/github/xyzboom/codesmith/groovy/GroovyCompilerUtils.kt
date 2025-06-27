@@ -1,7 +1,11 @@
-package com.github.xyzboom.codesmith
+package com.github.xyzboom.codesmith.groovy
 
-import com.github.xyzboom.codesmith.ir_old.IrProgram
-import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
+import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.listResourceFiles
+import com.github.xyzboom.codesmith.newTempPath
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
 import java.lang.reflect.InvocationTargetException

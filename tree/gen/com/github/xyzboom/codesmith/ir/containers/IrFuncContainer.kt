@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.funcContainer]
  */
 interface IrFuncContainer : IrElement {
-    val functions: List<IrFunctionDeclaration>
+    var functions: MutableList<IrFunctionDeclaration>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitFuncContainer(this, data)
@@ -22,8 +22,6 @@ interface IrFuncContainer : IrElement {
     @Suppress("UNCHECKED_CAST")
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformFuncContainer(this, data) as E
-
-    fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>)
 
     fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrFuncContainer
 }

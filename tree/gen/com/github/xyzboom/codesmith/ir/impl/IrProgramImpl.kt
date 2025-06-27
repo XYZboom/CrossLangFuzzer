@@ -16,9 +16,9 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 
 internal class IrProgramImpl(
-    override val classes: MutableList<IrClassDeclaration>,
-    override val functions: MutableList<IrFunctionDeclaration>,
-    override val properties: MutableList<IrPropertyDeclaration>,
+    override var classes: MutableList<IrClassDeclaration>,
+    override var functions: MutableList<IrFunctionDeclaration>,
+    override var properties: MutableList<IrPropertyDeclaration>,
 ) : IrProgram() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -47,23 +47,5 @@ internal class IrProgramImpl(
     override fun <D> transformProperties(transformer: IrTransformer<D>, data: D): IrProgramImpl {
         properties.transformInplace(transformer, data)
         return this
-    }
-
-    override fun replaceClasses(newClasses: List<IrClassDeclaration>) {
-        if (classes === newClasses) return
-        classes.clear()
-        classes.addAll(newClasses)
-    }
-
-    override fun replaceFunctions(newFunctions: List<IrFunctionDeclaration>) {
-        if (functions === newFunctions) return
-        functions.clear()
-        functions.addAll(newFunctions)
-    }
-
-    override fun replaceProperties(newProperties: List<IrPropertyDeclaration>) {
-        if (properties === newProperties) return
-        properties.clear()
-        properties.addAll(newProperties)
     }
 }

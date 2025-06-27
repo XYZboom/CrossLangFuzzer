@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.ir_old.declarations
 
 import com.fasterxml.jackson.annotation.*
-import com.github.xyzboom.codesmith.Language
+import com.github.xyzboom.codesmith.LanguageOld
 import com.github.xyzboom.codesmith.ir_old.IrParameterList
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
@@ -24,7 +24,7 @@ class IrFunctionDeclaration(
     }
 
     /**
-     * only available when [language] is [Language.JAVA]
+     * only available when [language] is [LanguageOld.JAVA]
      */
     var printNullableAnnotations: Boolean = false
     var body: IrBlock? = null

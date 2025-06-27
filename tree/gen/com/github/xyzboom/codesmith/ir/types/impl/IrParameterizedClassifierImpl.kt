@@ -40,12 +40,4 @@ internal class IrParameterizedClassifierImpl(
     override fun <D> transformArguments(transformer: IrTransformer<D>, data: D): IrParameterizedClassifierImpl {
         return this
     }
-
-    override fun replaceClassDecl(newClassDecl: IrClassDeclaration) {
-        classDecl = newClassDecl
-    }
-
-    override fun replaceArguments(newArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>) {
-        arguments = newArguments
-    }
 }

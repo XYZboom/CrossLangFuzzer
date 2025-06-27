@@ -20,12 +20,12 @@ import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 internal class IrFunctionDeclarationImpl(
     override var name: String,
     override var language: Language,
-    override val typeParameters: MutableList<IrTypeParameter>,
+    override var typeParameters: MutableList<IrTypeParameter>,
     override var printNullableAnnotations: Boolean,
     override var body: IrBlock?,
     override var isOverride: Boolean,
     override var isOverrideStub: Boolean,
-    override val override: MutableList<IrFunctionDeclaration>,
+    override var override: MutableList<IrFunctionDeclaration>,
     override var isFinal: Boolean,
     override var parameterList: IrParameterList,
     override var returnType: IrType,
@@ -92,57 +92,5 @@ internal class IrFunctionDeclarationImpl(
 
     override fun <D> transformContainingClassName(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
         return this
-    }
-
-    override fun replaceName(newName: String) {
-        name = newName
-    }
-
-    override fun replaceLanguage(newLanguage: Language) {
-        language = newLanguage
-    }
-
-    override fun replaceTypeParameters(newTypeParameters: List<IrTypeParameter>) {
-        if (typeParameters === newTypeParameters) return
-        typeParameters.clear()
-        typeParameters.addAll(newTypeParameters)
-    }
-
-    override fun replacePrintNullableAnnotations(newPrintNullableAnnotations: Boolean) {
-        printNullableAnnotations = newPrintNullableAnnotations
-    }
-
-    override fun replaceBody(newBody: IrBlock?) {
-        body = newBody
-    }
-
-    override fun replaceIsOverride(newIsOverride: Boolean) {
-        isOverride = newIsOverride
-    }
-
-    override fun replaceIsOverrideStub(newIsOverrideStub: Boolean) {
-        isOverrideStub = newIsOverrideStub
-    }
-
-    override fun replaceOverride(newOverride: List<IrFunctionDeclaration>) {
-        if (override === newOverride) return
-        override.clear()
-        override.addAll(newOverride)
-    }
-
-    override fun replaceIsFinal(newIsFinal: Boolean) {
-        isFinal = newIsFinal
-    }
-
-    override fun replaceParameterList(newParameterList: IrParameterList) {
-        parameterList = newParameterList
-    }
-
-    override fun replaceReturnType(newReturnType: IrType) {
-        returnType = newReturnType
-    }
-
-    override fun replaceContainingClassName(newContainingClassName: String?) {
-        containingClassName = newContainingClassName
     }
 }

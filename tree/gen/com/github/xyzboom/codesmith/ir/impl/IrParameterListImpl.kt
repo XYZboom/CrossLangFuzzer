@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 
 internal class IrParameterListImpl(
-    override val parameters: MutableList<IrParameter>,
+    override var parameters: MutableList<IrParameter>,
 ) : IrParameterList() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -29,11 +29,5 @@ internal class IrParameterListImpl(
     override fun <D> transformParameters(transformer: IrTransformer<D>, data: D): IrParameterListImpl {
         parameters.transformInplace(transformer, data)
         return this
-    }
-
-    override fun replaceParameters(newParameters: List<IrParameter>) {
-        if (parameters === newParameters) return
-        parameters.clear()
-        parameters.addAll(newParameters)
     }
 }

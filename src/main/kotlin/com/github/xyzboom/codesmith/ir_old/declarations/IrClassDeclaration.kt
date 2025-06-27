@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith.ir_old.declarations
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonTypeName
-import com.github.xyzboom.codesmith.Language.*
+import com.github.xyzboom.codesmith.LanguageOld.*
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
 import com.github.xyzboom.codesmith.ir_old.container.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir_old.types.*
