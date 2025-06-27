@@ -4,9 +4,6 @@ It currently supports generating structurally valid cross-language programs in K
 Java, Groovy, Scala 2, and Scala 3.
 Three mutators have been designed to diversify the generated programs.
 
-# Bugs Found by CrossLangFuzzer
-24 compiler bugs are shown in [this repo](https://github.com/XYZboom/CrossLangFuzzerData).
-
 # Requirements
 - Git
 - JDK 1.8
@@ -15,7 +12,7 @@ Three mutators have been designed to diversify the generated programs.
 - JDK 21 (to build Kotlin Runner)
 
 As no bugs were found currently in JDK 11 and 17, you can use any build version of these two.
-You should set `JDK_HOME=/path/to/jdk_1.8`, `JDK_HOME_11=/path/to/jdk_11` and `JDK_HOME_17=/path/to/jdk_17` to 
+Make sure you set `JDK_HOME=/path/to/jdk_1.8`, `JDK_HOME_11=/path/to/jdk_11` and `JDK_HOME_17=/path/to/jdk_17` to 
 make sure the Kotlin Runner know where the JDK is.
 The Kotlin Compiler will be tested directly in a forked Kotlin repository.
 The Scala and Groovy Compiler will be tested through published jars.
@@ -55,7 +52,7 @@ We currently have three Runners, which are used for testing the Kotlin, Scala, a
 In the Scala and Groovy Runners, the Java compiler being tested is provided by the JDK used to run the current Runner.
 In the Kotlin Runner, it will be the JDK8 and JDK17 installed on the current device.
 Detailed configuration methods will be explained in the corresponding sections for each Runner.
-All runners **NEVER STOP**, you should stop the runner yourself.
+All runners **NEVER STOP**, you may stop the runner yourself.
 
 ## Kotlin Runner 
 Currently, due to certain restrictions (see [KT-78477](https://youtrack.jetbrains.com/issue/KT-78477/Support-External-Compiler-Test-Suites-Outside-Kotlin-Repository)), 
@@ -64,7 +61,7 @@ Therefore, some of the test code for Kotlin Runner is located within a forked Ko
 It may take about 1-2 hours for Gradle to download the required dependencies **in Kotlin Runner**.
 And about 15 minutes to compile the Kotlin Runner. We will make an independent Kotlin Runner in the future.
 
-For Kotlin Runner, you should publish CrossLangFuzzer into your local maven repository.
+For Kotlin Runner, you may publish CrossLangFuzzer into your local maven repository.
 ```bash
 cd CrossLangFuzzer
 # in CrossLangFuzzer
@@ -128,3 +125,36 @@ Once a bug is detected, the output will be shown in `CrossLangFuzzer/runners/gro
 This will run the differential testing for Scala 2.13.15 and Scala 3.6.4-RC1-bin-20241231-1f0c576-NIGHTLY.
 See [here](./runners/scala-runner/build.gradle.kts) for more Scala version information.
 Once a bug is detected, the output will be shown in `CrossLangFuzzer/runners/scala-runner/out`
+
+# Bugs Found by CrossLangFuzzer
+24 compiler bugs are found by CrossLangFuzzer. The details are shown in [this repo](https://github.com/XYZboom/CrossLangFuzzerData).
+
+This table shows the bugs we have found.
+
+| Project | Bug ID                                                                      |
+|---------|-----------------------------------------------------------------------------|
+| Kotlin  | [KT-74109](https://youtrack.jetbrains.com/issue/KT-74109)                   |
+| Kotlin  | [KT-74147](https://youtrack.jetbrains.com/issue/KT-74147)                   |
+| Kotlin  | [KT-74148](https://youtrack.jetbrains.com/issue/KT-74148)                   |
+| Kotlin  | [KT-74151](https://youtrack.jetbrains.com/issue/KT-74151)                   |
+| Kotlin  | [KT-74156](https://youtrack.jetbrains.com/issue/KT-74156)                   |
+| Kotlin  | [KT-74160](https://youtrack.jetbrains.com/issue/KT-74160)                   |
+| Kotlin  | [KT-74174](https://youtrack.jetbrains.com/issue/KT-74174)                   |
+| Kotlin  | [KT-74166](https://youtrack.jetbrains.com/issue/KT-74166)                   |
+| Kotlin  | [KT-74202](https://youtrack.jetbrains.com/issue/KT-74202)                   |
+| Kotlin  | [KT-74209](https://youtrack.jetbrains.com/issue/KT-74209)                   |
+| Kotlin  | [KT-74288](https://youtrack.jetbrains.com/issue/KT-74288)                   |
+| Groovy  | [GROOVY-11548](https://issues.apache.org/jira/browse/GROOVY-11548)          |
+| Groovy  | [GROOVY-11549](https://issues.apache.org/jira/browse/GROOVY-11549)          |
+| Groovy  | [GROOVY-11550](https://issues.apache.org/jira/browse/GROOVY-11550)          |
+| Groovy  | [GROOVY-11579](https://issues.apache.org/jira/browse/GROOVY-11579)          |
+| Scala3  | [SCALA3-22307](https://github.com/scala/scala3/issues/22307)                |
+| Scala3  | [SCALA3-22308](https://github.com/scala/scala3/issues/22308)                |
+| Scala3  | [SCALA3-22309](https://github.com/scala/scala3/issues/22309)                |
+| Scala3  | [SCALA3-22310](https://github.com/scala/scala3/issues/22310)                |
+| Scala3  | [SCALA3-22311](https://github.com/scala/scala3/issues/22311)                |
+| Scala3  | [SCALA3-22312](https://github.com/scala/scala3/issues/22312)                |
+| Scala3  | [SCALA3-22717](https://github.com/scala/scala3/issues/22717)                |
+| Scala2  | [SCALA2-13074](https://github.com/scala/bug/issues/13074)                   |
+| Scala2  | [SCALA2-13075](https://github.com/scala/bug/issues/13075)                   |
+| Java    | [JDK-8352290](https://bugs.openjdk.org/browse/JDK-8352290?filter=allissues) |
