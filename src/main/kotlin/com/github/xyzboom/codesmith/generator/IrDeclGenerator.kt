@@ -518,6 +518,7 @@ class IrDeclGenerator(
             this.language = language
             allSuperTypeArguments = mutableMapOf()
         }
+        context.classes.add(clazz)
         clazz.apply {
             if (random.nextBoolean(config.classHasTypeParameterProbability)) {
                 repeat(config.classTypeParameterNumberRange.random(random)) {
@@ -665,6 +666,7 @@ class IrDeclGenerator(
             isOverrideStub = isStub
             override += from
             parameterList = first.parameterList.copyForOverride()
+            containingClassName = this@genOverrideFunction.name
             for (param in parameterList.parameters) {
                 param.type = getActualTypeFromArguments(param.type, putAllTypeArguments, true)
             }
