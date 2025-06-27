@@ -30,7 +30,6 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
         noBuilder(nullableType)
 
         val funcContainerBuilder by builder {
-            fields from namedElement
             fields from funcContainer
         }
         builder(program) {

@@ -6,7 +6,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
-sealed class IrBuiltInType : IrType() {
+sealed class IrBuiltInType : IrType {
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {}
 
     override fun <D> transformChildren(

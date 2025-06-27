@@ -7,7 +7,7 @@ import com.github.xyzboom.codesmith.generator.impl.IrDeclGeneratorImplOld
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
-import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
+import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImplOld
 import com.github.xyzboom.codesmith.printer_old.IrProgramPrinter
 import com.github.xyzboom.codesmith.tempDir
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
@@ -48,7 +48,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
         }
         generator.shuffleLanguage(program)
     }
-    val mutator = IrMutatorImpl(
+    val mutator = IrMutatorImplOld(
         generator = generator,
         config = MutatorConfig(
             mutateGenericArgumentInParentWeight = 0,

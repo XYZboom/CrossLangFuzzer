@@ -6,7 +6,6 @@ import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.ClassKind.*
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
@@ -151,6 +150,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+        elementStack.push(function)
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
@@ -189,6 +189,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
             data.append(indent)
             data.append("*/\n")
         }
+        require(elementStack.pop() === function)
     }
 
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {

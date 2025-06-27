@@ -1,6 +1,5 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
-import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
 import com.github.xyzboom.codesmith.ir.declarations.builder.IrClassDeclarationBuilder
 import com.github.xyzboom.codesmith.ir.declarations.builder.IrFunctionDeclarationBuilder
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -24,7 +23,7 @@ fun IrFunctionDeclaration.asString(): String {
 
 fun StringBuilder.traceFunc(
     target: IrFunctionDeclarationBuilder,
-    context: IrFuncContainerBuilder?
+    context: IrClassDeclarationBuilder?
 ) {
     append(target.asString())
     append(" from ")
