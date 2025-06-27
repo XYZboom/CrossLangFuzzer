@@ -16,10 +16,10 @@ import kotlin.reflect.full.memberProperties
 
 private val logger = KotlinLogging.logger { }
 
-class IrMutatorImpl(
+class IrMutatorImplOld(
     private val config: MutatorConfig = MutatorConfig.default,
     private val generator: IrDeclGeneratorImplOld,
-) : IrMutator() {
+) : IrMutatorOld() {
     private val random: Random = generator.random
 
     @ConfigBy("mutateGenericArgumentInParentWeight")
@@ -114,7 +114,7 @@ class IrMutatorImpl(
     }
 
     override fun mutate(program: IrProgram): Boolean {
-        val configByMethods = IrMutatorImpl::class.declaredMemberFunctions.filter {
+        val configByMethods = IrMutatorImplOld::class.declaredMemberFunctions.filter {
             it.annotations.any { anno ->
                 anno.annotationClass == ConfigBy::class
             }

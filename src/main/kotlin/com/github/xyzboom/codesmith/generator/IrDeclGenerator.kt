@@ -8,10 +8,8 @@ import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
 import com.github.xyzboom.codesmith.ir.containers.builder.IrTypeParameterContainerBuilder
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrParameter
-import com.github.xyzboom.codesmith.ir.declarations.asString
+import com.github.xyzboom.codesmith.ir.copyForOverride
+import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.builder.*
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.*
@@ -21,24 +19,9 @@ import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
-import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
-import com.github.xyzboom.codesmith.ir.declarations.Signature
-import com.github.xyzboom.codesmith.ir.declarations.SuperAndIntfFunctions
-import com.github.xyzboom.codesmith.ir.declarations.signature
-import com.github.xyzboom.codesmith.ir.declarations.traceFunc
-import com.github.xyzboom.codesmith.ir.declarations.traverseOverride
-import com.github.xyzboom.codesmith.ir.copyForOverride
-import com.github.xyzboom.codesmith.ir_old.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir_old.types.IrClassType
 import com.github.xyzboom.codesmith.utils.choice
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.iterator
-import kotlin.collections.plus
-import kotlin.collections.plusAssign
-import kotlin.collections.toList
 import kotlin.random.Random
 
 class IrDeclGenerator(
@@ -88,14 +71,14 @@ class IrDeclGenerator(
     }
 
     fun randomType(
-        from: IrProgramBuilder,
+        fromClasses: List<IrClassDeclaration>,
         typeParameterFromClass: List<IrTypeParameter>?,
         typeParameterFromFunction: List<IrTypeParameter>?,
         finishTypeArguments: Boolean,
         filter: (IrType) -> Boolean
     ): IrType? {
         val builtins = ALL_BUILTINS.filter(filter)
-        val fromClassDecl = from.classes.map { it.type }.filter(filter)
+        val fromClassDecl = fromClasses.map { it.type }.filter(filter)
         val fromClassTypeParameter = typeParameterFromClass?.filter(filter) ?: emptyList()
         val fromFuncTypeParameter = typeParameterFromFunction?.filter(filter) ?: emptyList()
         val allList = arrayOf(
@@ -106,7 +89,7 @@ class IrDeclGenerator(
         }
         val result = choice(*allList, random = random)
         if (finishTypeArguments && result is IrParameterizedClassifier) {
-            genTypeArguments(from, typeParameterFromClass, result)
+            genTypeArguments(fromClasses, typeParameterFromClass, result)
         }
         return result.copy()
     }
@@ -116,6 +99,22 @@ class IrDeclGenerator(
             return Language.JAVA
         }
         return majorLanguage
+    }
+
+    fun shuffleLanguage(prog: IrProgram) {
+        for (clazz in prog.classes) {
+            clazz.replaceLanguage(randomLanguage())
+            for (func in clazz.functions) {
+                func.replacePrintNullableAnnotations(random.nextBoolean(config.printJavaNullableAnnotationProbability))
+            }
+        }
+        for (func in prog.functions) {
+            func.replaceLanguage(randomLanguage())
+            func.replacePrintNullableAnnotations(random.nextBoolean(config.printJavaNullableAnnotationProbability))
+        }
+        for (property in prog.properties) {
+            property.replaceLanguage(randomLanguage())
+        }
     }
 
     fun genProgram(): IrProgram {
@@ -142,7 +141,7 @@ class IrDeclGenerator(
         val allSuperArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>> = mutableMapOf()
         if (classKind != ClassKind.INTERFACE) {
             val superType = randomType(
-                context, typeParameterFromClass = null, typeParameterFromFunction = null,
+                context.classes, typeParameterFromClass = null, typeParameterFromFunction = null,
                 finishTypeArguments = false
                 //                    ^^^^^
                 // as we don't want to search type parameters,
@@ -155,7 +154,7 @@ class IrDeclGenerator(
             // record superType
             if (superType is IrClassifier) {
                 if (superType is IrParameterizedClassifier) {
-                    genTypeArguments(context, typeParameters, superType)
+                    genTypeArguments(context.classes, typeParameters, superType)
                     allSuperArguments.putAll(superType.getTypeArguments())
                 }
                 logger.trace { "all super type args: $allSuperArguments" }
@@ -166,7 +165,7 @@ class IrDeclGenerator(
         val willAdd = mutableSetOf<IrType>()
         for (i in 0 until config.classImplNumRange.random(random)) {
             logger.trace { "selected supers: $selectedSupers" }
-            val now = randomType(context, null, null, false) { consideringType ->
+            val now = randomType(context.classes, null, null, false) { consideringType ->
                 logger.trace { "considering $consideringType" }
                 var superWasSelected = false
                 if (consideringType is IrClassifier) {
@@ -200,7 +199,7 @@ class IrDeclGenerator(
                     val mayInSuper = selectedSupers.firstOrNull { it.equalsIgnoreTypeArguments(now) }
                     if (mayInSuper == null) {
                         logger.trace { "$now is not appeared in super, use it with generated type args." }
-                        genTypeArguments(context, typeParameters, now)
+                        genTypeArguments(context.classes, typeParameters, now)
                         allSuperArguments.putAll(now.getTypeArguments())
                     } else {
                         logger.trace { "$now appeared in super, use it directly." }
@@ -272,12 +271,12 @@ class IrDeclGenerator(
     }
 
     fun genTypeArguments(
-        context: IrProgramBuilder,
+        fromClasses: List<IrClassDeclaration>,
         typeParameterFromClass: List<IrTypeParameter>?,
         superType: IrParameterizedClassifier
     ) {
         for (typeParam in superType.classDecl.typeParameters) {
-            val chooseType = randomType(context, typeParameterFromClass, null, false) {
+            val chooseType = randomType(fromClasses, typeParameterFromClass, null, false) {
                 it !is IrParameterizedClassifier // for now, we forbid nested cases
                         && (config.allowUnitInTypeArgument || it !== IrUnit)
             } ?: IrAny // for now, we do not talk about upperbound
@@ -659,6 +658,7 @@ class IrDeclGenerator(
         }
         val first = from.first()
         val function = buildFunctionDeclaration {
+            this.name = first.name
             this.language = language
             isOverride = true
             isOverrideStub = isStub
@@ -697,7 +697,7 @@ class IrDeclGenerator(
         target: IrFunctionDeclarationBuilder,
         name: String = randomName(false)
     ): IrParameter {
-        val chooseType = randomType(classContainer, classContext?.typeParameters, target.typeParameters, true) {
+        val chooseType = randomType(classContainer.classes, classContext?.typeParameters, target.typeParameters, true) {
             if (classContext == null) {
                 it !is IrTypeParameter
             } else {
@@ -725,7 +725,7 @@ class IrDeclGenerator(
         classContext: IrClassDeclarationBuilder?,
         target: IrFunctionDeclarationBuilder
     ) {
-        val chooseType = randomType(classContainer, classContext?.typeParameters, target.typeParameters, true) {
+        val chooseType = randomType(classContainer.classes, classContext?.typeParameters, target.typeParameters, true) {
             if (classContext == null) {
                 it !is IrTypeParameter
             } else {

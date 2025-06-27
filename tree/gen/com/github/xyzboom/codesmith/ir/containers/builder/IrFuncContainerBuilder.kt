@@ -13,7 +13,6 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 
 @BuilderDsl
 interface IrFuncContainerBuilder {
-    abstract var name: String
     abstract val functions: MutableList<IrFunctionDeclaration>
 
     fun build(): IrFuncContainer

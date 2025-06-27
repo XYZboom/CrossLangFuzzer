@@ -4,8 +4,8 @@ import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.logFile
+import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
-import com.github.xyzboom.codesmith.mutator.impl.IrMutatorImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -151,7 +151,7 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         val throwException = true
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
-        val parallelSize = 1
+        val parallelSize = 32
         runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
             val jobs = mutableListOf<Job>()
             repeat(parallelSize) {
@@ -164,11 +164,11 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                         val printer = IrProgramPrinter()
                         val generator = IrDeclGenerator(
                             GeneratorConfig(
-                                /*classHasTypeParameterProbability = if (enableGeneric) {
+                                classHasTypeParameterProbability = if (enableGeneric) {
                                     Random.nextFloat() / 4f
                                 } else {
                                     0f
-                                }*/
+                                }
                             )
                         )
                         val prog = generator.genProgram()
@@ -182,7 +182,7 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                             mutateParameterNullabilityWeight = 1
                         )*/
                         val config = MutatorConfig.default
-                        val mutator = IrMutatorImpl(
+                        val mutator = IrMutator(
                             config,
                             generator = generator
                         )
