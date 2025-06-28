@@ -11,8 +11,6 @@ repositories {
 
 dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    // OK, the new IR tree will use gson but the old still using jackson.
-    api("com.google.code.gson:gson:2.13.1")
 }
 
 sourceSets {

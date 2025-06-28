@@ -4,7 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.printer_old.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer_old.clazz.KtIrClassPrinter
-import com.github.xyzboom.codesmith.serde.defaultIrMapper
+import com.github.xyzboom.codesmith.ir.serde.defaultIrMapper
 import org.opentest4j.MultipleFailuresError
 import java.io.File
 import kotlin.test.assertEquals

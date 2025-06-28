@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.serde
+package com.github.xyzboom.codesmith.ir.serde
 
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.JsonSerializer

@@ -1,6 +1,5 @@
 package com.github.xyzboom.codesmith.ir.types.serde
 
-import com.github.xyzboom.codesmith.ir.serde.CONTENT_NAME_FOR_IR_TYPE
 import com.github.xyzboom.codesmith.ir.serde.SERDE_TYPE_NAME
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -20,7 +19,7 @@ object IrNullableTypeSerializer : JsonSerializer<IrNullableType> {
         if (src == null) return JsonNull.INSTANCE
         val result = JsonObject().apply {
             addProperty(SERDE_TYPE_NAME, IrNullableType::class.simpleName)
-            add(CONTENT_NAME_FOR_IR_TYPE, context?.serialize(src.innerType, IrType::class.java))
+            add(src::innerType.name, context?.serialize(src.innerType, IrType::class.java))
         }
         return result
     }
