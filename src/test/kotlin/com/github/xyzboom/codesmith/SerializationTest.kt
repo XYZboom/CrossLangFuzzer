@@ -1,14 +1,11 @@
 package com.github.xyzboom.codesmith
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.module.kotlin.jsonMapper
-import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.xyzboom.codesmith.ir_old.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir_old.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir_old.types.IrClassType
-import com.github.xyzboom.codesmith.serde.defaultIrMapper
+import com.github.xyzboom.codesmith.ir.serde.defaultIrMapper
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
