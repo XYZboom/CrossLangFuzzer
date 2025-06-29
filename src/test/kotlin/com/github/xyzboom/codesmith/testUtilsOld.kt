@@ -1,8 +1,7 @@
 package com.github.xyzboom.codesmith
 
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.types.IrType
-import com.github.xyzboom.codesmith.ir.types.areEqualTypes
+import com.github.xyzboom.codesmith.ir_old.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir_old.types.IrType
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -14,7 +13,7 @@ internal fun IrFunctionDeclaration.assertParameters(
     for ((index, param) in parameterList.parameters.withIndex()) {
         val (expectedName, expectedType) = shouldBe[index]
         assertEquals(expectedName, param.name, "name of parameter $index in $name is unexpected!")
-        assertTrue(areEqualTypes(expectedType, param.type), "type of parameter $index in $name is unexpected!")
+        assertEquals(expectedType, param.type, "name of parameter $index in $name is unexpected!")
     }
 }
 
@@ -28,7 +27,7 @@ internal fun IrFunctionDeclaration.assertIsOverride(
     assertTrue(isOverride)
     if (shouldBeSameSignature) {
         for (func in shouldFrom) {
-            assertEquals(func.name, name)
+            assertTrue(signatureEquals(func))
         }
     }
     assertEquals(shouldFrom.size, override.size)

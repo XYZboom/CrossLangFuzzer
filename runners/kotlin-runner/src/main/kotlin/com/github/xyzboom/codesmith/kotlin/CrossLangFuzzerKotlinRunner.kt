@@ -17,12 +17,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
-import org.jetbrains.kotlin.test.directives.JvmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.runners.codegen.AbstractFirPsiBlackBoxCodegenTest
 import org.jetbrains.kotlin.test.runners.codegen.AbstractIrBlackBoxCodegenTest
 import org.jetbrains.kotlin.test.services.EnvironmentBasedStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinTestInfo
+import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
@@ -36,19 +36,17 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
 
     fun TestConfigurationBuilder.config() {
         /*
-                 * Containers of different directives, which can be used in tests:
-                 * - ModuleStructureDirectives
-                 * - LanguageSettingsDirectives
-                 * - DiagnosticsDirectives
-                 * - FirDiagnosticsDirectives
-                 * - CodegenTestDirectives
-                 * - JvmEnvironmentConfigurationDirectives
-                 *
-                 * All of them are located in `org.jetbrains.kotlin.test.directives` package
-                 */
+         * Containers of different directives, which can be used in tests:
+         * - ModuleStructureDirectives
+         * - LanguageSettingsDirectives
+         * - DiagnosticsDirectives
+         * - FirDiagnosticsDirectives
+         * - CodegenTestDirectives
+         * - JvmEnvironmentConfigurationDirectives
+         *
+         * All of them are located in `org.jetbrains.kotlin.test.directives` package
+         */
         defaultDirectives {
-            +JvmEnvironmentConfigurationDirectives.FULL_JDK
-
             +CodegenTestDirectives.IGNORE_DEXING // Avoids loading R8 from the classpath.
         }
     }
@@ -151,7 +149,10 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         val throwException = true
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
-        val parallelSize = 32
+        val parallelSize = 1
+        // make sure JDK HOME is set
+        KtTestUtil.getJdk8Home()
+        KtTestUtil.getJdk17Home()
         runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
             val jobs = mutableListOf<Job>()
             repeat(parallelSize) {

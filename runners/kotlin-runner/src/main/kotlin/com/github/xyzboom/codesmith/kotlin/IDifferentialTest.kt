@@ -8,7 +8,7 @@ interface IDifferentialTest {
     val jdk: TestJdkKind
     fun testProgram(fileContent: String): KotlinCompileResult {
         val tempFile = File.createTempFile("code-smith", ".kt")
-        tempFile.writeText("// ${jdk.name}\n$fileContent")
+        tempFile.writeText("// JDK_KIND: ${jdk.name}\n$fileContent")
         try {
             runTest(tempFile.absolutePath)
         } catch (e: Throwable) {

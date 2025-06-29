@@ -23,7 +23,7 @@ import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
-class IrDeclGenerator(
+open class IrDeclGenerator(
     private val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
     private val majorLanguage: Language = Language.KOTLIN
@@ -69,7 +69,7 @@ class IrDeclGenerator(
         return ClassKind.entries.random(random)
     }
 
-    fun randomType(
+    open fun randomType(
         fromClasses: List<IrClassDeclaration>,
         typeParameterFromClass: List<IrTypeParameter>?,
         typeParameterFromFunction: List<IrTypeParameter>?,
@@ -622,7 +622,7 @@ class IrDeclGenerator(
         typeArguments: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
         onlyValue: Boolean
     ): IrType {
-        if (oriType is IrParameter) {
+        if (oriType is IrTypeParameter) {
             val oriName = IrTypeParameterName(oriType.name)
             if (oriName in typeArguments) {
                 // replace type parameter in super with type argument
