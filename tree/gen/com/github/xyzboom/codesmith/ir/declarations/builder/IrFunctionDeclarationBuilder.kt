@@ -15,12 +15,13 @@ import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionDeclarationIm
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import kotlin.contracts.*
 
 @BuilderDsl
 class IrFunctionDeclarationBuilder {
     lateinit var name: String
-    lateinit var language: Language
+    var language: Language = Language.KOTLIN
     val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
     var printNullableAnnotations: Boolean = false
     var body: IrBlock? = null
@@ -29,7 +30,7 @@ class IrFunctionDeclarationBuilder {
     val override: MutableList<IrFunctionDeclaration> = mutableListOf()
     var isFinal: Boolean = false
     lateinit var parameterList: IrParameterList
-    lateinit var returnType: IrType
+    var returnType: IrType = IrUnit
     var containingClassName: String? = null
 
     fun build(): IrFunctionDeclaration {

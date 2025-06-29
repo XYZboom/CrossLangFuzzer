@@ -37,10 +37,16 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
         }
         builder(classDecl) {
             parents += funcContainerBuilder
+            additionalImports(languageType)
+            default("allSuperTypeArguments", "mutableMapOf()")
+            default("language", "Language.KOTLIN")
         }
 
         builder(funcDecl) {
             defaultFalse("printNullableAnnotations", "isOverride", "isOverrideStub", "isFinal")
+            additionalImports(unitType, languageType)
+            default("returnType", "IrUnit")
+            default("language", "Language.KOTLIN")
         }
     }
 }
