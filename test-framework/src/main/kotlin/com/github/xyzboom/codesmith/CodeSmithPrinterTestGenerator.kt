@@ -11,7 +11,7 @@ object CodeSmithPrinterTestGenerator {
 
     private const val TEST_DATA_PATH = "src/testData/printer/"
     private const val TEST_OUTPUT_PATH =
-        "src/test/kotlin/com/github/xyzboom/codesmith/printer/generated/ClassPrinterTest.kt"
+        "src/test/kotlin/com/github/xyzboom/codesmith/printer_old/generated/ClassPrinterTest.kt"
     private const val IGNORE_FILE_NAME = "ignore"
     private const val IR_FILE_NAME = "ir.json"
     private const val JAVA_FILE_NAME = "result.kt"
@@ -104,9 +104,9 @@ object CodeSmithPrinterTestGenerator {
         sb.append(
             """
             |// auto generated, do not manually edit!
-            |package com.github.xyzboom.codesmith.printer.generated
+            |package com.github.xyzboom.codesmith.printer_old.generated
             |
-            |import com.github.xyzboom.codesmith.printer.BaseClassPrinterTester
+            |import com.github.xyzboom.codesmith.printer_old.BaseClassPrinterTester
             |import org.junit.jupiter.api.Nested
             |import org.junit.jupiter.api.Test
             |import org.junit.jupiter.api.Disabled

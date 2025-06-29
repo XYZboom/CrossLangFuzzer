@@ -3,7 +3,6 @@ package com.github.xyzboom.codesmith.tree.generator
 import com.github.xyzboom.codesmith.tree.generator.TreeBuilder.typeParameter
 import com.github.xyzboom.codesmith.tree.generator.utils.generatedType
 import com.github.xyzboom.codesmith.tree.generator.utils.type
-import org.jetbrains.kotlin.generators.tree.StandardTypes
 import org.jetbrains.kotlin.generators.tree.TypeKind
 import org.jetbrains.kotlin.generators.tree.imports.ArbitraryImportable
 import org.jetbrains.kotlin.generators.tree.withArgs
@@ -20,6 +19,8 @@ val irTransformerType = generatedType("visitors", "IrTransformer")
 
 val classKindType = type("ir", "ClassKind")
 val languageType = type("ir", "Language")
+
+val unitType = type("ir.types.builtin", "IrUnit")
 
 val transformInPlaceImport = ArbitraryImportable(VISITOR_PACKAGE, "transformInplace")
 
