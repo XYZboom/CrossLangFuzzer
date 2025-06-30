@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.kotlin
 
+import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
@@ -30,24 +31,26 @@ import kotlin.time.measureTime
 
 val testInfo = KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
 
-object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
+class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
 
     private val logger = KotlinLogging.logger {  }
 
-    fun TestConfigurationBuilder.config() {
-        /*
-         * Containers of different directives, which can be used in tests:
-         * - ModuleStructureDirectives
-         * - LanguageSettingsDirectives
-         * - DiagnosticsDirectives
-         * - FirDiagnosticsDirectives
-         * - CodegenTestDirectives
-         * - JvmEnvironmentConfigurationDirectives
-         *
-         * All of them are located in `org.jetbrains.kotlin.test.directives` package
-         */
-        defaultDirectives {
-            +CodegenTestDirectives.IGNORE_DEXING // Avoids loading R8 from the classpath.
+    companion object {
+        fun TestConfigurationBuilder.config() {
+            /*
+             * Containers of different directives, which can be used in tests:
+             * - ModuleStructureDirectives
+             * - LanguageSettingsDirectives
+             * - DiagnosticsDirectives
+             * - FirDiagnosticsDirectives
+             * - CodegenTestDirectives
+             * - JvmEnvironmentConfigurationDirectives
+             *
+             * All of them are located in `org.jetbrains.kotlin.test.directives` package
+             */
+            defaultDirectives {
+                +CodegenTestDirectives.IGNORE_DEXING // Avoids loading R8 from the classpath.
+            }
         }
     }
 
@@ -116,13 +119,8 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         K2Jdk8Test, K2Jdk17Test,
     )
 
-    @JvmStatic
-    fun main(args: Array<String>) {
-        run()
-    }
-
     @OptIn(ExperimentalStdlibApi::class)
-    fun doOneRound(fileContent: String, throwException: Boolean) {
+    fun doOneRoundDifferential(fileContent: String, throwException: Boolean) {
         val testResults = testers.map { it.testProgram(fileContent) }
         if (testResults.toSet().size != 1) {
             val dir = File(logFile, System.currentTimeMillis().toHexString())
@@ -144,6 +142,25 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
+    fun doOneRound(fileContent: String, throwException: Boolean) {
+        val testResult = K2Jdk8Test.testProgram(fileContent)
+        if (testResult.e != null) {
+            val dir = File(logFile, System.currentTimeMillis().toHexString())
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+            File(dir, "main.kt").writeText(fileContent)
+            File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
+            val writer = File(dir, "exception-${testResult.testName}.txt").printWriter()
+            testResult.e.printStackTrace(writer)
+            writer.flush()
+            if (throwException) {
+                throw RuntimeException()
+            }
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun run() {
         val throwException = true
@@ -153,53 +170,67 @@ object CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         // make sure JDK HOME is set
         KtTestUtil.getJdk8Home()
         KtTestUtil.getJdk17Home()
-        runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
-            val jobs = mutableListOf<Job>()
-            repeat(parallelSize) {
-                val job = launch {
-                    var enableGeneric: Boolean
-                    val threadName = Thread.currentThread().name
-                    while (true) {
-                        enableGeneric = Random.nextBoolean(0.15f)
-//                        enableGeneric = false
-                        val printer = IrProgramPrinter()
-                        val generator = IrDeclGenerator(
-                            GeneratorConfig(
-                                classHasTypeParameterProbability = if (enableGeneric) {
-                                    Random.nextFloat() / 4f
-                                } else {
-                                    0f
-                                }
+        if (differentialTesting) {
+            runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
+                val jobs = mutableListOf<Job>()
+                repeat(parallelSize) {
+                    val job = launch {
+                        var enableGeneric: Boolean
+                        val threadName = Thread.currentThread().name
+                        while (true) {
+                            enableGeneric = Random.nextBoolean(0.15f)
+        //                        enableGeneric = false
+                            val printer = IrProgramPrinter()
+                            val generator = IrDeclGenerator(
+                                GeneratorConfig(
+                                    classHasTypeParameterProbability = if (enableGeneric) {
+                                        Random.nextFloat() / 4f
+                                    } else {
+                                        0f
+                                    }
+                                )
                             )
-                        )
-                        val prog = generator.genProgram()
-                        repeat(5) {
-                            val fileContent = printer.printToSingle(prog)
-                            val dur = measureTime { doOneRound(fileContent, throwException) }
-                            println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
-                            generator.shuffleLanguage(prog)
-                        }
-                        /*val config = MutatorConfig.allZero.copy(
-                            mutateParameterNullabilityWeight = 1
-                        )*/
-                        val config = MutatorConfig.default
-                        val mutator = IrMutator(
-                            config,
-                            generator = generator
-                        )
-                        if (mutator.mutate(prog)) {
+                            val prog = generator.genProgram()
                             repeat(5) {
                                 val fileContent = printer.printToSingle(prog)
-                                val dur = measureTime { doOneRound(fileContent, throwException) }
+                                val dur = measureTime { doOneRoundDifferential(fileContent, throwException) }
                                 println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                 generator.shuffleLanguage(prog)
                             }
+                            /*val config = MutatorConfig.allZero.copy(
+                                    mutateParameterNullabilityWeight = 1
+                                )*/
+                            val config = MutatorConfig.default
+                            val mutator = IrMutator(
+                                config,
+                                generator = generator
+                            )
+                            if (mutator.mutate(prog)) {
+                                repeat(5) {
+                                    val fileContent = printer.printToSingle(prog)
+                                    val dur = measureTime { doOneRoundDifferential(fileContent, throwException) }
+                                    println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
+                                    generator.shuffleLanguage(prog)
+                                }
+                            }
                         }
                     }
+                    jobs.add(job)
                 }
-                jobs.add(job)
+                jobs.joinAll()
             }
-            jobs.joinAll()
+        } else {
+            while (true) {
+                val printer = IrProgramPrinter()
+                val generator = IrDeclGenerator()
+                val prog = generator.genProgram()
+                val dur = measureTime { doOneRound(printer.printToSingle(prog), stopOnErrors) }
+                println("${i.incrementAndGet()}:${dur}\t\t")
+            }
         }
     }
+}
+
+fun main(args: Array<String>) {
+    CrossLangFuzzerKotlinRunner().main(args)
 }

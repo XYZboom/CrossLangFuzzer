@@ -68,6 +68,14 @@ class JavaIrClassPrinter(
         const val FUNCTION_BODY_TODO = "throw new RuntimeException();"
     }
 
+    /**
+     * value: The binary value of 1 corresponding to the position from the low position indicates that
+     * the parameter of the index is a type parameter
+     * Example: 0b1011 for function: f(a, b, c, d) means a, b and d is type parameter
+     *          (in current or parent class)
+     */
+    private val functionParameterTypeHasTypeParameter = mutableMapOf<IrFunctionDeclaration, Int>()
+
     override fun print(element: IrClassDeclaration): String {
         val data = StringBuilder(imports)
         visitClassDeclaration(element, data)
@@ -109,7 +117,7 @@ class JavaIrClassPrinter(
         val chooseTypeMap = when (typeContext) {
             TypeArgument -> builtInNamesInTypeArgument
             Parameter -> builtInTypeInParameter
-            Other -> builtInNames
+            TypeParameterDeclaration, Other -> builtInNames
         }
         val typeStr = when (irType) {
             is IrNullableType -> {
@@ -134,18 +142,19 @@ class JavaIrClassPrinter(
                     is IrParameterizedClassifier -> {
                         val sb = StringBuilder(irType.classDecl.name)
                         sb.append("<")
-                        val entries1 = irType.getTypeArguments().entries
-                        for ((index, pair) in entries1.withIndex()) {
-                            val (_, typeArg) = pair
+                        // print type arg in the order of superType
+                        val typeArgs = irType.getTypeArguments()
+                        for ((index, typeParam) in irType.classDecl.typeParameters.withIndex()) {
+                            val typeArg = typeArgs[IrTypeParameterName(typeParam.name)]!!.second
                             sb.append(
                                 printType(
-                                    typeArg.second,
+                                    typeArg,
                                     typeContext = TypeArgument,
                                     printNullableAnnotation = printNullableAnnotation,
                                     noNullabilityAnnotation = noNullabilityAnnotation,
                                 )
                             )
-                            if (index != entries1.size - 1) {
+                            if (index != irType.classDecl.typeParameters.lastIndex) {
                                 sb.append(", ")
                             }
                         }
@@ -154,7 +163,11 @@ class JavaIrClassPrinter(
                     }
                 }
 
-            is IrTypeParameter -> irType.name
+            is IrTypeParameter -> if (typeContext != TypeParameterDeclaration) {
+                irType.name
+            } else {
+                "${irType.name} extends ${printType(irType.upperbound, printNullableAnnotation = true)}"
+            }
 
             else -> throw NoWhenBranchMatchedException()
         }
@@ -207,7 +220,11 @@ class JavaIrClassPrinter(
         if (typeParameters.isNotEmpty()) {
             data.append("<")
             for ((index, typeParameter) in typeParameters.withIndex()) {
-                data.append(printType(typeParameter, printNullableAnnotation = false))
+                data.append(
+                    printType(
+                        typeParameter, typeContext = TypeParameterDeclaration, printNullableAnnotation = false
+                    )
+                )
                 if (index != typeParameters.lastIndex) {
                     data.append(", ")
                 }
@@ -232,7 +249,7 @@ class JavaIrClassPrinter(
          * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
          * so multi line comments in stubs need to be disabled.
          */
-        val printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
+        var printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
@@ -255,8 +272,33 @@ class JavaIrClassPrinter(
                 data.append("final ")
             }
         }
+        if (function.typeParameters.isNotEmpty()) {
+            data.append("<")
+            for ((index, typeParam) in function.typeParameters.withIndex()) {
+                data.append(typeParam.name)
+                data.append(" extends ")
+                data.append(
+                    printType(
+                        typeParam.upperbound,
+                        TypeArgument,
+                        printNullableAnnotation,
+                        noNullabilityAnnotation = false
+                    )
+                )
+                if (index != function.typeParameters.lastIndex) {
+                    data.append(", ")
+                }
+            }
+            data.append(">")
+        }
+        val myReturnTypeIsTypeParameter = function.run {
+            returnType is IrTypeParameter ||
+                    (returnType is IrNullableType && (returnType as IrNullableType).innerType is IrTypeParameter)
+        }
         // IrUnit in Java is void if it is not type argument. It's Void otherwise.
         var anyOverrideReturnTypeIsTypeParameter = false
+        // see this.functionParameterTypeHasTypeParameter
+        var anyOverrideParameterIsTypeParameter = 0
         function.traverseOverride {
             val returnType = it.returnType
             logger.trace { returnType.toString() }
@@ -265,10 +307,32 @@ class JavaIrClassPrinter(
             ) {
                 anyOverrideReturnTypeIsTypeParameter = true
             }
+            var current = 1
+            for (param in it.parameterList.parameters) {
+                val paramType = param.type
+                if (paramType is IrTypeParameter ||
+                    (paramType is IrNullableType && paramType.innerType is IrTypeParameter)) {
+                    anyOverrideParameterIsTypeParameter = anyOverrideParameterIsTypeParameter or current
+                }
+                current = current shl 1 // current << 1 (shl is shift left in Kotlin)
+            }
         }
+        functionParameterTypeHasTypeParameter[function] = anyOverrideParameterIsTypeParameter
+        printNullableAnnotation = printNullableAnnotation ||
+                anyOverrideReturnTypeIsTypeParameter || myReturnTypeIsTypeParameter
         data.append(
             printType(
-                function.returnType, printNullableAnnotation = printNullableAnnotation,
+                function.returnType,
+                /**
+                 * ```java
+                 * class A<T extends @NotNull Object> {
+                 *     public /*@Nullable*/ T func() {}
+                 *     //                   ^
+                 *     // type parameter T here is not a platform type! Instead, it is a NotNull type.
+                 * }
+                 * ```
+                 */
+                printNullableAnnotation = printNullableAnnotation || anyOverrideReturnTypeIsTypeParameter,
                 typeContext = if (anyOverrideReturnTypeIsTypeParameter) {
                     TypeArgument
                 } else {
@@ -303,11 +367,18 @@ class JavaIrClassPrinter(
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters
         val func = elementStack.peek() as IrFunctionDeclaration
+        // see this.functionParameterTypeHasTypeParameter
+        var current = 1
+        val anyOverrideParameterIsTypeParameter = functionParameterTypeHasTypeParameter[func]!!
         for ((index, parameter) in parameters.withIndex()) {
+            val parameterType = parameter.type
             data.append(
                 printType(
-                    parameter.type, Parameter,
-                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub,
+                    parameterType, Parameter,
+                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub
+                            || parameterType is IrTypeParameter
+                            || (parameterType is IrNullableType && parameterType.innerType is IrTypeParameter)
+                            || (anyOverrideParameterIsTypeParameter and current) != 0,
                 )
             )
             data.append(" ")
@@ -315,6 +386,7 @@ class JavaIrClassPrinter(
             if (index != parameters.lastIndex) {
                 data.append(", ")
             }
+            current = current shl 1
         }
     }
 

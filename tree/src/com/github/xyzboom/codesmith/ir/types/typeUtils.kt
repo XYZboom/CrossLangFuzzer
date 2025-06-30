@@ -69,8 +69,9 @@ fun IrParameterizedClassifier.putAllTypeArguments(
          * [args] will be {"T0": "T1"}
          */
         if (!onlyValue && args.containsKey(typeParamName)) {
-            logger.trace { "replace ${typeParamName.value} with ${args[typeParamName]!!}" }
-            putTypeArgument(typeParam, args[typeParamName]!!.second)
+            val replaceWith = args[typeParamName]!!
+            logger.trace { "replace ${typeParamName.value} with ${replaceWith.second.render()}" }
+            putTypeArgument(typeParam, replaceWith.second)
         } else {
             /**
              * Indirectly use.
@@ -83,8 +84,9 @@ fun IrParameterizedClassifier.putAllTypeArguments(
             if (typeArg !is IrTypeParameter) continue
             val typeArgAsTypeParameterName = IrTypeParameterName(typeArg.name)
             if (args.containsKey(typeArgAsTypeParameterName)) {
-                logger.trace { "replace $typeParam with ${args[typeArgAsTypeParameterName]!!}" }
-                putTypeArgument(typeParam, args[typeArgAsTypeParameterName]!!.second)
+                val replaceWith = args[typeArgAsTypeParameterName]!!
+                logger.trace { "replace ${typeParam.render()} with ${replaceWith.second.render()}" }
+                putTypeArgument(typeParam, replaceWith.second)
             }
         }
     }

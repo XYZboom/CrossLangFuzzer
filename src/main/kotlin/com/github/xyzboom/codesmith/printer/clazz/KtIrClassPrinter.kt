@@ -14,6 +14,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
+import com.github.xyzboom.codesmith.printer.TypeContext.TypeParameterDeclaration
 
 class KtIrClassPrinter : AbstractIrClassPrinter() {
 
@@ -67,11 +68,12 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                     is IrParameterizedClassifier -> {
                         val sb = StringBuilder(irType.classDecl.name)
                         sb.append("<")
-                        val entries1 = irType.getTypeArguments().entries
-                        for ((index, pair) in entries1.withIndex()) {
-                            val (_, typeArg) = pair
-                            sb.append(printType(typeArg.second))
-                            if (index != entries1.size - 1) {
+                        // print type arg in the order of superType
+                        val typeArgs = irType.getTypeArguments()
+                        for ((index, typeParam) in irType.classDecl.typeParameters.withIndex()) {
+                            val typeArg = typeArgs[IrTypeParameterName(typeParam.name)]!!.second
+                            sb.append(printType(typeArg))
+                            if (index != irType.classDecl.typeParameters.lastIndex) {
                                 sb.append(", ")
                             }
                         }
@@ -80,7 +82,11 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                     }
                 }
 
-            is IrTypeParameter -> irType.name
+            is IrTypeParameter -> if (typeContext != TypeParameterDeclaration) {
+                irType.name
+            } else {
+                "${irType.name} : ${printType(irType.upperbound)}"
+            }
 
             else -> throw NoWhenBranchMatchedException()
         }
@@ -131,7 +137,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         if (typeParameters.isNotEmpty()) {
             data.append("<")
             for ((index, typeParameter) in typeParameters.withIndex()) {
-                data.append(printType(typeParameter))
+                data.append(printType(typeParameter, typeContext = TypeContext.TypeParameterDeclaration))
                 if (index != typeParameters.lastIndex) {
                     data.append(", ")
                 }
@@ -168,6 +174,23 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
             data.append("open ")
         }
         data.append("fun ")
+        if (function.typeParameters.isNotEmpty()) {
+            data.append("<")
+            for ((index, typeParam) in function.typeParameters.withIndex()) {
+                data.append(typeParam.name)
+                data.append(": ")
+                data.append(printType(
+                    typeParam.upperbound,
+                    TypeContext.TypeArgument,
+                    function.printNullableAnnotations,
+                    noNullabilityAnnotation = false
+                ))
+                if (index != function.typeParameters.lastIndex) {
+                    data.append(", ")
+                }
+            }
+            data.append(">")
+        }
         data.append(function.name)
         data.append("(")
         visitParameterList(function.parameterList, data)

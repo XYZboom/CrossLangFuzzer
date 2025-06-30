@@ -42,7 +42,7 @@ tasks.withType<JavaExec> {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(11)
     }
-    mainClass.set("com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunner")
+    mainClass.set("com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunnerKt")
     systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
     systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "trace"
     systemProperties["codesmith.logger.traceFile.ImmediateFlush"] =

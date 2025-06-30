@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.ir.serde.gson
 import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import java.io.File
 
 
 fun main() {
@@ -23,12 +24,12 @@ fun main() {
         val prog = generator.genProgram()
         println(prog)
         val fileContent = printer.printToSingle(prog)
-        println(fileContent)
+        File("a.kt").writeText(fileContent)
         val jsonString = gson.toJson(prog, IrProgram::class.java)
-        println(jsonString)
+        File("a.json").writeText(jsonString)
         val prog1 = gson.fromJson(jsonString, IrProgram::class.java)
         val fileContent1 = printer.printToSingle(prog1)
-        println(fileContent1)
+        File("b.kt").writeText(fileContent1)
         /*val mutator = IrMutatorImpl(generator = generator)
         mutator.mutate(prog)
         val fileContent1 = printer.printToSingle(prog)

@@ -21,7 +21,7 @@ fun IrFunctionDeclaration.asString(): String {
 }
 
 fun StringBuilder.traceFunc(
-    target: IrFunctionDeclarationBuilder,
+    target: IrFunctionDeclaration,
     context: IrClassDeclaration?
 ) {
     append(target.asString())

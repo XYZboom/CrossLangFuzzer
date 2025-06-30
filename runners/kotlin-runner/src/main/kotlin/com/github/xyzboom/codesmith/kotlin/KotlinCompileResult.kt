@@ -1,6 +1,6 @@
 package com.github.xyzboom.codesmith.kotlin
 
-// import org.jetbrains.kotlin.test.JavaCompilationError
+import org.jetbrains.kotlin.test.JavaCompilationError
 
 class KotlinCompileResult(
     val e: Throwable?,
@@ -13,7 +13,7 @@ class KotlinCompileResult(
 
         if (e == null && other.e != null) return false
         if (e != null && other.e == null) return false
-        // if (e is JavaCompilationError) return other.e is JavaCompilationError
+         if (e is JavaCompilationError) return other.e is JavaCompilationError
         if (fileContent != other.fileContent) return false
 
         return true

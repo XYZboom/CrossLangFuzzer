@@ -1,8 +1,6 @@
 package com.github.xyzboom.codesmith.generator
 
-import com.github.xyzboom.codesmith.utils.rouletteSelection
 import org.jetbrains.annotations.TestOnly
-import kotlin.random.Random
 
 data class GeneratorConfig(
     val nameLengthRange: IntRange = 3..8,
@@ -30,6 +28,8 @@ data class GeneratorConfig(
     val functionExpressionNumRange: IntRange = 2..8,
     val functionParameterNullableProbability: Float = 0.4f,
     val functionReturnTypeNullableProbability: Float = 0.4f,
+    val functionHasTypeParameterProbability: Float = 0.3f,
+    val functionTypeParameterNumberRange: IntRange = 1..3,
     //</editor-fold>
     //<editor-fold desc="Types">
     val allowNothingInParameter: Boolean = false,
@@ -38,6 +38,7 @@ data class GeneratorConfig(
      * For now, there are common bugs when Unit appears in type argument, so the default value is false.
      */
     val allowUnitInTypeArgument: Boolean = false,
+    val allowNothingInTypeArgument: Boolean = false,
     //</editor-fold>
     val printJavaNullableAnnotationProbability: Float = 0.4f,
     val newExpressionWeight: Int = 1,
