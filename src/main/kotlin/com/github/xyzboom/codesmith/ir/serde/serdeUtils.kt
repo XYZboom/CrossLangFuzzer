@@ -64,7 +64,6 @@ val gson: Gson = GsonBuilder()
     .registerTypeAdapter(IrNullableType::class.java, IrNullableTypeSerializer)
     .registerTypeAdapter(IrBuiltInType::class.java, IrBuiltInTypeSerializer)
     .registerTypeAdapter(IrTypeParameter::class.java, IrTypeParameterSerializer)
-    .setPrettyPrinting()
     .create()
 
 fun JsonObject.addTypeParameters(typeParameterContainer: IrTypeParameterContainer, p2: JsonSerializationContext?) {
