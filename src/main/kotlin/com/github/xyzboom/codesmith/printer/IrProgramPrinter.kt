@@ -27,7 +27,7 @@ class IrProgramPrinter(
 
     private val extraJavaFile = buildMap {
         put(
-            "org/jetbrains/annotations/NotNull.java",
+            "NotNull.java",
             "package org.jetbrains.annotations;\n" +
                     "\n" +
                     "import java.lang.annotation.*;\n" +
@@ -41,7 +41,7 @@ class IrProgramPrinter(
                     "}"
         )
         put(
-            "org/jetbrains/annotations/Nullable.java",
+            "Nullable.java",
             "package org.jetbrains.annotations;\n" +
                     "\n" +
                     "import java.lang.annotation.*;\n" +

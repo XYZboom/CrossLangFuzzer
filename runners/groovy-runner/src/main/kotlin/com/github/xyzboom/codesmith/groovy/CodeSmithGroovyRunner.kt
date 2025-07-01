@@ -27,7 +27,6 @@ import kotlin.time.measureTime
 class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private val groovyVersions by option("--gv")
-        .choice(*GroovyCompilerWrapper.Companion.groovyJarsWithVersion.keys.toTypedArray())
         .split(",")
         .required()
 

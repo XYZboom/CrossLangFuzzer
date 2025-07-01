@@ -19,25 +19,49 @@ class GroovyCompilerWrapper internal constructor(
     val version: String
 ) {
     companion object {
-        // key: version, value: resource path
-        val groovyJarsWithVersion: Map<String, String> = listResourceFiles("groovyJars").associateBy {
-            it.split("/").last().removePrefix("groovy-").removeSuffix(".jar")
-        }
+        val groovySdkDir = File(
+            System.getProperty("groovy.sdk.dir")
+                ?: throw NullPointerException("Please run from gradlew or set a system property \"groovy.sdk.dir\"")
+        )
+
     }
 
     val isGroovy5 = version.split(".").first() == "5"
     val language = if (isGroovy5) Language.GROOVY5 else Language.GROOVY4
     private val versionStr = "groovy-${version}"
 
-    private val jarUrl: URL = ClassLoader.getSystemClassLoader().getResource(groovyJarsWithVersion[version]!!)!!
-    private val classLoader = URLClassLoader(arrayOf(jarUrl), ClassLoader.getSystemClassLoader())
+    private val sdkDir = File(groovySdkDir, versionStr).also {
+        if (!it.exists() || it.isFile) {
+            throw IllegalStateException("Groovy compiler does not exist at: ${it.absolutePath}")
+        }
+    }
+    private val sdkLibDir = File(sdkDir, "lib").also {
+        if (!it.exists() || it.isFile) {
+            throw IllegalStateException("Groovy compiler libs does not exist at: ${it.absolutePath}")
+        }
+    }
+
+    private val jarClassLoader = URLClassLoader(arrayOf(File(sdkLibDir, "$versionStr.jar").toURI().toURL()))
+
+    private val groovyRootLoaderClass = jarClassLoader.loadClass("org.codehaus.groovy.tools.RootLoader")
+    private val addURLMethod = groovyRootLoaderClass.getMethod("addURL", URL::class.java)
+    private val classLoader = (groovyRootLoaderClass.getConstructor(ClassLoader::class.java)
+        .newInstance(ClassLoader.getSystemClassLoader()) as URLClassLoader).apply {
+        val files = sdkLibDir.listFiles {
+            it.isFile && (it.name.endsWith(".class") || it.name.endsWith(".jar"))
+        } ?: throw IllegalStateException("No files found at: ${sdkLibDir.absolutePath}")
+        for (file in files) {
+            addURLMethod.invoke(this, file.toURI().toURL())
+        }
+    }
+
     private val javaAwareCompilationUnitClass =
         classLoader.loadClass("org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit")
     private val compilationUnitClass = classLoader.loadClass("org.codehaus.groovy.control.CompilationUnit")
     private val compilerConfigClass = classLoader.loadClass("org.codehaus.groovy.control.CompilerConfiguration")
     private val fileSystemCompilerClass = classLoader.loadClass("org.codehaus.groovy.tools.FileSystemCompiler")
     private val doCompilationMethod = fileSystemCompilerClass.getMethod(
-        "doCompilation", compilerConfigClass, compilationUnitClass, Array<String>::class.java
+        "doCompilation", compilerConfigClass, compilationUnitClass, Array<String>::class.java, Boolean::class.java
     )
     private val groovyClassLoaderClass = classLoader.loadClass("groovy.lang.GroovyClassLoader")
     private val groovyClassLoader =
@@ -51,6 +75,9 @@ class GroovyCompilerWrapper internal constructor(
     private val fsc = classLoader.loadClass("org.codehaus.groovy.tools.FileSystemCompiler")
     private val commandLineCompileMethod = fsc.getMethod("commandLineCompile", Array<String>::class.java)
 
+    private val starterClass = classLoader.loadClass("org.codehaus.groovy.tools.GroovyStarter")
+    private val starterMainMethod = starterClass.getMethod("rootLoader", Array<String>::class.java)
+
     fun compileGroovyWithJava(
         printer: IrProgramPrinter,
         program: IrProgram
@@ -60,17 +87,41 @@ class GroovyCompilerWrapper internal constructor(
         val fileMap = printer.print(program)
         printer.saveFileMap(fileMap, tempPath)
         val allSourceFiles = fileMap.map { Path(tempPath, it.key).pathString }
-        val compilerConfig = compilerConfigConstructor.newInstance()
-        setTargetDirectoryMethod.invoke(compilerConfig, outDir.absolutePath)
-        setJointCompilationOptionsMethod.invoke(
-            compilerConfig, mutableMapOf<String, Any>(
-                "stubDir" to createTempDirectory("groovy").toFile()
-            )
-        )
-        val compilationUnit =
-            compilationUnitConstructor.newInstance(compilerConfig, groovyClassLoader)
+//        val compilerConfig = compilerConfigConstructor.newInstance()
+//        setTargetDirectoryMethod.invoke(compilerConfig, outDir.absolutePath)
+//        setJointCompilationOptionsMethod.invoke(
+//            compilerConfig, mutableMapOf<String, Any>(
+//                "stubDir" to createTempDirectory("groovy").toFile()
+//            )
+//        )
+//        val compilationUnit =
+//            compilationUnitConstructor.newInstance(compilerConfig, groovyClassLoader)
+//        val groovyResult = try {
+//            doCompilationMethod.invoke(null, compilerConfig, compilationUnit, allSourceFiles.toTypedArray(), true)
+//            null
+//        } catch (e: InvocationTargetException) {
+//            e.cause!!.message
+//        }
+
+//        val groovyResult = try {
+//            commandLineCompileMethod.invoke(null, arrayOf(
+//                "--classpath", outDir.absolutePath,
+//                "-d", outDir.absolutePath,
+//                "-j", *allSourceFiles.toTypedArray()
+//            ))
+//            null
+//        } catch (e: InvocationTargetException) {
+//            e.cause!!.message
+//        }
+
         val groovyResult = try {
-            doCompilationMethod.invoke(null, compilerConfig, compilationUnit, allSourceFiles.toTypedArray())
+            starterMainMethod.invoke(null, arrayOf(
+                "--main", "org.codehaus.groovy.tools.FileSystemCompiler",
+                "--classpath", ".",
+//                "--conf", File(sdkDir, "conf/groovy-starter.conf").absolutePath,
+                "-d", outDir.absolutePath,
+                "-j", *allSourceFiles.toTypedArray()
+            ))
             null
         } catch (e: InvocationTargetException) {
             e.cause!!.message
