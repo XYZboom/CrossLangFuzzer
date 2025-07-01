@@ -15,6 +15,7 @@ import kotlin.io.path.Path
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.pathString
 
+@Suppress("unused")
 class GroovyCompilerWrapper internal constructor(
     val version: String
 ) {
@@ -49,6 +50,18 @@ class GroovyCompilerWrapper internal constructor(
     private val setJointCompilationOptionsMethod =
         compilerConfigClass.getMethod("setJointCompilationOptions", Map::class.java)
     private val fsc = classLoader.loadClass("org.codehaus.groovy.tools.FileSystemCompiler")
+
+    /**
+     * here we do not directly use this because groovy can not specify [classLoader] set for its compiler jar.
+     * An error like the following will occur:
+     * ```txt
+     * org.codehaus.groovy.control.MultipleCompilationErrorsException: startup failed:
+     * A.groovy: Could not find class for Transformation Processor
+     * org.codehaus.groovy.transform.trait.TraitASTTransformation declared by groovy.transform.Trait
+     *
+     * 1 error
+     * ```
+     */
     private val commandLineCompileMethod = fsc.getMethod("commandLineCompile", Array<String>::class.java)
 
     fun compileGroovyWithJava(
@@ -60,17 +73,11 @@ class GroovyCompilerWrapper internal constructor(
         val fileMap = printer.print(program)
         printer.saveFileMap(fileMap, tempPath)
         val allSourceFiles = fileMap.map { Path(tempPath, it.key).pathString }
-        val compilerConfig = compilerConfigConstructor.newInstance()
-        setTargetDirectoryMethod.invoke(compilerConfig, outDir.absolutePath)
-        setJointCompilationOptionsMethod.invoke(
-            compilerConfig, mutableMapOf<String, Any>(
-                "stubDir" to createTempDirectory("groovy").toFile()
-            )
-        )
-        val compilationUnit =
-            compilationUnitConstructor.newInstance(compilerConfig, groovyClassLoader)
         val groovyResult = try {
-            doCompilationMethod.invoke(null, compilerConfig, compilationUnit, allSourceFiles.toTypedArray())
+            commandLineCompileMethod.invoke(null, arrayOf(
+                "-d", outDir.absolutePath,
+                "-j", *allSourceFiles.toTypedArray()
+            ))
             null
         } catch (e: InvocationTargetException) {
             e.cause!!.message
