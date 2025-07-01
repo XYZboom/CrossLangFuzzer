@@ -178,7 +178,7 @@ class JavaIrClassPrinter(
         }
         val finalAnnotationStr = if (noNullabilityAnnotation) {
             ""
-        } else if (!printNullableAnnotation) {
+        } else if (!printNullableAnnotation || typeContext == TypeParameterDeclaration) {
             "/*$annotationStr*/ "
         } else "$annotationStr "
         return "$finalAnnotationStr$typeStr"

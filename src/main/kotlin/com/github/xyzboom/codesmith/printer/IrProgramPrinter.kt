@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.ScalaIrClassPrinter
+import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
 
 /**
@@ -26,7 +27,7 @@ class IrProgramPrinter(
 
     private val extraJavaFile = buildMap {
         put(
-            "NotNull.java",
+            "org/jetbrains/annotations/NotNull.java",
             "package org.jetbrains.annotations;\n" +
                     "\n" +
                     "import java.lang.annotation.*;\n" +
@@ -40,7 +41,7 @@ class IrProgramPrinter(
                     "}"
         )
         put(
-            "Nullable.java",
+            "org/jetbrains/annotations/Nullable.java",
             "package org.jetbrains.annotations;\n" +
                     "\n" +
                     "import java.lang.annotation.*;\n" +
@@ -97,6 +98,7 @@ class IrProgramPrinter(
     fun saveFileMap(fileMap: Map<String, String>, path: String) {
         for ((fileName, content) in fileMap) {
             val file = File(path, fileName)
+            file.parentFile.mkdirsIfNotExists()
             file.createNewFile()
             file.writeText(content)
         }
