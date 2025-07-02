@@ -6,6 +6,7 @@ class KotlinCompileResult(
     val e: Throwable?,
     val fileContent: String,
     val testName: String,
+    val strict: Boolean = false
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -13,7 +14,7 @@ class KotlinCompileResult(
 
         if (e == null && other.e != null) return false
         if (e != null && other.e == null) return false
-         if (e is JavaCompilationError) return other.e is JavaCompilationError
+        if (strict && e is JavaCompilationError) return other.e is JavaCompilationError
         if (fileContent != other.fileContent) return false
 
         return true

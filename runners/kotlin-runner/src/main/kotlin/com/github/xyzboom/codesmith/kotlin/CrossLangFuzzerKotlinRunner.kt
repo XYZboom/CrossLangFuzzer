@@ -163,7 +163,6 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun run() {
-        val throwException = true
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
         val parallelSize = 1
@@ -193,7 +192,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                             val prog = generator.genProgram()
                             repeat(5) {
                                 val fileContent = printer.printToSingle(prog)
-                                val dur = measureTime { doOneRoundDifferential(fileContent, throwException) }
+                                val dur = measureTime { doOneRoundDifferential(fileContent, stopOnErrors) }
                                 println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                 generator.shuffleLanguage(prog)
                             }
@@ -208,7 +207,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                             if (mutator.mutate(prog)) {
                                 repeat(5) {
                                     val fileContent = printer.printToSingle(prog)
-                                    val dur = measureTime { doOneRoundDifferential(fileContent, throwException) }
+                                    val dur = measureTime { doOneRoundDifferential(fileContent, stopOnErrors) }
                                     println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                     generator.shuffleLanguage(prog)
                                 }

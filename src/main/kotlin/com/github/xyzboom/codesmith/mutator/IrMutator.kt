@@ -119,6 +119,24 @@ class IrMutator(
         return false
     }
 
+    @ConfigBy("mutateClassTypeParameterUpperBoundWeight")
+    fun mutateClassTypeParameterUpperBound(program: IrProgram): Boolean {
+        program.randomTraverseClasses(random) { clazz ->
+            if (clazz.typeParameters.isNotEmpty()) {
+                val typeParameter = clazz.typeParameters.random(random)
+                val upperbound = typeParameter.upperbound
+                if (upperbound is IrNullableType) {
+                    typeParameter.upperbound = upperbound.innerType
+                } else {
+                    typeParameter.upperbound = buildNullableType { innerType = upperbound }
+                }
+                return@mutateClassTypeParameterUpperBound true
+            }
+            return@randomTraverseClasses false
+        }
+        return false
+    }
+
     fun mutate(program: IrProgram): Boolean {
         val configByMethods = this::class.declaredMemberFunctions.filter {
             it.annotations.any { anno ->
