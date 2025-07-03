@@ -6,20 +6,16 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.xyzboom.codesmith.CommonCompilerRunner
-import com.github.xyzboom.codesmith.CompileResult
-import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.setMajorLanguage
-import com.github.xyzboom.codesmith.logFile
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.tempDir
-import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
-import java.io.File
-import kotlin.collections.iterator
 import kotlin.system.exitProcess
 import kotlin.time.measureTime
 
@@ -54,29 +50,14 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
-    private fun recordCompileResult(
-        sourceSingleFileContent: String,
-        compileResults: Map<String, CompileResult>
-    ) {
-        val dir = File(logFile, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
-        File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
-        for (compileResult in compileResults) {
-            if (!compileResult.value.success) {
-                File(dir, "groovy-${compileResult.key}-error.txt").writeText(compileResult.toString())
-            }
-        }
-        File(dir, "main.groovy").writeText(sourceSingleFileContent)
-    }
-
-    private fun runDifferential(
+        private fun runDifferential(
         groovyCompilers: List<GroovyCompilerWrapper>,
         generator: IrDeclGenerator,
         printer: IrProgramPrinter,
         program: IrProgram,
         stopOnErrors: Boolean
     ) {
-        val compileResults = groovyCompilers.associate { compiler ->
+        val compileResults = groovyCompilers.map { compiler ->
             if (compiler.isGroovy5) {
                 program.setMajorLanguage(Language.GROOVY5)
             } else {
@@ -85,11 +66,11 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             // Due to the compatibility between Groovy syntax and Java,
             // it is reasonable to conduct differential testing directly using the 'shuffle language'
             generator.shuffleLanguage(program)
-            compiler.version to compiler.compileGroovyWithJava(printer, program)
+            compiler.compileGroovyWithJava(printer, program)
         }
 
-        if (compileResults.values.toSet().size != 1) {
-            recordCompileResult(printer.printToSingle(program), compileResults)
+        if (compileResults.toSet().size != 1) {
+            recordCompileResult(Language.GROOVY4, program, compileResults)
             if (stopOnErrors) {
                 exitProcess(-1)
             }
@@ -97,7 +78,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
     }
 
     private fun doDifferentialTestingOneRound() {
-        val printer = IrProgramPrinter(false)
+        val printer = IrProgramPrinter(Language.GROOVY4)
         val generator = IrDeclGenerator(
             GeneratorConfig(
                 classMemberIsPropertyWeight = 0,
@@ -134,7 +115,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private fun doOneRound() {
         for (groovyCompiler in groovyCompilers) {
-            val printer = IrProgramPrinter(false)
+            val printer = IrProgramPrinter(groovyCompiler.language)
             val generator = IrDeclGenerator(
                 GeneratorConfig(
                     classMemberIsPropertyWeight = 0,
@@ -147,9 +128,9 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             repeat(langShuffleTimesBeforeMutate) {
                 val compileResult = groovyCompiler.compileGroovyWithJava(printer, program)
                 if (!compileResult.success) {
-                    com.github.xyzboom.codesmith.recordCompileResult(
+                    recordCompileResult(
                         groovyCompiler.language,
-                        printer.printToSingle(program),
+                        program,
                         compileResult
                     )
                     if (stopOnErrors) {

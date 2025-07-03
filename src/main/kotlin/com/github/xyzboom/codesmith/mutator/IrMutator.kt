@@ -36,7 +36,7 @@ class IrMutator(
                     val (_, pair) = entries.random(random)
                     val (typeParam, typeArg) = pair
                     val replaceArg = generator.randomType(
-                        program.classes, clazz.typeParameters, null, false
+                        program.classes, clazz.typeParameters, false
                     ) { type ->
                         type !is IrParameterizedClassifier && type != typeArg
                     } ?: continue
@@ -76,7 +76,7 @@ class IrMutator(
                 val (_, pair) = entries.random(random)
                 val (typeParam, typeArg) = pair
                 val replaceArg = generator.randomType(
-                    program.classes, clazz.typeParameters, func.typeParameters, false
+                    program.classes, clazz.typeParameters + func.typeParameters, false
                 ) { type ->
                     type !is IrParameterizedClassifier && type != typeArg
                 } ?: return@randomTraverseMemberFunctions false

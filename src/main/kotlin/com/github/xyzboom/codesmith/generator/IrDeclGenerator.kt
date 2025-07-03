@@ -12,10 +12,12 @@ import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.declarations.builder.*
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.*
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.utils.choice
@@ -36,6 +38,80 @@ open class IrDeclGenerator(
         addAll(KeyWords.scala)
         addAll(KeyWords.builtins)
         addAll(KeyWords.windows)
+    }
+
+    private val subClassMap = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
+    private val notSubClassCache = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
+
+    fun IrClassDeclaration.isSubClassOf(other: IrClassDeclaration): Boolean {
+        if (notSubClassCache.containsKey(other)) {
+            if (this in notSubClassCache[other]!!) {
+                logger.trace {
+                    "${this.render()} is not a subclass of ${other.render()} in cache"
+                }
+                return false
+            }
+        }
+        if (!subClassMap.containsKey(other)) {
+            notSubClassCache.getOrPut(other) { mutableListOf() }.add(this)
+            return false
+        }
+        for (subClass in subClassMap[other]!!) {
+            if (subClass.name == this.name) {
+                return true
+            }
+        }
+        logger.trace {
+            "${this.render()} is not a subclass of ${other.render()}, record into cache"
+        }
+        notSubClassCache.getOrPut(this) { mutableListOf() }.add(other)
+        return false
+    }
+
+    fun IrTypeParameter.upperboundHave(other: IrTypeParameter): Boolean {
+        if (areEqualTypes(this.upperbound, other)) {
+            return true
+        }
+        val upperbound = this.upperbound
+        return if (upperbound is IrTypeParameter) {
+            upperbound.upperboundHave(other)
+        } else {
+            false
+        }
+    }
+
+    fun IrType.isSubTypeOf(other: IrType): Boolean {
+        if (areEqualTypes(this, other)) {
+            return true
+        }
+        if (other === IrAny) {
+            return this !is IrNullableType
+        }
+
+        return when (this) {
+            is IrBuiltInType -> false
+            is IrTypeParameter -> when (other) {
+                is IrTypeParameter -> this.upperboundHave(other)
+                is IrSimpleClassifier, is IrNullableType -> this.upperbound.isSubTypeOf(other)
+                else -> false
+            }
+
+            is IrSimpleClassifier -> when (other) {
+                is IrTypeParameter -> false
+                is IrSimpleClassifier -> this.classDecl.isSubClassOf(other.classDecl)
+                is IrNullableType -> false
+                else -> false
+            }
+
+            is IrNullableType ->
+                if (other !is IrNullableType) {
+                    false
+                } else {
+                    this.innerType.isSubTypeOf(other.innerType)
+                }
+
+            else -> false
+        }
     }
 
     fun randomName(startsWithUpper: Boolean): String {
@@ -71,24 +147,22 @@ open class IrDeclGenerator(
 
     open fun randomType(
         fromClasses: List<IrClassDeclaration>,
-        typeParameterFromClass: List<IrTypeParameter>?,
-        typeParameterFromFunction: List<IrTypeParameter>?,
+        fromTypeParameters: List<IrTypeParameter>,
         finishTypeArguments: Boolean,
         filter: (IrType) -> Boolean
     ): IrType? {
         val builtins = ALL_BUILTINS.filter(filter)
         val fromClassDecl = fromClasses.map { it.type }.filter(filter)
-        val fromClassTypeParameter = typeParameterFromClass?.filter(filter) ?: emptyList()
-        val fromFuncTypeParameter = typeParameterFromFunction?.filter(filter) ?: emptyList()
+        val filteredTypeParameters = fromTypeParameters.filter(filter)
         val allList = arrayOf(
-            builtins, fromClassDecl, fromClassTypeParameter, fromFuncTypeParameter
+            builtins, fromClassDecl, filteredTypeParameters
         )
         if (allList.all { it.isEmpty() }) {
             return null
         }
         val result = choice(*allList, random = random)
         if (finishTypeArguments && result is IrParameterizedClassifier) {
-            genTypeArguments(fromClasses, typeParameterFromClass, result)
+            genTypeArguments(fromClasses, fromTypeParameters, result)
         }
         return result.copy()
     }
@@ -126,10 +200,32 @@ open class IrDeclGenerator(
         }
     }
 
-    fun IrTypeParameterContainer.genTypeParameter() {
+    fun IrTypeParameterContainer.genTypeParameter(
+        context: IrProgram,
+        availableTypeParameters: List<IrTypeParameter>,
+    ) {
+        // TODO: to support nested upperbound like T1 : A<B<T1>>,
+        //  we need to generate upperbound after all type parameters are generated
+        val classesShouldBeRemove = if (this is IrClassDeclaration) {
+            listOf(this)
+        } else emptyList()
         this.typeParameters.add(buildTypeParameter {
             this.name = nextTypeParameterName()
-            this.upperbound = IrAny
+            if (config.typeParameterUpperboundAlwaysAny) {
+                upperbound = IrAny
+            } else {
+                this.upperbound = randomType(
+                    context.classes - classesShouldBeRemove,
+                    // allow upperbound to be a type parameter generated just now
+                    availableTypeParameters + this@genTypeParameter.typeParameters,
+                    false
+                ) {
+                    // currently not support nested
+                    it !is IrParameterizedClassifier
+                            && (config.allowUnitInTypeArgument || it !== IrUnit)
+                            && (config.allowNothingInTypeArgument || it !== IrNothing)
+                } ?: IrAny
+            }
         })
     }
 
@@ -139,7 +235,7 @@ open class IrDeclGenerator(
         val allSuperArguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>> = mutableMapOf()
         if (classKind != ClassKind.INTERFACE) {
             val superType = randomType(
-                context.classes, typeParameterFromClass = null, typeParameterFromFunction = null,
+                context.classes, fromTypeParameters = emptyList(),
                 finishTypeArguments = false
                 //                    ^^^^^
                 // as we don't want to search type parameters,
@@ -151,6 +247,7 @@ open class IrDeclGenerator(
             logger.trace { "choose super: ${superType?.render()}" }
             // record superType
             if (superType is IrClassifier) {
+                subClassMap.getOrPut(superType.classDecl) { mutableListOf() }.add(this)
                 if (superType is IrParameterizedClassifier) {
                     genTypeArguments(context.classes, typeParameters, superType)
                     allSuperArguments.putAll(superType.getTypeArguments())
@@ -168,7 +265,7 @@ open class IrDeclGenerator(
         val willAdd = mutableSetOf<IrType>()
         for (i in 0 until config.classImplNumRange.random(random)) {
             logger.trace { "selected supers: ${selectedSupers.joinToString { it.render() }}" }
-            val now = randomType(context.classes, null, null, false) { consideringType ->
+            val now = randomType(context.classes, emptyList(), false) { consideringType ->
                 logger.trace { "considering ${consideringType.render()}" }
                 var superWasSelected = false
                 if (consideringType is IrClassifier) {
@@ -198,6 +295,7 @@ open class IrDeclGenerator(
             }
             if (now == null) break
             if (now is IrClassifier) {
+                subClassMap.getOrPut(now.classDecl) { mutableListOf() }.add(this)
                 logger.trace { "add ${now.render()} into implement interfaces" }
                 if (now is IrParameterizedClassifier) {
                     val mayInSuper = selectedSupers.firstOrNull { it.equalsIgnoreTypeArguments(now) }
@@ -275,15 +373,88 @@ open class IrDeclGenerator(
 
     fun genTypeArguments(
         fromClasses: List<IrClassDeclaration>,
-        typeParameterFromClass: List<IrTypeParameter>?,
+        fromTypeParameters: List<IrTypeParameter>,
         superType: IrParameterizedClassifier
     ) {
+        val recordedChosen = mutableMapOf<IrTypeParameterName, IrType>()
+        fun getTypeArg(typeParam: IrTypeParameter): IrType {
+            if (superType.classDecl.typeParameters.all { it.name != typeParam.name }) {
+                return typeParam
+            }
+            val record = recordedChosen[IrTypeParameterName(typeParam.name)] ?: typeParam.upperbound
+            return if (record is IrTypeParameter) {
+                recordedChosen[IrTypeParameterName(record.name)] ?: record.upperbound
+            } else record
+        }
         for (typeParam in superType.classDecl.typeParameters) {
-            val chooseType = randomType(fromClasses, typeParameterFromClass, null, false) {
-                it !is IrParameterizedClassifier // for now, we forbid nested cases
-                        && (config.allowUnitInTypeArgument || it !== IrUnit)
-                        && (config.allowNothingInTypeArgument || it !== IrNothing)
-            } ?: IrAny // for now, we do not talk about upperbound
+            val upperbound = typeParam.upperbound
+            val argUpperbound = getTypeArg(typeParam)
+
+            /**
+             * ```kt
+             * class A<T0, T1: T0, T2>
+             * ```
+             * For this case, upperbound of `T1` will not be `T0` , instead it will be argument of `T0`.
+             *
+             * If the unfinished type is `A<T2, ...>`, now we are considering argument for `T1`.
+             * We can found that the only type we can choose is `T2`. So we got: `A<T2, T2, MyClass>`
+             * Not that `T2` is type parameter from class `A` and the type argument for `T1` in **TYPE** `A`.
+             * Full example:
+             * ```kt
+             * class A<T0, T1: T0, T2> {
+             *     fun func(a: A<T2, T2, MyClass>) {}
+             * }
+             * ```
+             */
+            val chooseType = argUpperbound as? IrTypeParameter
+                ?: (randomType(fromClasses, fromTypeParameters, false) {
+                    it !is IrParameterizedClassifier // for now, we forbid nested cases
+                            && (config.allowUnitInTypeArgument || it !== IrUnit)
+                            && (config.allowNothingInTypeArgument || it !== IrNothing)
+                            /**
+                             *  If some type parameter has been replaced by a type argument,
+                             *  we should consider the upperbound as this type argument,
+                             *  not the original type parameter.
+                             *  For example: `A<T1: Any?, T2: T1>`
+                             *  Consuming we have replaced `T1` with `MyClass`,
+                             *  and we are considering `T2` in the second loop.
+                             *  Now the upperbound of `T2` is no longer `T1` but `MyClass` instead.
+                             */
+                            /**
+                             *  If some type parameter has been replaced by a type argument,
+                             *  we should consider the upperbound as this type argument,
+                             *  not the original type parameter.
+                             *  For example: `A<T1: Any?, T2: T1>`
+                             *  Consuming we have replaced `T1` with `MyClass`,
+                             *  and we are considering `T2` in the second loop.
+                             *  Now the upperbound of `T2` is no longer `T1` but `MyClass` instead.
+                             */
+                            && it.isSubTypeOf(argUpperbound)
+                            /**
+                             * If we have `A <: B`, `class C<T1: A, T2: T1, T3: B>`
+                             * Consuming we have replaced `T1` with `A`,
+                             * and we are considering `T2` in the second loop.
+                             * We can found that `T3 <: A <: B`, but `C<A, T3, ...>` is not a legal type.
+                             * That's because the argument of `T3` can be `B`
+                             * which is not within the upperbound `T1`(replaced by type argument `A` just now)
+                             */
+                            /**
+                             * If we have `A <: B`, `class C<T1: A, T2: T1, T3: B>`
+                             * Consuming we have replaced `T1` with `A`,
+                             * and we are considering `T2` in the second loop.
+                             * We can found that `T3 <: A <: B`, but `C<A, T3, ...>` is not a legal type.
+                             * That's because the argument of `T3` can be `B`
+                             * which is not within the upperbound `T1`(replaced by type argument `A` just now)
+                             */
+                            && (it !is IrTypeParameter || upperbound !is IrTypeParameter)
+                } ?: run {
+                    logger.trace {
+                        "choose default upperbound as the argument of ${typeParam.render()}"
+                    }
+                    argUpperbound.copy()
+                })
+            logger.trace { "choose ${chooseType.render()} as the the argument of ${typeParam.render()}" }
+            recordedChosen[IrTypeParameterName(typeParam.name)] = chooseType
             superType.putTypeArgument(typeParam, chooseType)
         }
     }
@@ -529,7 +700,7 @@ open class IrDeclGenerator(
         clazz.apply {
             if (random.nextBoolean(config.classHasTypeParameterProbability)) {
                 repeat(config.classTypeParameterNumberRange.random(random)) {
-                    genTypeParameter()
+                    genTypeParameter(context, emptyList())
                 }
             }
             genSuperTypes(context)
@@ -580,7 +751,11 @@ open class IrDeclGenerator(
         }.apply {
             if (random.nextBoolean(config.functionHasTypeParameterProbability)) {
                 repeat(config.functionTypeParameterNumberRange.random(random)) {
-                    genTypeParameter()
+                    genTypeParameter(
+                        classContainer, if (funcContainer is IrClassDeclaration) {
+                            funcContainer.typeParameters
+                        } else emptyList()
+                    )
                 }
             }
             if ((!inIntf && (!inAbstract || random.nextBoolean())) || topLevel) {
@@ -675,7 +850,24 @@ open class IrDeclGenerator(
             this.name = first.name
             this.language = language
             for (typeParam in first.typeParameters) {
-                this.typeParameters.add(typeParam.copy())
+                val typeParameter = typeParam.copy()
+                /**
+                 * ```kt
+                 * interface I<T1> {
+                 *     fun <T2: T1> func()
+                 * }
+                 * class A: I<Any> {
+                 *     override fun <T2: T1> func() {}
+                 *     //                ^^ need to be replaced by `Any`
+                 * }
+                 * ```
+                 */
+                typeParameter.upperbound = getActualTypeFromArguments(
+                    typeParameter.upperbound,
+                    this@genOverrideFunction.allSuperTypeArguments,
+                    false
+                )
+                this.typeParameters.add(typeParameter)
             }
             isOverride = true
             isOverrideStub = isStub
@@ -712,11 +904,15 @@ open class IrDeclGenerator(
     fun genFunctionParameter(
         classContainer: IrProgram,
         classContext: IrClassDeclaration?,
-        typeParameterFromFunction: List<IrTypeParameter>?,
+        typeParameterFromFunction: List<IrTypeParameter>,
         name: String = randomName(false)
     ): IrParameter {
         val chooseType =
-            randomType(classContainer.classes, classContext?.typeParameters, typeParameterFromFunction, true) {
+            randomType(
+                classContainer.classes,
+                typeParameterFromFunction + (classContext?.typeParameters ?: emptyList()),
+                true
+            ) {
                 if (classContext == null) {
                     it !is IrTypeParameter
                 } else {
@@ -744,12 +940,12 @@ open class IrDeclGenerator(
         classContext: IrClassDeclaration?,
         target: IrFunctionDeclaration
     ) {
-        val chooseType = randomType(classContainer.classes, classContext?.typeParameters, target.typeParameters, true) {
-            if (classContext == null) {
-                it !is IrTypeParameter
-            } else {
-                true
-            } && it !== IrNothing || config.allowNothingInReturnType
+        val chooseType = randomType(
+            classContainer.classes,
+            target.typeParameters + (classContext?.typeParameters ?: emptyList()),
+            true
+        ) {
+            it !== IrNothing || config.allowNothingInReturnType
         }
         logger.trace {
             val sb = StringBuilder("gen return type for: ")

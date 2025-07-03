@@ -4,10 +4,12 @@ import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
-import com.github.xyzboom.codesmith.logFile
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +56,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    object K2Jdk8Test : AbstractFirPsiBlackBoxCodegenTest(), IDifferentialTest.IJDK8Test {
+    object K2Jdk8Test : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK8Test {
         init {
             initTestInfo(testInfo)
         }
@@ -69,7 +71,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    object K2Jdk17Test: AbstractFirPsiBlackBoxCodegenTest(), IDifferentialTest.IJDK17Test {
+    object K2Jdk17Test: AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
         init {
             initTestInfo(testInfo)
         }
@@ -84,7 +86,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    object K1Jdk8Test : AbstractIrBlackBoxCodegenTest(), IDifferentialTest.IJDK8Test {
+    object K1Jdk8Test : AbstractIrBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK8Test {
         init {
             initTestInfo(testInfo)
         }
@@ -99,7 +101,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    object K1Jdk17Test: AbstractIrBlackBoxCodegenTest(), IDifferentialTest.IJDK17Test {
+    object K1Jdk17Test: AbstractIrBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
         init {
             initTestInfo(testInfo)
         }
@@ -114,28 +116,17 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    private val testers = listOf<IDifferentialTest>(
+    private val testers = listOf<IKotlinCompilerTest>(
         K1Jdk8Test, K1Jdk17Test,
         K2Jdk8Test, K2Jdk17Test,
     )
 
     @OptIn(ExperimentalStdlibApi::class)
-    fun doOneRoundDifferential(fileContent: String, throwException: Boolean) {
+    fun doOneRoundDifferential(program: IrProgram, throwException: Boolean) {
+        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
         val testResults = testers.map { it.testProgram(fileContent) }
         if (testResults.toSet().size != 1) {
-            val dir = File(logFile, System.currentTimeMillis().toHexString())
-            if (!dir.exists()) {
-                dir.mkdirs()
-            }
-            File(dir, "main.kt").writeText(fileContent)
-            File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
-            for (result in testResults) {
-                if (result.e != null) {
-                    val writer = File(dir, "exception-${result.testName}.txt").printWriter()
-                    result.e.printStackTrace(writer)
-                    writer.flush()
-                }
-            }
+            recordCompileResult(Language.KOTLIN, program, testResults)
             if (throwException) {
                 throw RuntimeException()
             }
@@ -143,18 +134,11 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    fun doOneRound(fileContent: String, throwException: Boolean) {
-        val testResult = K2Jdk8Test.testProgram(fileContent)
-        if (testResult.e != null) {
-            val dir = File(logFile, System.currentTimeMillis().toHexString())
-            if (!dir.exists()) {
-                dir.mkdirs()
-            }
-            File(dir, "main.kt").writeText(fileContent)
-            File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
-            val writer = File(dir, "exception-${testResult.testName}.txt").printWriter()
-            testResult.e.printStackTrace(writer)
-            writer.flush()
+    fun doOneRound(program: IrProgram, throwException: Boolean) {
+        val printer = IrProgramPrinter(Language.KOTLIN)
+        val testResult = K2Jdk8Test.testProgram(printer.printToSingle(program))
+        if (!testResult.success) {
+            recordCompileResult(Language.KOTLIN, program, testResult)
             if (throwException) {
                 throw RuntimeException()
             }
@@ -179,7 +163,6 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                         while (true) {
                             enableGeneric = Random.nextBoolean(0.15f)
         //                        enableGeneric = false
-                            val printer = IrProgramPrinter()
                             val generator = IrDeclGenerator(
                                 GeneratorConfig(
                                     classHasTypeParameterProbability = if (enableGeneric) {
@@ -190,9 +173,8 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                                 )
                             )
                             val prog = generator.genProgram()
-                            repeat(5) {
-                                val fileContent = printer.printToSingle(prog)
-                                val dur = measureTime { doOneRoundDifferential(fileContent, stopOnErrors) }
+                            repeat(langShuffleTimesBeforeMutate) {
+                                val dur = measureTime { doOneRoundDifferential(prog, stopOnErrors) }
                                 println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                 generator.shuffleLanguage(prog)
                             }
@@ -205,9 +187,8 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                                 generator = generator
                             )
                             if (mutator.mutate(prog)) {
-                                repeat(5) {
-                                    val fileContent = printer.printToSingle(prog)
-                                    val dur = measureTime { doOneRoundDifferential(fileContent, stopOnErrors) }
+                                repeat(langShuffleTimesAfterMutate) {
+                                    val dur = measureTime { doOneRoundDifferential(prog, stopOnErrors) }
                                     println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                     generator.shuffleLanguage(prog)
                                 }
@@ -220,10 +201,9 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
             }
         } else {
             while (true) {
-                val printer = IrProgramPrinter()
                 val generator = IrDeclGenerator()
                 val prog = generator.genProgram()
-                val dur = measureTime { doOneRound(printer.printToSingle(prog), stopOnErrors) }
+                val dur = measureTime { doOneRound(prog, stopOnErrors) }
                 println("${i.incrementAndGet()}:${dur}\t\t")
             }
         }

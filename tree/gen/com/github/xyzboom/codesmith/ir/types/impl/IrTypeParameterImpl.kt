@@ -20,12 +20,9 @@ internal class IrTypeParameterImpl(
     override val classKind: ClassKind
         get() = upperbound.classKind
 
-    override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
-        upperbound.accept(visitor, data)
-    }
+    override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {}
 
     override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrTypeParameterImpl {
-        transformUpperbound(transformer, data)
         return this
     }
 

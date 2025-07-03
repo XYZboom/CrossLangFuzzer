@@ -10,7 +10,7 @@ import kotlin.system.exitProcess
 import kotlin.time.measureTime
 
 private fun doOneRound(stopOnErrors: Boolean = false) {
-    val printer = IrProgramPrinter(false)
+    val printer = IrProgramPrinter(Language.SCALA)
     val generator = IrDeclGenerator(
         GeneratorConfig(
             classMemberIsPropertyWeight = 0,
@@ -21,7 +21,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val program = generator.genProgram()
     val compileResult = compileScala3WithJava(printer, program)
     if (!compileResult.success) {
-        recordCompileResult(Language.SCALA, printer.printToSingle(program), compileResult)
+        recordCompileResult(Language.SCALA, program, compileResult)
         if (stopOnErrors) {
             exitProcess(-1)
         }

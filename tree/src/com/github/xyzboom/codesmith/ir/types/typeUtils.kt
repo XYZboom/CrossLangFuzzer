@@ -93,8 +93,8 @@ fun IrParameterizedClassifier.putAllTypeArguments(
 }
 
 fun areEqualTypes(a: IrType?, b: IrType?): Boolean {
-    return when {
-        a is IrParameterizedClassifier -> {
+    return when (a) {
+        is IrParameterizedClassifier -> {
             if (b !is IrParameterizedClassifier) return false
             for ((paramName, pair) in a.arguments) {
                 val (_, arg) = pair
@@ -108,18 +108,18 @@ fun areEqualTypes(a: IrType?, b: IrType?): Boolean {
             return true
         }
 
-        a is IrClassifier -> {
+        is IrClassifier -> {
             if (b !is IrClassifier) return false
             if (a.classDecl !== b.classDecl) return false
             true
         }
 
-        a is IrNullableType -> {
+        is IrNullableType -> {
             if (b !is IrNullableType) return false
             areEqualTypes(a.innerType, b.innerType)
         }
 
-        a is IrTypeParameter -> {
+        is IrTypeParameter -> {
             if (b !is IrTypeParameter) return false
             a.name == b.name
         }

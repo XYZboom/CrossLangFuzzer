@@ -39,6 +39,7 @@ data class GeneratorConfig(
      */
     val allowUnitInTypeArgument: Boolean = false,
     val allowNothingInTypeArgument: Boolean = false,
+    val typeParameterUpperboundAlwaysAny: Boolean = false,
     //</editor-fold>
     val printJavaNullableAnnotationProbability: Float = 0.4f,
     val newExpressionWeight: Int = 1,

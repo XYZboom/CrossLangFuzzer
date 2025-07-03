@@ -1,6 +1,9 @@
 package com.github.xyzboom.codesmith
 
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.serde.gson
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
 import java.io.StringWriter
@@ -77,16 +80,28 @@ class JavaCompilerWrapper() {
 @OptIn(ExperimentalStdlibApi::class)
 fun recordCompileResult(
     majorLanguage: Language,
-    sourceSingleFileContent: String,
-    compileResult: CompileResult,
+    program: IrProgram,
+    compileResults: List<CompileResult>,
 ) {
-    val (scalaResult, javaResult) = compileResult
     val dir = File(logFile, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
     File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
-    if (scalaResult != null) {
-        File(dir, "${compileResult.version}-error.txt").writeText(scalaResult)
-    } else if (javaResult != null) {
-        File(dir, "java-error.txt").writeText(javaResult)
+    for (compileResult in compileResults) {
+        if (!compileResult.success) continue
+        val (majorResult, javaResult) = compileResult
+        if (majorResult != null) {
+            File(dir, "${compileResult.version}-error.txt").writeText(majorResult)
+        } else if (javaResult != null) {
+            File(dir, "java-error.txt").writeText(javaResult)
+        }
     }
-    File(dir, "main.${majorLanguage.extension}").writeText(sourceSingleFileContent)
+    File(dir, "main.${majorLanguage.extension}").writeText(IrProgramPrinter(majorLanguage).printToSingle(program))
+    File(dir, "main.json").writeText(gson.toJson(program))
+}
+
+fun recordCompileResult(
+    majorLanguage: Language,
+    program: IrProgram,
+    compileResult: CompileResult,
+) {
+    recordCompileResult(majorLanguage, program, listOf(compileResult))
 }

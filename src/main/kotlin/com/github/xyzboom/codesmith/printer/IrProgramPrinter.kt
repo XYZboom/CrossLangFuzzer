@@ -14,46 +14,43 @@ import java.io.File
  */
 @Suppress("unused")
 class IrProgramPrinter(
-    /**
-     * Print a file that contains a `box` function.
-     * Use for Kotlin box test.
-     */
-    private val printBox: Boolean = true,
     private val majorLanguage: Language = Language.KOTLIN
 ) : IrPrinter<IrProgram, Map<String, String>> {
     private lateinit var javaClassPrinter: JavaIrClassPrinter
     private val ktClassPrinter = KtIrClassPrinter()
     private val scalaClassPrinter = ScalaIrClassPrinter()
 
-    private val extraJavaFile = buildMap {
-        put(
-            "org/jetbrains/annotations/NotNull.java",
-            "package org.jetbrains.annotations;\n" +
-                    "\n" +
-                    "import java.lang.annotation.*;\n" +
-                    "\n" +
-                    "// org.jetbrains.annotations used in the compiler is version 13, whose @NotNull does not support the TYPE_USE target (version 15 does).\n" +
-                    "// We're using our own @org.jetbrains.annotations.NotNull for testing purposes.\n" +
-                    "@Documented\n" +
-                    "@Retention(RetentionPolicy.CLASS)\n" +
-                    "@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\n" +
-                    "public @interface NotNull {\n" +
-                    "}"
-        )
-        put(
-            "org/jetbrains/annotations/Nullable.java",
-            "package org.jetbrains.annotations;\n" +
-                    "\n" +
-                    "import java.lang.annotation.*;\n" +
-                    "\n" +
-                    "// org.jetbrains.annotations used in the compiler is version 13, whose @Nullable does not support the TYPE_USE target (version 15 does).\n" +
-                    "// We're using our own @org.jetbrains.annotations.Nullable for testing purposes.\n" +
-                    "@Documented\n" +
-                    "@Retention(RetentionPolicy.CLASS)\n" +
-                    "@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\n" +
-                    "public @interface Nullable {\n" +
-                    "}"
-        )
+    companion object {
+        private val extraJavaFile = buildMap {
+            put(
+                "org/jetbrains/annotations/NotNull.java",
+                "package org.jetbrains.annotations;\n" +
+                        "\n" +
+                        "import java.lang.annotation.*;\n" +
+                        "\n" +
+                        "// org.jetbrains.annotations used in the compiler is version 13, whose @NotNull does not support the TYPE_USE target (version 15 does).\n" +
+                        "// We're using our own @org.jetbrains.annotations.NotNull for testing purposes.\n" +
+                        "@Documented\n" +
+                        "@Retention(RetentionPolicy.CLASS)\n" +
+                        "@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\n" +
+                        "public @interface NotNull {\n" +
+                        "}"
+            )
+            put(
+                "org/jetbrains/annotations/Nullable.java",
+                "package org.jetbrains.annotations;\n" +
+                        "\n" +
+                        "import java.lang.annotation.*;\n" +
+                        "\n" +
+                        "// org.jetbrains.annotations used in the compiler is version 13, whose @Nullable does not support the TYPE_USE target (version 15 does).\n" +
+                        "// We're using our own @org.jetbrains.annotations.Nullable for testing purposes.\n" +
+                        "@Documented\n" +
+                        "@Retention(RetentionPolicy.CLASS)\n" +
+                        "@Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\n" +
+                        "public @interface Nullable {\n" +
+                        "}"
+            )
+        }
     }
 
     override fun print(element: IrProgram): Map<String, String> {
@@ -74,7 +71,7 @@ class IrProgramPrinter(
         val javaTopLevelContent = javaClassPrinter.printTopLevelFunctionsAndProperties(element)
         val ktTopLevelContent = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
         result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
-        if (printBox) {
+        if (majorLanguage == Language.KOTLIN) {
             result["main.kt"] = "${ktTopLevelContent}\n" +
                     "fun box(): String {\n" +
                     "\treturn \"OK\"\n" +

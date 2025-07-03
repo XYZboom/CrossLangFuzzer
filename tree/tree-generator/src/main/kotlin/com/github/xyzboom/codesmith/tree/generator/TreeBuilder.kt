@@ -107,7 +107,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         parent(type)
         parent(namedElement)
 
-        +field("upperbound", type)
+        +field("upperbound", type, isChild = false)
     }
 
     val classifier: Element by sealedElement(Element.Kind.Type, name = "Classifier") {
