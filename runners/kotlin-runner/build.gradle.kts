@@ -37,12 +37,20 @@ tasks.test {
 kotlin {
     jvmToolchain(8)
 }
+tasks.register<JavaExec>("minimize") {
+    dependsOn("build")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.github.xyzboom.codesmith.kotlin.MinimizeMain")
+}
+
+tasks.named<JavaExec>("run") {
+    mainClass.set("com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunnerKt")
+}
 
 tasks.withType<JavaExec> {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(11)
     }
-    mainClass.set("com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunnerKt")
     systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
     systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "trace"
     systemProperties["codesmith.logger.traceFile.ImmediateFlush"] =

@@ -7,6 +7,7 @@ package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
@@ -14,7 +15,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classifier]
  */
-sealed class IrClassifier : IrType {
+sealed class IrClassifier : IrPureAbstractElement(), IrType {
     abstract override val classKind: ClassKind
     abstract var classDecl: IrClassDeclaration
 

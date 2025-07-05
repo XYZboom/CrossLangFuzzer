@@ -10,8 +10,7 @@ class SequentialTypeSelectionIrDeclGenerator(
     private val iterator = typeList.iterator()
     override fun randomType(
         fromClasses: List<IrClassDeclaration>,
-        typeParameterFromClass: List<IrTypeParameter>?,
-        typeParameterFromFunction: List<IrTypeParameter>?,
+        fromTypeParameters: List<IrTypeParameter>,
         finishTypeArguments: Boolean,
         filter: (IrType) -> Boolean
     ): IrType? {

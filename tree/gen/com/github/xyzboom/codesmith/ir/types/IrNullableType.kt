@@ -7,13 +7,14 @@ package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.nullableType]
  */
-abstract class IrNullableType : IrType {
+abstract class IrNullableType : IrPureAbstractElement(), IrType {
     abstract override val classKind: ClassKind
     abstract var innerType: IrType
 

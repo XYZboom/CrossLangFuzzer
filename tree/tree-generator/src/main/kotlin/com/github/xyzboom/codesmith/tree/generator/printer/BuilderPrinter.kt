@@ -5,8 +5,8 @@
 
 package com.github.xyzboom.codesmith.tree.generator.printer
 
-import com.github.xyzboom.codesmith.tree.generator.implementationDetailType
 import com.github.xyzboom.codesmith.tree.generator.irBuilderDslAnnotation
+import com.github.xyzboom.codesmith.tree.generator.irImplementationDetailType
 import com.github.xyzboom.codesmith.tree.generator.model.Element
 import com.github.xyzboom.codesmith.tree.generator.model.Field
 import com.github.xyzboom.codesmith.tree.generator.model.Implementation
@@ -20,7 +20,7 @@ internal class BuilderPrinter(
 ) : AbstractBuilderPrinter<Element, Implementation, Field>(printer) {
 
     override val implementationDetailAnnotation: ClassRef<*>
-        get() = implementationDetailType
+        get() = irImplementationDetailType
 
     override val builderDslAnnotation: ClassRef<*>
         get() = irBuilderDslAnnotation

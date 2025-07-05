@@ -2,10 +2,13 @@ package com.github.xyzboom.codesmith.kotlin
 
 import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
+import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.minimize.IMinimizeRunner
+import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
@@ -26,7 +29,6 @@ import org.jetbrains.kotlin.test.services.EnvironmentBasedStandardLibrariesPathP
 import org.jetbrains.kotlin.test.services.KotlinStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import org.jetbrains.kotlin.test.util.KtTestUtil
-import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import kotlin.time.measureTime
@@ -121,8 +123,29 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         K2Jdk8Test, K2Jdk17Test,
     )
 
+    private val minimizeRunner = MinimizeRunnerImpl(this)
+
+    override fun compile(program: IrProgram): List<CompileResult> {
+        return if (differentialTesting) {
+            doDifferentialCompile(program)
+        } else {
+            listOf(doNormalCompile(program))
+        }
+    }
+
+    fun doDifferentialCompile(program: IrProgram): List<CompileResult> {
+        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
+        return testers.map { it.testProgram(fileContent) }
+    }
+
+    fun doNormalCompile(program: IrProgram): CompileResult {
+        val printer = IrProgramPrinter(Language.KOTLIN)
+        val testResult = K2Jdk8Test.testProgram(printer.printToSingle(program))
+        return testResult
+    }
+
     @OptIn(ExperimentalStdlibApi::class)
-    fun doOneRoundDifferential(program: IrProgram, throwException: Boolean) {
+    fun doOneRoundDifferentialAndRecord(program: IrProgram, throwException: Boolean) {
         val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
         val testResults = testers.map { it.testProgram(fileContent) }
         if (testResults.toSet().size != 1) {
@@ -134,11 +157,11 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    fun doOneRound(program: IrProgram, throwException: Boolean) {
-        val printer = IrProgramPrinter(Language.KOTLIN)
-        val testResult = K2Jdk8Test.testProgram(printer.printToSingle(program))
+    fun doOneRoundAndRecord(program: IrProgram, throwException: Boolean) {
+        val testResult = doNormalCompile(program)
         if (!testResult.success) {
-            recordCompileResult(Language.KOTLIN, program, testResult)
+            val minimize = minimizeRunner.minimize(program, listOf(testResult))
+            recordCompileResult(Language.KOTLIN, program, listOf(testResult), minimize)
             if (throwException) {
                 throw RuntimeException()
             }
@@ -174,7 +197,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                             )
                             val prog = generator.genProgram()
                             repeat(langShuffleTimesBeforeMutate) {
-                                val dur = measureTime { doOneRoundDifferential(prog, stopOnErrors) }
+                                val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
                                 println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                 generator.shuffleLanguage(prog)
                             }
@@ -188,7 +211,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                             )
                             if (mutator.mutate(prog)) {
                                 repeat(langShuffleTimesAfterMutate) {
-                                    val dur = measureTime { doOneRoundDifferential(prog, stopOnErrors) }
+                                    val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
                                     println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                     generator.shuffleLanguage(prog)
                                 }
@@ -203,7 +226,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
             while (true) {
                 val generator = IrDeclGenerator()
                 val prog = generator.genProgram()
-                val dur = measureTime { doOneRound(prog, stopOnErrors) }
+                val dur = measureTime { doOneRoundAndRecord(prog, stopOnErrors) }
                 println("${i.incrementAndGet()}:${dur}\t\t")
             }
         }

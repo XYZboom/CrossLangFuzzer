@@ -12,7 +12,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.parameterList]
  */
-abstract class IrParameterList : IrElement {
+abstract class IrParameterList : IrPureAbstractElement(), IrElement {
     abstract var parameters: MutableList<IrParameter>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =

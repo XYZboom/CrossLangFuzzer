@@ -17,10 +17,10 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.program]
  */
-abstract class IrProgram : IrClassContainer(), IrFuncContainer, IrPropertyContainer {
-    abstract override var classes: MutableList<IrClassDeclaration>
-    abstract override var functions: MutableList<IrFunctionDeclaration>
-    abstract override var properties: MutableList<IrPropertyDeclaration>
+interface IrProgram : IrClassContainer, IrFuncContainer, IrPropertyContainer {
+    override var classes: MutableList<IrClassDeclaration>
+    override var functions: MutableList<IrFunctionDeclaration>
+    override var properties: MutableList<IrPropertyDeclaration>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitProgram(this, data)
@@ -29,9 +29,9 @@ abstract class IrProgram : IrClassContainer(), IrFuncContainer, IrPropertyContai
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformProgram(this, data) as E
 
-    abstract override fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrProgram
+    override fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrProgram
 
-    abstract override fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrProgram
+    override fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrProgram
 
-    abstract override fun <D> transformProperties(transformer: IrTransformer<D>, data: D): IrProgram
+    override fun <D> transformProperties(transformer: IrTransformer<D>, data: D): IrProgram
 }

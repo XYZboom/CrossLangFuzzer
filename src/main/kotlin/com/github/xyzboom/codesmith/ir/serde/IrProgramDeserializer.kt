@@ -179,6 +179,7 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                 funcObj as JsonObject
                 val func = firstFuncMap[name]!!
                 with(func) {
+                    containingClassName = classContext.name
                     deserializeTypeParameters(funcObj.asMap(), context)
                     val bodyObj = funcObj.get(::body.name)
                     if (bodyObj != null) {
@@ -221,9 +222,12 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                 classKind = context.deserialize(classObj.get(::classKind.name), ClassKind::class.java)
                 allSuperTypeArguments = mutableMapOf()
             }
-            val functionsObj = classObj.get(IrClassDeclaration::functions.name).asJsonArray
-            for (funcObj in functionsObj) {
-                clazz.functions.add(deserializeFunctionFirstStage(funcObj.asJsonObject, context, clazz))
+            val functionsEle = classObj.get(IrClassDeclaration::functions.name)
+            if (functionsEle != null) {
+                val functionsObj = functionsEle.asJsonArray
+                for (funcObj in functionsObj) {
+                    clazz.functions.add(deserializeFunctionFirstStage(funcObj.asJsonObject, context, clazz))
+                }
             }
             classMap[clazz.name] = clazz
             return clazz
@@ -239,11 +243,14 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
         ): IrClassDeclaration {
             val name = classObj.get(IrClassDeclaration::name.name).asString
             val clazz = classMap[name]!!
-            val functionsObj = classObj.get(IrClassDeclaration::functions.name).asJsonArray
-            val functionsObjMap = functionsObj.asJsonArray.associateBy {
-                it.asJsonObject.get(IrFunctionDeclaration::name.name).asString
+            val functionsEle = classObj.get(IrClassDeclaration::functions.name)
+            if (functionsEle != null) {
+                val functionsObj = functionsEle.asJsonArray
+                val functionsObjMap = functionsObj.asJsonArray.associateBy {
+                    it.asJsonObject.get(IrFunctionDeclaration::name.name).asString
+                }
+                deserializeFunctionForClassSecondStage(functionsObjMap, context, clazz)
             }
-            deserializeFunctionForClassSecondStage(functionsObjMap, context, clazz)
             with(clazz) {
                 deserializeTypeParameters(classObj.asMap(), context)
                 val superTypeObj = classObj.get(IrClassDeclaration::superType.name)
