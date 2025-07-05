@@ -17,7 +17,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
     val generator = IrDeclGenerator(
         GeneratorConfig(
             classMemberIsPropertyWeight = 0,
-            allowUnitInTypeArgument = true
+            allowUnitInTypeArgument = false
         ),
         majorLanguage = Language.SCALA,
     )
@@ -34,7 +34,8 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
             mutateGenericArgumentInParentWeight = 0,
             removeOverrideMemberFunctionWeight = 1,
             mutateGenericArgumentInMemberFunctionParameterWeight = 1,
-            mutateParameterNullabilityWeight = 0
+            mutateParameterNullabilityWeight = 0,
+            mutateClassTypeParameterUpperBoundWeight = 0
         )
     )
     if (mutator.mutate(program)) {
@@ -66,7 +67,7 @@ fun main() {
     println("start at: $tempDir")
     var i = 0
     while (true) {
-        val dur = measureTime { doOneRound() }
+        val dur = measureTime { doOneRound(true) }
         println("${i++}: $dur")
     }
 }

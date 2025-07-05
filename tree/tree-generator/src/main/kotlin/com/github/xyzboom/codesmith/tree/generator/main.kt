@@ -26,6 +26,7 @@ fun main() {
         val implementations = model.elements.flatMap { it.implementations }
         InterfaceAndAbstractClassConfigurator((model.elements + implementations))
             .configureInterfacesAndAbstractClasses()
+        model.addPureAbstractElement(pureAbstractElementType)
 
         val builderConfigurator = BuilderConfigurator(model)
         builderConfigurator.configureBuilders()

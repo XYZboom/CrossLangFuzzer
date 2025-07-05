@@ -6,13 +6,14 @@
 package com.github.xyzboom.codesmith.ir.expressions
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.expression]
  */
-abstract class IrExpression : IrElement {
+abstract class IrExpression : IrPureAbstractElement(), IrElement {
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitExpression(this, data)
 

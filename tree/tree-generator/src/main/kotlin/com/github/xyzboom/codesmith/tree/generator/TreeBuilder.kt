@@ -25,6 +25,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         parent(classContainer)
         parent(funcContainer)
         parent(propertyContainer)
+        kind = ImplementationKind.Interface
     }
 
     val declaration: Element by element(Element.Kind.Declaration, name = "Declaration") {

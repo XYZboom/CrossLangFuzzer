@@ -15,6 +15,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.declarations.serde.IrFunctionDeclarationSerializer
 import com.github.xyzboom.codesmith.ir.declarations.serde.IrParameterSerializer
+import com.github.xyzboom.codesmith.ir.impl.IrProgramImpl
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
@@ -53,7 +54,7 @@ val defaultIrMapper: ObjectMapper by lazy {
 
 
 val gson: Gson = GsonBuilder()
-    .registerTypeAdapter(IrProgram::class.java, IrProgramSerializer)
+    .registerTypeAdapter(IrProgramImpl::class.java, IrProgramSerializer)
     .registerTypeAdapter(IrProgram::class.java, IrProgramDeserializer)
     .registerTypeAdapter(IrClassDeclaration::class.java, IrClassDeclarationSerializer)
     .registerTypeAdapter(IrFunctionDeclaration::class.java, IrFunctionDeclarationSerializer)

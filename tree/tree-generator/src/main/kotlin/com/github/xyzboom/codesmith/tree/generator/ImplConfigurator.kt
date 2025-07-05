@@ -16,7 +16,9 @@ object ImplConfigurator : AbstractImplementationConfigurator<Implementation, Ele
     }
 
     override fun configure(model: Model<Element>) = with(TreeBuilder) {
-        impl(program)
+        impl(program) {
+            implementation.isPublic = true
+        }
         impl(typeParameter) {
             delegateFields(listOf("classKind"), "upperbound")
         }

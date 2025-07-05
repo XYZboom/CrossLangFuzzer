@@ -7,7 +7,9 @@
 
 package com.github.xyzboom.codesmith.ir.impl
 
+import com.github.xyzboom.codesmith.ir.IrImplementationDetail
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
@@ -15,11 +17,11 @@ import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 
-internal class IrProgramImpl(
+class IrProgramImpl @IrImplementationDetail constructor(
     override var classes: MutableList<IrClassDeclaration>,
     override var functions: MutableList<IrFunctionDeclaration>,
     override var properties: MutableList<IrPropertyDeclaration>,
-) : IrProgram() {
+) : IrPureAbstractElement(), IrProgram {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
         classes.forEach { it.accept(visitor, data) }

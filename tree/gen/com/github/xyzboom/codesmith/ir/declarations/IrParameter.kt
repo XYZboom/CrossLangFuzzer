@@ -6,6 +6,7 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.IrElement
+import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
 import com.github.xyzboom.codesmith.ir.expressions.IrExpression
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
@@ -14,7 +15,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.parameter]
  */
-abstract class IrParameter : IrElement {
+abstract class IrParameter : IrPureAbstractElement(), IrElement {
     abstract var name: String
     abstract var type: IrType
     abstract var defaultValue: IrExpression?

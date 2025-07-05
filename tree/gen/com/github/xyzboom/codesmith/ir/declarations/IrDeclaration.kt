@@ -7,6 +7,7 @@ package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrNamedElement
+import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
@@ -14,7 +15,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.declaration]
  */
-abstract class IrDeclaration : IrNamedElement {
+abstract class IrDeclaration : IrPureAbstractElement(), IrNamedElement {
     abstract override var name: String
     abstract var language: Language
 

@@ -72,16 +72,17 @@ fun compileScala3WithJava(
         (allSourceFiles + listOf("-usejavacp", "-d", outDir.absolutePath)).toTypedArray(),
         NoMessageScala3Reporter(), null
     )
-    val compileScalaResult = if (reporter.hasErrors()) {
+    if (reporter.hasErrors()) {
         val allErrors = CollectionConverters.SeqHasAsJava(reporter.allErrors()).asJava()
-        allErrors.joinToString("\n") { it.msg }
-    } else null
+        val errorString = allErrors.joinToString("\n") { it.msg }
+        return CompileResult("scala3", errorString, null)
+    }
     val compileJavaResult = JavaCompilerWrapper().compileJavaAfterMajorFinished(
         allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
         outDir.absolutePath
     )
     // todo refactor this like [CodeSmithGroovyRunner.kt]
-    return CompileResult("scala3", compileScalaResult, compileJavaResult)
+    return CompileResult("scala3", null, compileJavaResult)
 }
 
 fun compileScala2WithJava(
@@ -110,11 +111,15 @@ fun compileScala2WithJava(
     main.`reporter_$eq`(reporter)
     main.doCompile(global)
     val compileScalaResult = reporter.errorsMessage
+    if (compileScalaResult != null) {
+        return CompileResult("scala2", compileScalaResult, null)
+    }
+
     val compileJavaResult = JavaCompilerWrapper().compileJavaAfterMajorFinished(
         allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
         outDir.absolutePath
     )
     // todo refactor this like [CodeSmithGroovyRunner.kt]
-    return CompileResult("scala2", compileScalaResult, compileJavaResult)
+    return CompileResult("scala2", null, compileJavaResult)
 }
 

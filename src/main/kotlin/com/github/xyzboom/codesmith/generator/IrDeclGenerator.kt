@@ -354,23 +354,6 @@ open class IrDeclGenerator(
         }
     }
 
-    /**
-     * @param [visitor] return false in [visitor] if want stop
-     */
-    private fun IrClassDeclaration.traverseSuper(visitor: (IrType) -> Boolean) {
-        val superType = superType
-        if (superType is IrClassifier) {
-            if (!visitor(superType)) return
-            superType.classDecl.traverseSuper(visitor)
-        }
-        for (intf in implementedTypes) {
-            if (intf is IrClassifier) {
-                if (!visitor(intf)) return
-                intf.classDecl.traverseSuper(visitor)
-            }
-        }
-    }
-
     fun genTypeArguments(
         fromClasses: List<IrClassDeclaration>,
         fromTypeParameters: List<IrTypeParameter>,

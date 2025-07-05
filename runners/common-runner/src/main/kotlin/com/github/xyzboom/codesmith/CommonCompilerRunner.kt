@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.int
 
-abstract class CommonCompilerRunner : CliktCommand() {
+abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
     protected val differentialTesting by option("--dt").boolean().default(true)
     protected val stopOnErrors by option("-s", "--stop-on-errors").boolean().default(false)
     protected val langShuffleTimesBeforeMutate by option("--lang-shuffle-times-before-mutate").int().default(5)

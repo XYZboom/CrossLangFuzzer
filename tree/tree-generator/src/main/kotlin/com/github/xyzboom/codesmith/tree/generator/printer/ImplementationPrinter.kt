@@ -5,6 +5,7 @@
 
 package com.github.xyzboom.codesmith.tree.generator.printer
 
+import com.github.xyzboom.codesmith.tree.generator.irImplementationDetailType
 import com.github.xyzboom.codesmith.tree.generator.irTransformerType
 import com.github.xyzboom.codesmith.tree.generator.irVisitorType
 import com.github.xyzboom.codesmith.tree.generator.model.*
@@ -34,7 +35,7 @@ internal class ImplementationPrinter(
 ) : AbstractImplementationPrinter<Implementation, Element, Field>(printer) {
 
     override val implementationOptInAnnotation: ClassRef<*>
-        get() = TODO()
+        get() = irImplementationDetailType
 
     override fun getPureAbstractElementType(implementation: Implementation): ClassRef<*> =
         pureAbstractElementType

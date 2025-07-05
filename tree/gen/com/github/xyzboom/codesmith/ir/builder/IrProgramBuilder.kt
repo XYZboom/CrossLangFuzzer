@@ -7,6 +7,7 @@
 
 package com.github.xyzboom.codesmith.ir.builder
 
+import com.github.xyzboom.codesmith.ir.IrImplementationDetail
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -21,6 +22,7 @@ class IrProgramBuilder : IrFuncContainerBuilder {
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
     val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
 
+    @OptIn(IrImplementationDetail::class)
     override fun build(): IrProgram {
         return IrProgramImpl(
             classes,
