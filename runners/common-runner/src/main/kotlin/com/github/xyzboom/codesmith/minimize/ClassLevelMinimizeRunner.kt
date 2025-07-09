@@ -21,6 +21,9 @@ import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.validator.IrValidator
 import io.github.oshai.kotlinlogging.KotlinLogging
 
+private val logger = KotlinLogging.logger {}
+
+
 /**
  * A minimize runner to reduce class numbers as much as possible.
  * # Steps
@@ -45,7 +48,6 @@ class ClassLevelMinimizeRunner(
     compilerRunner: ICompilerRunner
 ) : IMinimizeRunner, ICompilerRunner by compilerRunner {
 
-    private val logger = KotlinLogging.logger {}
 
     class ProgramWithReachableTag(private val prog: IrProgram) {
         val reachableTag: HashSet<IrClassDeclaration> = HashSet()
@@ -58,21 +60,23 @@ class ClassLevelMinimizeRunner(
 
     }
 
-    class ProgramWithRemovedClasses(val prog: IrProgram) : IrProgram by prog {
+    class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
         val removedClasses = mutableSetOf<IrClassDeclaration>()
 
         /**
          * If a replaceWith class is never used, no need to add it into program.
          */
         val usedClassReplaceWith = hashSetOf<String>()
-        private inner class DelegateMutableMap(val ori: MutableMap<String, IrClassDeclaration>)
-            : MutableMap<String, IrClassDeclaration> by ori {
+
+        private inner class DelegateMutableMap(val ori: MutableMap<String, IrClassDeclaration>) :
+            MutableMap<String, IrClassDeclaration> by ori {
             override operator fun get(key: String): IrClassDeclaration? {
                 return ori[key]?.also {
                     usedClassReplaceWith.add(it.name)
                 }
             }
         }
+
         val classReplaceWith: MutableMap<String, IrClassDeclaration> = DelegateMutableMap(mutableMapOf())
 
         fun replaceTypeArgsForClass(oriTypeArgs: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>)
@@ -131,6 +135,7 @@ class ClassLevelMinimizeRunner(
         }
 
         fun removeClass(clazz: IrClassDeclaration, nextReplacementName: String) {
+            logger.trace { "try to remove ${clazz.render()}" }
             val replaceWith = buildClassDeclaration {
                 name = nextReplacementName
                 classKind = ClassKind.FINAL
@@ -204,6 +209,23 @@ class ClassLevelMinimizeRunner(
                 classes.add(replaceWith)
             }
         }
+
+        fun removeFunction(name: String) {
+            for (c in classes) {
+                val fIter = c.functions.iterator()
+                while (fIter.hasNext()) {
+                    val f = fIter.next()
+                    f.postorderTraverseOverride { overrideF, it ->
+                        if (overrideF.name == name) {
+                            it.remove()
+                        }
+                    }
+                    if (f.name == name) {
+                        fIter.remove()
+                    }
+                }
+            }
+        }
     }
 
     var nameNumber = 0
@@ -217,83 +239,62 @@ class ClassLevelMinimizeRunner(
         }
     }
 
-    fun ProgramWithRemovedClasses.withValidate(block: ProgramWithRemovedClasses.() -> Unit) {
+    fun ProgramWithRemovedDecl.withValidate(block: ProgramWithRemovedDecl.() -> Unit) {
         block()
         IrValidator().validate(this).throwOnErrors()
+    }
+
+    fun removeUnrelatedFunctions(
+        initProg: IrProgram,
+        initCompileResult: List<CompileResult>
+    ): Pair<IrProgram, List<CompileResult>> {
+        val suspicious = mutableSetOf<String>()
+        val normal = mutableSetOf<String>()
+        classes@ for (clazz in initProg.classes) {
+            for (f in clazz.functions) {
+                if (initCompileResult.mayRelatedWith(f.name)) {
+                    suspicious.add(f.name)
+                } else {
+                    normal.add(f.name)
+                }
+            }
+        }
+        val progNew = initProg.deepCopy()
+        var result = ProgramWithRemovedDecl(progNew)
+        run tryRemoveAllNormal@{
+            for (funcName in normal) {
+                result.withValidate { removeFunction(funcName) }
+            }
+            val newCompileResult = compile(result)
+            if (newCompileResult != initCompileResult) {
+                logger.trace { "remove all normal functions cause the bug disappear, rollback" }
+                // rollback
+                result = ProgramWithRemovedDecl(initProg.deepCopy())
+            } else {
+                logger.trace { "remove all normal functions success" }
+                normal.clear()
+            }
+        }
+        val allIter = (normal.asSequence() + suspicious.asSequence()).iterator()
+        var newCompileResult: List<CompileResult> = emptyList()
+        while (allIter.hasNext()) {
+            val next = allIter.next()
+            val backup = result.prog.deepCopy()
+            logger.trace { "remove function $next" }
+            result.withValidate { removeFunction(next) }
+            newCompileResult = compile(result)
+            if (newCompileResult != initCompileResult) {
+                result = ProgramWithRemovedDecl(backup)
+            }
+        }
+
+        return result to newCompileResult
     }
 
     override fun minimize(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>
-    ): IrProgram {
-        val suspicious = mutableListOf<IrClassDeclaration>()
-        val normal = mutableListOf<IrClassDeclaration>()
-        classes@ for (clazz in initProg.classes) {
-            if (initCompileResult.mayRelatedWith(clazz.name)) {
-                suspicious.add(clazz)
-            } else {
-                for (f in clazz.functions) {
-                    if (initCompileResult.mayRelatedWith(f.name)) {
-                        suspicious.add(clazz)
-                        continue@classes
-                    }
-                }
-                normal.add(clazz)
-            }
-        }
-        val replaceWith = mutableSetOf<String>()
-        val progNew = initProg.deepCopy()
-        var result = ProgramWithRemovedClasses(progNew)
-        val canNotBeRemovedClasses = mutableSetOf<String>()
-        val canBeRemovedClasses = mutableSetOf<String>()
-        run tryRemoveAllNormal@{
-            val toBeRemove = result.classes.filter { it.name in normal.map { it1 -> it1.name } }
-            for (c in toBeRemove) {
-                result.withValidate { removeClass(c, nextReplacementName()) }
-            }
-            val newCompileResult = compile(result)
-            if (newCompileResult != initCompileResult) {
-                // rollback
-                result = ProgramWithRemovedClasses(progNew)
-            } else {
-                replaceWith.addAll(normal.map { it.name })
-                canBeRemovedClasses.addAll(normal.map { it.name })
-            }
-        }
-
-        while (canNotBeRemovedClasses.size + canBeRemovedClasses.size != initProg.classes.size) {
-            val clazz = (normal + suspicious).firstOrNull {
-                it.name !in canNotBeRemovedClasses && it.name !in canBeRemovedClasses && it.name !in replaceWith
-            } ?: break
-            logger.trace { "try to remove ${clazz.render()}" }
-            val backup = result.prog.deepCopy()
-            val oriRemoved = HashSet(result.removedClasses)
-            val oriReplaced = HashMap(result.classReplaceWith)
-            result.removeClass(clazz, nextReplacementName())
-            if (result.classes.isEmpty()) {
-                val rollback = ProgramWithRemovedClasses(backup).apply {
-                    removedClasses.addAll(oriRemoved)
-                    classReplaceWith.putAll(oriReplaced)
-                }
-                result = rollback
-                canNotBeRemovedClasses.add(clazz.name)
-                continue
-            }
-            val newCompileResult = compile(result)
-            if (newCompileResult != initCompileResult) {
-                logger.trace { "${clazz.render()} is suspicious" }
-                val rollback = ProgramWithRemovedClasses(backup).apply {
-                    removedClasses.addAll(oriRemoved)
-                    classReplaceWith.putAll(oriReplaced)
-                }
-                result = rollback
-                canNotBeRemovedClasses.add(clazz.name)
-            } else {
-                replaceWith.addAll(result.removedClasses.map { it.name })
-                canBeRemovedClasses.addAll(result.removedClasses.map { it.name })
-            }
-        }
-
-        return result
+    ): Pair<IrProgram, List<CompileResult>> {
+        return removeUnrelatedFunctions(initProg, initCompileResult)
     }
 }

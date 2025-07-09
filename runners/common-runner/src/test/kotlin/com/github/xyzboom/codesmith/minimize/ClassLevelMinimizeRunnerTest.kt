@@ -49,7 +49,7 @@ class ClassLevelMinimizeRunnerTest {
             body = buildBlock()
         }
         child.functions.add(funcInC)
-        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedClasses(buildProgram {
+        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedDecl(buildProgram {
             classes.add(parent)
             classes.add(child)
         })
@@ -111,7 +111,7 @@ class ClassLevelMinimizeRunnerTest {
             body = buildBlock()
         }
         child.functions.add(funcInC)
-        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedClasses(buildProgram {
+        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedDecl(buildProgram {
             classes.add(parent)
             classes.add(parent1)
             classes.add(child)

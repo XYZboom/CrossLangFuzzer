@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.visitors.IrTopDownVisitor
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
+import com.github.xyzboom.codesmith.ir.declarations.SuperAndIntfFunctions
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.render
@@ -28,6 +29,17 @@ class IrValidator : IrTopDownVisitor<MessageCollector>() {
             }
             return null
         }
+    private val currentClass: IrClassDeclaration?
+        get() {
+            for (ele in elementStack) {
+                if (ele is IrClassDeclaration) return ele
+            }
+            return null
+        }
+
+    val classOverrideCandidateStack = ArrayDeque<Pair<IrClassDeclaration,
+            Triple<MutableList<SuperAndIntfFunctions>, MutableList<SuperAndIntfFunctions>,
+                    MutableList<SuperAndIntfFunctions>>>>()
 
     override fun visitElement(element: IrElement, data: MessageCollector) {
         elementStack.addFirst(element)
@@ -95,6 +107,8 @@ class IrValidator : IrTopDownVisitor<MessageCollector>() {
             return super.visitClassDeclaration(classDeclaration, data)
         }
         with(classDeclaration) {
+            val signatureMap = collectFunctionSignatureMap()
+            classOverrideCandidateStack.addFirst(this to getOverrideCandidates(signatureMap))
             val superType1 = superType
             if (superType1 != null) {
                 validateParentType(superType1, data, false)
@@ -104,8 +118,16 @@ class IrValidator : IrTopDownVisitor<MessageCollector>() {
                 validateParentType(intf, data, true)
                 validateType(classContainer, classContainer, intf, data, this)
             }
+            super.visitClassDeclaration(this, data)
+            val popOverrideCandidate = classOverrideCandidateStack.removeFirst()
+            require(popOverrideCandidate.first === this)
+            val (must, can, stub) = popOverrideCandidate.second
+            for (superAndIntf in must) {
+                val (superFunc, intfFuncs) = superAndIntf
+                val first = superFunc ?: intfFuncs.firstOrNull() ?: continue
+                data.report(InvalidElement(this, "Class has abstract or conflict function(s): ${first.name}"))
+            }
         }
-        super.visitClassDeclaration(classDeclaration, data)
     }
 
     override fun visitFunctionDeclaration(
@@ -113,7 +135,18 @@ class IrValidator : IrTopDownVisitor<MessageCollector>() {
         data: MessageCollector
     ) {
         val prog = currentProg ?: throw IllegalStateException()
+        val overrideCandidate = classOverrideCandidateStack.first()
+        val (_, triple) = overrideCandidate
+        val (must, can, stub) = triple
         with(functionDeclaration) {
+            val mustIter = must.iterator()
+            while (mustIter.hasNext()) {
+                val myMust = mustIter.next()
+                myMust.first ?: myMust.second.firstOrNull { it.name == this.name } ?: continue
+                if (!isOverrideStub && body != null) {
+                    mustIter.remove()
+                }
+            }
             for (overrideF in override) {
                 val overrideFromClass = prog.classes.firstOrNull { it.name == overrideF.containingClassName }
                 if (overrideFromClass == null) {

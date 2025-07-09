@@ -11,13 +11,13 @@ object MinimizeMain {
     @JvmStatic
     fun main(args: Array<String>) {
         val prog = gson.fromJson(
-            File("/root/autodl-tmp/Code/CodeSmith/out/00000197d46cda3e/main.json").readText(),
+            File("/root/autodl-tmp/Code/CodeSmith/out/00000197e9d39f24/main.json").readText(),
             IrProgram::class.java
         )
         val runner = CrossLangFuzzerKotlinRunner()
-        CommandLineParser.parseAndRun(runner, listOf("--dt=false")) {
+        CommandLineParser.parseAndRun(runner, listOf(/*"--dt=false"*/)) {
             it as CrossLangFuzzerKotlinRunner
-            val prog = MinimizeRunnerImpl(it).minimize(
+            val (prog, _) = MinimizeRunnerImpl(it).minimize(
                 prog, it.compile(prog)
             )
             val fileContent = IrProgramPrinter().printToSingle(prog)

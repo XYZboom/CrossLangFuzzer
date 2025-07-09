@@ -7,7 +7,6 @@ import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.minimize.IMinimizeRunner
 import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
@@ -35,9 +34,9 @@ import kotlin.time.measureTime
 
 val testInfo = KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
 
-class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
+class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 
-    private val logger = KotlinLogging.logger {  }
+    private val logger = KotlinLogging.logger { }
 
     companion object {
         fun TestConfigurationBuilder.config() {
@@ -73,7 +72,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    object K2Jdk17Test: AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
+    object K2Jdk17Test : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
         init {
             initTestInfo(testInfo)
         }
@@ -103,7 +102,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         }
     }
 
-    object K1Jdk17Test: AbstractIrBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
+    object K1Jdk17Test : AbstractIrBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
         init {
             initTestInfo(testInfo)
         }
@@ -149,7 +148,12 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
         val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
         val testResults = testers.map { it.testProgram(fileContent) }
         if (testResults.toSet().size != 1) {
-            recordCompileResult(Language.KOTLIN, program, testResults)
+            val (minimize, minResult) = try {
+                minimizeRunner.minimize(program, testResults)
+            } catch (e: Throwable) {
+                null to null
+            }
+            recordCompileResult(Language.KOTLIN, program, testResults, minimize, minResult)
             if (throwException) {
                 throw RuntimeException()
             }
@@ -160,8 +164,12 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
     fun doOneRoundAndRecord(program: IrProgram, throwException: Boolean) {
         val testResult = doNormalCompile(program)
         if (!testResult.success) {
-            val minimize = minimizeRunner.minimize(program, listOf(testResult))
-            recordCompileResult(Language.KOTLIN, program, listOf(testResult), minimize)
+            val (minimize, minResult) = try {
+                minimizeRunner.minimize(program, listOf(testResult))
+            } catch (e: Throwable) {
+                null to null
+            }
+            recordCompileResult(Language.KOTLIN, program, listOf(testResult), minimize, minResult)
             if (throwException) {
                 throw RuntimeException()
             }
@@ -185,7 +193,7 @@ class CrossLangFuzzerKotlinRunner: CommonCompilerRunner() {
                         val threadName = Thread.currentThread().name
                         while (true) {
                             enableGeneric = Random.nextBoolean(0.15f)
-        //                        enableGeneric = false
+                            //                        enableGeneric = false
                             val generator = IrDeclGenerator(
                                 GeneratorConfig(
                                     classHasTypeParameterProbability = if (enableGeneric) {

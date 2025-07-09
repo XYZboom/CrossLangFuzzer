@@ -12,5 +12,5 @@ interface IMinimizeRunner: ICompilerRunner {
      */
     override fun compile(program: IrProgram): List<CompileResult>
 
-    fun minimize(initProg: IrProgram, initResult: List<CompileResult>): IrProgram
+    fun minimize(initProg: IrProgram, initCompileResult: List<CompileResult>): Pair<IrProgram, List<CompileResult>>
 }
