@@ -261,22 +261,24 @@ class ClassLevelMinimizeRunner(
         }
         val progNew = initProg.deepCopy()
         var result = ProgramWithRemovedDecl(progNew)
+        var newCompileResult: List<CompileResult> = initCompileResult
         run tryRemoveAllNormal@{
             for (funcName in normal) {
                 result.withValidate { removeFunction(funcName) }
             }
-            val newCompileResult = compile(result)
+            newCompileResult = compile(result)
             if (newCompileResult != initCompileResult) {
                 logger.trace { "remove all normal functions cause the bug disappear, rollback" }
                 // rollback
                 result = ProgramWithRemovedDecl(initProg.deepCopy())
+                newCompileResult = initCompileResult
             } else {
                 logger.trace { "remove all normal functions success" }
                 normal.clear()
             }
         }
         val allIter = (normal.asSequence() + suspicious.asSequence()).iterator()
-        var newCompileResult: List<CompileResult> = emptyList()
+        var lastCompileResult = newCompileResult
         while (allIter.hasNext()) {
             val next = allIter.next()
             val backup = result.prog.deepCopy()
@@ -285,7 +287,9 @@ class ClassLevelMinimizeRunner(
             newCompileResult = compile(result)
             if (newCompileResult != initCompileResult) {
                 result = ProgramWithRemovedDecl(backup)
+                newCompileResult = lastCompileResult
             }
+            lastCompileResult = newCompileResult
         }
 
         return result to newCompileResult
