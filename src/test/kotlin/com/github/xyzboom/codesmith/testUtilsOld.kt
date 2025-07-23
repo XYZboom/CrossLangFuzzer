@@ -6,7 +6,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-internal fun IrFunctionDeclaration.assertParameters(
+fun IrFunctionDeclaration.assertParameters(
     shouldBe: List<Pair<String, IrType>>
 ) {
     assertEquals(shouldBe.size, parameterList.parameters.size, "$name parameter size is unexpected!")
@@ -17,7 +17,7 @@ internal fun IrFunctionDeclaration.assertParameters(
     }
 }
 
-internal fun IrFunctionDeclaration.assertIsOverride(
+fun IrFunctionDeclaration.assertIsOverride(
     shouldFrom: List<IrFunctionDeclaration>,
     shouldBeSameSignature: Boolean,
     shouldHasBody: Boolean,

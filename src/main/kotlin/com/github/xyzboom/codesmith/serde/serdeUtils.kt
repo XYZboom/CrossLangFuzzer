@@ -1,10 +1,12 @@
-package com.github.xyzboom.codesmith.ir.serde
+package com.github.xyzboom.codesmith.serde
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
+import com.github.xyzboom.codesmith.config.IntRangeDeserializer
+import com.github.xyzboom.codesmith.config.IntRangeSerializer
 import com.github.xyzboom.codesmith.ir_old.expressions.IrExpression
 import org.reflections.Reflections
 import com.github.xyzboom.codesmith.ir.IrProgram
@@ -15,6 +17,9 @@ import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.declarations.serde.IrFunctionDeclarationSerializer
 import com.github.xyzboom.codesmith.ir.declarations.serde.IrParameterSerializer
+import com.github.xyzboom.codesmith.ir.impl.IrProgramImpl
+import com.github.xyzboom.codesmith.ir.serde.IrProgramDeserializer
+import com.github.xyzboom.codesmith.ir.serde.IrProgramSerializer
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
@@ -53,7 +58,7 @@ val defaultIrMapper: ObjectMapper by lazy {
 
 
 val gson: Gson = GsonBuilder()
-    .registerTypeAdapter(IrProgram::class.java, IrProgramSerializer)
+    .registerTypeAdapter(IrProgramImpl::class.java, IrProgramSerializer)
     .registerTypeAdapter(IrProgram::class.java, IrProgramDeserializer)
     .registerTypeAdapter(IrClassDeclaration::class.java, IrClassDeclarationSerializer)
     .registerTypeAdapter(IrFunctionDeclaration::class.java, IrFunctionDeclarationSerializer)
@@ -64,6 +69,11 @@ val gson: Gson = GsonBuilder()
     .registerTypeAdapter(IrNullableType::class.java, IrNullableTypeSerializer)
     .registerTypeAdapter(IrBuiltInType::class.java, IrBuiltInTypeSerializer)
     .registerTypeAdapter(IrTypeParameter::class.java, IrTypeParameterSerializer)
+    .create()
+
+val configGson: Gson = GsonBuilder()
+    .registerTypeAdapter(IntRange::class.java, IntRangeSerializer)
+    .registerTypeAdapter(IntRange::class.java, IntRangeDeserializer)
     .create()
 
 fun JsonObject.addTypeParameters(typeParameterContainer: IrTypeParameterContainer, p2: JsonSerializationContext?) {

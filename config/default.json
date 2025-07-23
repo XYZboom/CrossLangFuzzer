@@ -1,0 +1,69 @@
+{
+  "generatorConfig": {
+    "nameLengthRange": [
+      3,
+      8
+    ],
+    "javaRatio": 0.5,
+    "topLevelDeclRange": [
+      8,
+      15
+    ],
+    "topLevelClassWeight": 3,
+    "topLevelFunctionWeight": 1,
+    "topLevelPropertyWeight": 1,
+    "classHasSuperProbability": 0.3,
+    "classImplNumRange": [
+      0,
+      3
+    ],
+    "classMemberNumRange": [
+      1,
+      3
+    ],
+    "classMemberIsFunctionWeight": 3,
+    "classMemberIsPropertyWeight": 2,
+    "classHasTypeParameterProbability": 0.3,
+    "classTypeParameterNumberRange": [
+      1,
+      3
+    ],
+    "functionParameterNumRange": [
+      0,
+      3
+    ],
+    "functionExpressionNumRange": [
+      2,
+      8
+    ],
+    "functionParameterNullableProbability": 0.4,
+    "functionReturnTypeNullableProbability": 0.4,
+    "functionHasTypeParameterProbability": 0.3,
+    "functionTypeParameterNumberRange": [
+      1,
+      3
+    ],
+    "allowNothingInParameter": false,
+    "allowNothingInReturnType": false,
+    "allowUnitInTypeArgument": false,
+    "allowNothingInTypeArgument": false,
+    "typeParameterUpperboundAlwaysAny": false,
+    "allowFunctionLevelTypeParameterAsUpperbound": true,
+    "printJavaNullableAnnotationProbability": 0.4,
+    "newExpressionWeight": 1,
+    "functionCallExpressionWeight": 1,
+    "overrideOnlyMustOnes": false,
+    "noFinalFunction": false,
+    "noFinalProperties": false
+  },
+  "mutatorConfig": {
+    "mutateGenericArgumentInParentWeight": 1,
+    "removeOverrideMemberFunctionWeight": 1,
+    "mutateGenericArgumentInMemberFunctionParameterWeight": 3,
+    "mutateParameterNullabilityWeight": 2,
+    "mutateClassTypeParameterUpperBoundWeight": 3
+  },
+  "langShuffleTimesBeforeMutate": 3,
+  "langShuffleTimesAfterMutate": 3,
+  "mutateTimes": 5
+}

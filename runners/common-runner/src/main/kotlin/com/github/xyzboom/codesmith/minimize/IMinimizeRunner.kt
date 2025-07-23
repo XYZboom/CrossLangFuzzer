@@ -1,18 +1,16 @@
 package com.github.xyzboom.codesmith.minimize
 
 import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ICompilerRunner
 import com.github.xyzboom.codesmith.ir.IrProgram
 
-interface IMinimizeRunner {
+interface IMinimizeRunner: ICompilerRunner {
     /**
      * compile the given [program].
-     * returns `Pair<CompileResult, null>` using normal testing or
-     * `Pair<CompileResult, CompileResult>` using differential testing
+     * returns one element if we are doing normal testing,
+     * otherwise differential testing
      */
-    fun compile(program: IrProgram): Pair<CompileResult, CompileResult?>
+    override fun compile(program: IrProgram): List<CompileResult>
 
-    fun minimize(initProg: IrProgram): IrProgram {
-        val initResult = compile(initProg)
-        TODO()
-    }
+    fun minimize(initProg: IrProgram, initCompileResult: List<CompileResult>): Pair<IrProgram, List<CompileResult>>
 }

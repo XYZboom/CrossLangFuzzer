@@ -1,6 +1,9 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     kotlin("jvm") version "2.1.21"
     `maven-publish`
+    `java-test-fixtures`
 }
 
 group = "com.github.xyzboom"
@@ -51,8 +54,8 @@ dependencies {
     api("org.jacoco:org.jacoco.core:0.8.12")
     implementation(kotlin("reflect"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
-    testImplementation("io.kotest:kotest-assertions-core:5.9.1")
-    testImplementation(kotlin("test"))
+    testFixturesApi(kotlin("test"))
+    testFixturesApi("io.kotest:kotest-assertions-core:5.9.1")
 }
 
 tasks.test {
@@ -62,4 +65,14 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(8)
+}
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.compilerOptions {
+    freeCompilerArgs.set(listOf("-Xwhen-guards"))
+}
+
+tasks.register<JavaExec>("generateDefaultConfigFile") {
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = rootDir
+    mainClass.set("com.github.xyzboom.codesmith.GenDefaultConfigFileKt")
 }

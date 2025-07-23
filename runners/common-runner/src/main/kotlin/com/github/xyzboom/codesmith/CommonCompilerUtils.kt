@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
-import com.github.xyzboom.codesmith.ir.serde.gson
+import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
@@ -82,16 +82,32 @@ fun recordCompileResult(
     majorLanguage: Language,
     program: IrProgram,
     compileResults: List<CompileResult>,
+    minimizedProgram: IrProgram? = null,
+    minimizedCompileResults: List<CompileResult>? = null,
 ) {
+    require(compileResults.size == 1 || compileResults.toSet().size != 1)
     val dir = File(logFile, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
     File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
     for (compileResult in compileResults) {
-        if (!compileResult.success) continue
         val (majorResult, javaResult) = compileResult
         if (majorResult != null) {
             File(dir, "${compileResult.version}-error.txt").writeText(majorResult)
         } else if (javaResult != null) {
-            File(dir, "java-error.txt").writeText(javaResult)
+            File(dir, "${compileResult.version}-java-error.txt").writeText(javaResult)
+        }
+    }
+    if (minimizedProgram != null) {
+        File(dir, "main-min.${majorLanguage.extension}")
+            .writeText(IrProgramPrinter(majorLanguage).printToSingle(minimizedProgram))
+    }
+    if (minimizedCompileResults != null) {
+        for (compileResult in minimizedCompileResults) {
+            val (majorResult, javaResult) = compileResult
+            if (majorResult != null) {
+                File(dir, "${compileResult.version}-error-min.txt").writeText(majorResult)
+            } else if (javaResult != null) {
+                File(dir, "${compileResult.version}-java-error-min.txt").writeText(javaResult)
+            }
         }
     }
     File(dir, "main.${majorLanguage.extension}").writeText(IrProgramPrinter(majorLanguage).printToSingle(program))

@@ -3,7 +3,7 @@ package com.github.xyzboom.codesmith.ir.declarations.serde
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.serde.addTypeParameters
+import com.github.xyzboom.codesmith.serde.addTypeParameters
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement

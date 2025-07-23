@@ -11,9 +11,10 @@ repositories {
 
 dependencies {
     api("com.github.ajalt.clikt:clikt:5.0.3")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     implementation(project.rootProject)
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
+    testImplementation(testFixtures(project.rootProject))
 }
 
 tasks.test {

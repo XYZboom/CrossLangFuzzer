@@ -40,6 +40,10 @@ data class GeneratorConfig(
     val allowUnitInTypeArgument: Boolean = false,
     val allowNothingInTypeArgument: Boolean = false,
     val typeParameterUpperboundAlwaysAny: Boolean = false,
+    /**
+     * Set this false to avoid [KT-78819](https://youtrack.jetbrains.com/issue/KT-78819).
+     */
+    val allowFunctionLevelTypeParameterAsUpperbound: Boolean = true,
     //</editor-fold>
     val printJavaNullableAnnotationProbability: Float = 0.4f,
     val newExpressionWeight: Int = 1,
