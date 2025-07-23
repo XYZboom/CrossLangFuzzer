@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith.ir.declarations.serde
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.serde.addTypeParameters
+import com.github.xyzboom.codesmith.serde.addTypeParameters
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName

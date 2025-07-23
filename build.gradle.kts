@@ -70,3 +70,9 @@ val compileKotlin: KotlinCompile by tasks
 compileKotlin.compilerOptions {
     freeCompilerArgs.set(listOf("-Xwhen-guards"))
 }
+
+tasks.register<JavaExec>("generateDefaultConfigFile") {
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = rootDir
+    mainClass.set("com.github.xyzboom.codesmith.GenDefaultConfigFileKt")
+}

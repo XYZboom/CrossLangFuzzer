@@ -208,16 +208,17 @@ open class IrDeclGenerator(
     ) {
         // TODO: to support nested upperbound like T1 : A<B<T1>>,
         //  we need to generate upperbound after all type parameters are generated
-        val classesShouldBeRemove = if (this is IrClassDeclaration) {
+        val classesShouldNotBeIncluded = if (this is IrClassDeclaration) {
             listOf(this)
         } else emptyList()
+        val isFunction = this is IrFunctionDeclaration
         this.typeParameters.add(buildTypeParameter {
             this.name = nextTypeParameterName()
             if (config.typeParameterUpperboundAlwaysAny) {
                 upperbound = IrAny
             } else {
                 this.upperbound = randomType(
-                    context.classes - classesShouldBeRemove,
+                    context.classes - classesShouldNotBeIncluded,
                     // allow upperbound to be a type parameter generated just now
                     availableTypeParameters + this@genTypeParameter.typeParameters,
                     false
@@ -226,6 +227,9 @@ open class IrDeclGenerator(
                     it !is IrParameterizedClassifier
                             && (config.allowUnitInTypeArgument || it !== IrUnit)
                             && (config.allowNothingInTypeArgument || it !== IrNothing)
+                            // to avoid KT-78819
+                            && (!(isFunction && !config.allowFunctionLevelTypeParameterAsUpperbound &&
+                            it in this@genTypeParameter.typeParameters))
                 } ?: IrAny
             }
         })

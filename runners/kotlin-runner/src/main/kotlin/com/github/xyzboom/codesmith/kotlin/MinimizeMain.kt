@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith.kotlin
 
 import com.github.ajalt.clikt.parsers.CommandLineParser
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.serde.gson
+import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import java.io.File

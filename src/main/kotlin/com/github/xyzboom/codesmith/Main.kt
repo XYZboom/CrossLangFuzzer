@@ -3,7 +3,7 @@ package com.github.xyzboom.codesmith
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.serde.gson
+import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter

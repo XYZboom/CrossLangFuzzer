@@ -2,7 +2,7 @@ package com.github.xyzboom.codesmith
 
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
-import com.github.xyzboom.codesmith.ir.serde.gson
+import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File

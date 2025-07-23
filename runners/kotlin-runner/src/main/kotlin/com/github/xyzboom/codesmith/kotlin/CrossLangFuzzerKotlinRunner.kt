@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.deepCopy
 import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
@@ -177,7 +178,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun run() {
+    override fun runnerMain() {
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
         val parallelSize = 1
@@ -189,39 +190,27 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                 val jobs = mutableListOf<Job>()
                 repeat(parallelSize) {
                     val job = launch {
-                        var enableGeneric: Boolean
                         val threadName = Thread.currentThread().name
                         while (true) {
-                            enableGeneric = Random.nextBoolean(0.15f)
-                            //                        enableGeneric = false
-                            val generator = IrDeclGenerator(
-                                GeneratorConfig(
-                                    classHasTypeParameterProbability = if (enableGeneric) {
-                                        Random.nextFloat() / 4f
-                                    } else {
-                                        0f
-                                    }
-                                )
-                            )
+                            val generator = IrDeclGenerator(runConfig.generatorConfig)
                             val prog = generator.genProgram()
-                            repeat(langShuffleTimesBeforeMutate) {
+                            repeat(runConfig.langShuffleTimesBeforeMutate) {
                                 val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
                                 println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                 generator.shuffleLanguage(prog)
                             }
-                            /*val config = MutatorConfig.allZero.copy(
-                                    mutateParameterNullabilityWeight = 1
-                                )*/
-                            val config = MutatorConfig.default
-                            val mutator = IrMutator(
-                                config,
-                                generator = generator
-                            )
-                            if (mutator.mutate(prog)) {
-                                repeat(langShuffleTimesAfterMutate) {
-                                    val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
-                                    println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
-                                    generator.shuffleLanguage(prog)
+                            repeat(runConfig.mutateTimes) {
+                                val mutator = IrMutator(
+                                    runConfig.mutatorConfig,
+                                    generator = generator
+                                )
+                                val copiedProg = prog.deepCopy()
+                                if (mutator.mutate(copiedProg)) {
+                                    repeat(runConfig.langShuffleTimesAfterMutate) {
+                                        val dur = measureTime { doOneRoundDifferentialAndRecord(copiedProg, stopOnErrors) }
+                                        println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
+                                        generator.shuffleLanguage(copiedProg)
+                                    }
                                 }
                             }
                         }
