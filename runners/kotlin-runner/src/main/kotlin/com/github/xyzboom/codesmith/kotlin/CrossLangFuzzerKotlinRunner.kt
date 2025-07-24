@@ -3,24 +3,16 @@ package com.github.xyzboom.codesmith.kotlin
 import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.CompileResult
-import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
-import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.deepCopy
 import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
-import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
-import com.github.xyzboom.codesmith.utils.nextBoolean
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
 import org.jetbrains.kotlin.test.runners.codegen.AbstractFirPsiBlackBoxCodegenTest
@@ -30,7 +22,6 @@ import org.jetbrains.kotlin.test.services.KotlinStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
 import kotlin.time.measureTime
 
 val testInfo = KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
@@ -148,10 +139,21 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
     fun doOneRoundDifferentialAndRecord(program: IrProgram, throwException: Boolean) {
         val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
         val testResults = testers.map { it.testProgram(fileContent) }
-        if (testResults.toSet().size != 1) {
+        val resultSet = testResults.toSet()
+        if (resultSet.size != 1) {
+            /**
+             * see [KT-60791](https://youtrack.jetbrains.com/issue/KT-60791) and
+             * [KT-39603](https://youtrack.jetbrains.com/issue/KT-39603)
+             * for more information
+            */
+            val avoidKT60791 = resultSet.any {
+                it.majorResult?.contains("EXPLICIT_OVERRIDE_REQUIRED_IN_COMPATIBILITY_MODE") == true ||
+                        it.javaResult?.contains("EXPLICIT_OVERRIDE_REQUIRED_IN_COMPATIBILITY_MODE") == true
+            }
+            if (avoidKT60791) return
             val (minimize, minResult) = try {
                 minimizeRunner.minimize(program, testResults)
-            } catch (e: Throwable) {
+            } catch (_: Throwable) {
                 null to null
             }
             recordCompileResult(Language.KOTLIN, program, testResults, minimize, minResult)
@@ -167,7 +169,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         if (!testResult.success) {
             val (minimize, minResult) = try {
                 minimizeRunner.minimize(program, listOf(testResult))
-            } catch (e: Throwable) {
+            } catch (_: Throwable) {
                 null to null
             }
             recordCompileResult(Language.KOTLIN, program, listOf(testResult), minimize, minResult)
