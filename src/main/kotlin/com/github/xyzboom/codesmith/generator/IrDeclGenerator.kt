@@ -212,25 +212,33 @@ open class IrDeclGenerator(
             listOf(this)
         } else emptyList()
         val isFunction = this is IrFunctionDeclaration
+        logger.trace { "isFunction: $isFunction, allowFunctionLevelTypeParameterAsUpperbound: ${config.allowFunctionLevelTypeParameterAsUpperbound}" }
         this.typeParameters.add(buildTypeParameter {
             this.name = nextTypeParameterName()
+            logger.trace { "generated parameter ${this.name}" }
             if (config.typeParameterUpperboundAlwaysAny) {
+                logger.trace { "choose IrAny as upperbound config set always" }
                 upperbound = IrAny
             } else {
+                // allow upperbound to be a type parameter generated just now
+                val typeParametersGeneratedJustNow =
+                    if (!isFunction || config.allowFunctionLevelTypeParameterAsUpperbound) {
+                        this@genTypeParameter.typeParameters
+                    } else {
+                        // to avoid KT-78819
+                        emptyList()
+                    }
                 this.upperbound = randomType(
                     context.classes - classesShouldNotBeIncluded,
-                    // allow upperbound to be a type parameter generated just now
-                    availableTypeParameters + this@genTypeParameter.typeParameters,
+                    availableTypeParameters + typeParametersGeneratedJustNow,
                     false
                 ) {
                     // currently not support nested
                     it !is IrParameterizedClassifier
                             && (config.allowUnitInTypeArgument || it !== IrUnit)
                             && (config.allowNothingInTypeArgument || it !== IrNothing)
-                            // to avoid KT-78819
-                            && (!(isFunction && !config.allowFunctionLevelTypeParameterAsUpperbound &&
-                            it in this@genTypeParameter.typeParameters))
                 } ?: IrAny
+                logger.trace { "choose upperbound ${this.upperbound.render()}" }
             }
         })
     }
@@ -564,6 +572,7 @@ open class IrDeclGenerator(
             parameterList = buildParameterList()
         }.apply {
             if (random.nextBoolean(config.functionHasTypeParameterProbability)) {
+                logger.trace { "generate function parameters for: ${this.name}" }
                 repeat(config.functionTypeParameterNumberRange.random(random)) {
                     genTypeParameter(
                         classContainer, if (funcContainer is IrClassDeclaration) {
