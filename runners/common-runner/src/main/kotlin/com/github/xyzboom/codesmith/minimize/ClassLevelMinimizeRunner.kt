@@ -397,10 +397,8 @@ class ClassLevelMinimizeRunner(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>
     ): Pair<IrProgram, List<CompileResult>> {
-        var (newProg, newCompileResult) = removeUnrelatedFunctions(initProg, initCompileResult)
-        val pair = removeUnrelatedClass(newProg, newCompileResult)
-        newProg = pair.first
-        newCompileResult = pair.second
-        return newProg to newCompileResult
+        var resultPair = removeUnrelatedFunctions(initProg, initCompileResult)
+        resultPair = removeUnrelatedClass(resultPair.first, resultPair.second)
+        return resultPair.first to resultPair.second
     }
 }

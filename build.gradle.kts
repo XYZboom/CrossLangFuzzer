@@ -64,7 +64,7 @@ tasks.test {
     systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
 }
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(11)
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.compilerOptions {

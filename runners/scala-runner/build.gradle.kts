@@ -23,7 +23,7 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(11)
 }
 
 tasks.withType<JavaExec> {
