@@ -24,7 +24,12 @@ import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.measureTime
 
-val testInfo = KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
+val testInfo = run {
+    // make sure JDK HOME is set
+    KtTestUtil.getJdk8Home()
+    KtTestUtil.getJdk17Home()
+    KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
+}
 
 class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 
@@ -141,16 +146,6 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         val testResults = testers.map { it.testProgram(fileContent) }
         val resultSet = testResults.toSet()
         if (resultSet.size != 1) {
-            /**
-             * see [KT-60791](https://youtrack.jetbrains.com/issue/KT-60791) and
-             * [KT-39603](https://youtrack.jetbrains.com/issue/KT-39603)
-             * for more information
-            */
-            val avoidKT60791 = resultSet.any {
-                it.majorResult?.contains("EXPLICIT_OVERRIDE_REQUIRED_IN_COMPATIBILITY_MODE") == true ||
-                        it.javaResult?.contains("EXPLICIT_OVERRIDE_REQUIRED_IN_COMPATIBILITY_MODE") == true
-            }
-            if (avoidKT60791) return
             val (minimize, minResult) = try {
                 minimizeRunner.minimize(program, testResults)
             } catch (_: Throwable) {
@@ -184,9 +179,6 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
         val parallelSize = 1
-        // make sure JDK HOME is set
-        KtTestUtil.getJdk8Home()
-        KtTestUtil.getJdk17Home()
         if (differentialTesting) {
             runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
                 val jobs = mutableListOf<Job>()

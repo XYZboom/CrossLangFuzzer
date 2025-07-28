@@ -77,6 +77,22 @@ class JavaCompilerWrapper() {
     }
 }
 
+/**
+ * We hard code some logic here to avoid some issues like [KT-39603](https://youtrack.jetbrains.com/issue/KT-39603)
+ */
+fun shouldNotRecord(resultSet: Set<CompileResult>): Boolean {
+    /**
+     * see [KT-60791](https://youtrack.jetbrains.com/issue/KT-60791) and
+     * [KT-39603](https://youtrack.jetbrains.com/issue/KT-39603)
+     * for more information
+     */
+    val avoidKT60791 = resultSet.any {
+        it.majorResult?.contains("EXPLICIT_OVERRIDE_REQUIRED_IN_COMPATIBILITY_MODE") == true ||
+                it.javaResult?.contains("EXPLICIT_OVERRIDE_REQUIRED_IN_COMPATIBILITY_MODE") == true
+    }
+    return avoidKT60791
+}
+
 @OptIn(ExperimentalStdlibApi::class)
 fun recordCompileResult(
     majorLanguage: Language,
@@ -85,7 +101,11 @@ fun recordCompileResult(
     minimizedProgram: IrProgram? = null,
     minimizedCompileResults: List<CompileResult>? = null,
 ) {
-    require(compileResults.size == 1 || compileResults.toSet().size != 1)
+    val resultSet = compileResults.toSet()
+    require(compileResults.size == 1 || resultSet.size != 1)
+    if (shouldNotRecord(resultSet)) {
+        return
+    }
     val dir = File(logFile, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
     File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
     for (compileResult in compileResults) {

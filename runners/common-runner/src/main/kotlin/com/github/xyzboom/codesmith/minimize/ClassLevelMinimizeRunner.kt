@@ -16,9 +16,9 @@ import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
+import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.copy
 import com.github.xyzboom.codesmith.ir.types.type
-import com.github.xyzboom.codesmith.validator.IrValidator
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -66,18 +66,19 @@ class ClassLevelMinimizeRunner(
         /**
          * If a replaceWith class is never used, no need to add it into program.
          */
-        val usedClassReplaceWith = hashSetOf<String>()
+        val usedClassReplaceWith = hashSetOf<IrType>()
 
-        private inner class DelegateMutableMap(val ori: MutableMap<String, IrClassDeclaration>) :
-            MutableMap<String, IrClassDeclaration> by ori {
-            override operator fun get(key: String): IrClassDeclaration? {
+        private inner class DelegateMutableMap(val ori: MutableMap<String, IrType>) :
+            MutableMap<String, IrType> by ori {
+            override operator fun get(key: String): IrType? {
                 return ori[key]?.also {
-                    usedClassReplaceWith.add(it.name)
+                    usedClassReplaceWith.add(it)
                 }
             }
         }
 
-        val classReplaceWith: MutableMap<String, IrClassDeclaration> = DelegateMutableMap(mutableMapOf())
+//        val classReplaceWith: MutableMap<String, IrClassDeclaration> = DelegateMutableMap(mutableMapOf())
+        val classReplaceWith: MutableMap<String, IrType> = DelegateMutableMap(mutableMapOf())
 
         fun replaceTypeArgsForClass(oriTypeArgs: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>)
                 : HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>> {
@@ -109,7 +110,7 @@ class ClassLevelMinimizeRunner(
                 }
 
                 type is IrClassifier && type.classDecl in removedClasses -> {
-                    val replaceWith = classReplaceWith[type.classDecl.name]!!.type
+                    val replaceWith = classReplaceWith[type.classDecl.name]!!
                     if (type is IrParameterizedClassifier) {
                         val newTypeArgs = replaceTypeArgs(type.arguments)
                         replaceWith as IrParameterizedClassifier
@@ -134,13 +135,88 @@ class ClassLevelMinimizeRunner(
             }
         }
 
-        fun removeClass(clazz: IrClassDeclaration, nextReplacementName: String) {
+        fun replaceClass(className: String, nextReplacementName: String) {
+            val clazz = classes.first { it.name == className }
             logger.trace { "try to remove ${clazz.render()}" }
             val replaceWith = buildClassDeclaration {
                 name = nextReplacementName
                 classKind = ClassKind.FINAL
                 typeParameters.addAll(clazz.typeParameters)
             }
+            val replaceWithType = replaceWith.type
+            classReplaceWith[clazz.name] = replaceWithType
+            classes.remove(clazz)
+            removedClasses.add(clazz)
+            //<editor-fold desc="Replace types">
+            val funcToBeRemoveFromOverride = mutableSetOf<IrFunctionDeclaration>()
+            for (c in classes) {
+                c.superType?.let {
+                    val replaced = replaceType(it)
+                    // super was deleted
+                    if (replaced !== c.superType) {
+                        c.superType = null
+                    }
+                }
+                val iterImpl = c.implementedTypes.iterator()
+                while (iterImpl.hasNext()) {
+                    val impl = iterImpl.next()
+                    val replaced = replaceType(impl)
+                    // super was deleted
+                    if (replaced !== impl) {
+                        iterImpl.remove()
+                    }
+                }
+                for (typeParam in c.typeParameters) {
+                    typeParam.upperbound = replaceType(typeParam.upperbound)
+                }
+                c.allSuperTypeArguments = replaceTypeArgsForClass(c.allSuperTypeArguments)
+                val iter = c.functions.iterator()
+                while (iter.hasNext()) {
+                    val f = iter.next()
+                    if (f.override.isNotEmpty()) {
+                        val overrideCopy = ArrayList(f.override)
+                        f.postorderTraverseOverride { overrideF, it ->
+                            if (overrideF.containingClassName in classReplaceWith) {
+                                funcToBeRemoveFromOverride.add(overrideF)
+                                it.remove()
+                                return@postorderTraverseOverride
+                            }
+                            if (overrideF.override.isEmpty()) {
+                                return@postorderTraverseOverride
+                            }
+                            if (overrideF.override.all { it.containingClassName in classReplaceWith }) {
+                                funcToBeRemoveFromOverride.add(overrideF)
+                                it.remove()
+                            } else if (overrideF.override.all { it in funcToBeRemoveFromOverride }) {
+                                funcToBeRemoveFromOverride.add(overrideF)
+                                it.remove()
+                            }
+                        }
+                        if (overrideCopy.all { it in funcToBeRemoveFromOverride } ||
+                            overrideCopy.all { it.containingClassName in classReplaceWith }) {
+                            funcToBeRemoveFromOverride.add(f)
+                            iter.remove()
+                        }
+                    }
+                    for (typeParam in f.typeParameters) {
+                        typeParam.upperbound = replaceType(typeParam.upperbound)
+                    }
+                    for (param in f.parameterList.parameters) {
+                        param.type = replaceType(param.type)
+                    }
+                    f.returnType = replaceType(f.returnType)
+                }
+            }
+            //</editor-fold>
+            if (usedClassReplaceWith.contains(replaceWithType)) {
+                classes.add(replaceWith)
+            }
+        }
+
+        fun replaceClassWithIrAny(className: String) {
+            val clazz = classes.first { it.name == className }
+            logger.trace { "try to remove ${clazz.render()}" }
+            val replaceWith = IrAny
             classReplaceWith[clazz.name] = replaceWith
             classes.remove(clazz)
             removedClasses.add(clazz)
@@ -205,9 +281,6 @@ class ClassLevelMinimizeRunner(
                 }
             }
             //</editor-fold>
-            if (usedClassReplaceWith.contains(nextReplacementName)) {
-                classes.add(replaceWith)
-            }
         }
 
         fun removeFunction(name: String) {
@@ -239,11 +312,6 @@ class ClassLevelMinimizeRunner(
         }
     }
 
-    fun ProgramWithRemovedDecl.withValidate(block: ProgramWithRemovedDecl.() -> Unit) {
-        block()
-        IrValidator().validate(this).throwOnErrors()
-    }
-
     fun removeUnrelatedFunctions(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>
@@ -264,7 +332,7 @@ class ClassLevelMinimizeRunner(
         var newCompileResult: List<CompileResult> = initCompileResult
         run tryRemoveAllNormal@{
             for (funcName in normal) {
-                result.withValidate { removeFunction(funcName) }
+                result.removeFunction(funcName)
             }
             newCompileResult = compile(result)
             if (newCompileResult != initCompileResult) {
@@ -283,7 +351,7 @@ class ClassLevelMinimizeRunner(
             val next = allIter.next()
             val backup = result.prog.deepCopy()
             logger.trace { "remove function $next" }
-            result.withValidate { removeFunction(next) }
+            result.removeFunction(next)
             newCompileResult = compile(result)
             if (newCompileResult != initCompileResult) {
                 result = ProgramWithRemovedDecl(backup)
@@ -292,13 +360,47 @@ class ClassLevelMinimizeRunner(
             lastCompileResult = newCompileResult
         }
 
-        return result to newCompileResult
+        return result.prog to newCompileResult
+    }
+
+    fun removeUnrelatedClass(
+        initProg: IrProgram,
+        initCompileResult: List<CompileResult>
+    ): Pair<IrProgram, List<CompileResult>> {
+        val progNew = initProg.deepCopy()
+        var result = ProgramWithRemovedDecl(progNew)
+        var anyClassRemoved = false
+        var newCompileResult: List<CompileResult> = initCompileResult
+        var lastCompileResult = newCompileResult
+        while (true) {
+            val classNames = result.classes.map { it.name }
+            for (className in classNames) {
+                val backup = result.prog.deepCopy()
+                result.replaceClassWithIrAny(className)
+                newCompileResult = compile(result)
+                if (newCompileResult != initCompileResult) {
+                    // bug disappear, rollback
+                    result = ProgramWithRemovedDecl(backup)
+                    newCompileResult = lastCompileResult
+                } else {
+                    anyClassRemoved = true
+                }
+                lastCompileResult = newCompileResult
+            }
+            if (!anyClassRemoved) break
+            anyClassRemoved = false
+        }
+        return result.prog to lastCompileResult
     }
 
     override fun minimize(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>
     ): Pair<IrProgram, List<CompileResult>> {
-        return removeUnrelatedFunctions(initProg, initCompileResult)
+        var (newProg, newCompileResult) = removeUnrelatedFunctions(initProg, initCompileResult)
+        val pair = removeUnrelatedClass(newProg, newCompileResult)
+        newProg = pair.first
+        newCompileResult = pair.second
+        return newProg to newCompileResult
     }
 }
