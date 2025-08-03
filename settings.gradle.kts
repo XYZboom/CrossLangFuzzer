@@ -13,3 +13,4 @@ include("runners:kotlin-runner")
 findProject(":runners:kotlin-runner")?.name = "kotlin-runner"
 include("tree")
 include("tree:tree-generator")
+include("ged")
