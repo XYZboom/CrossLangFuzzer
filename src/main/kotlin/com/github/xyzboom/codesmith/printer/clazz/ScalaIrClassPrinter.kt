@@ -37,7 +37,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         }
     }
 
-    override fun printType(
+    override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
         printNullableAnnotation: Boolean,
@@ -165,7 +165,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(" <: ")
                 data.append(printType(
                     typeParam.upperbound,
-                    TypeContext.TypeArgument,
+                    TypeContext.FunctionTypeParameterUpperBound,
                     function.printNullableAnnotations,
                     noNullabilityAnnotation = false
                 ))
@@ -178,7 +178,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         data.append("(")
         visitParameterList(function.parameterList, data)
         data.append("): ")
-        data.append(printType(function.returnType))
+        data.append(printType(function.returnType, typeContext = TypeContext.ReturnType))
         val body = function.body
         if (body != null) {
             data.append(" = \n")
@@ -200,7 +200,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         for ((index, parameter) in parameters.withIndex()) {
             data.append(parameter.name)
             data.append(": ")
-            data.append(printType(parameter.type))
+            data.append(printType(parameter.type, typeContext = TypeContext.Parameter))
             if (index != parameters.lastIndex) {
                 data.append(", ")
             }

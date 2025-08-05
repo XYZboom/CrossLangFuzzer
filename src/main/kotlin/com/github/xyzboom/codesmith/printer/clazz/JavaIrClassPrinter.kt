@@ -108,16 +108,17 @@ class JavaIrClassPrinter(
         }
     }
 
-    override fun printType(
+    override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
         printNullableAnnotation: Boolean,
         noNullabilityAnnotation: Boolean
     ): String {
         val chooseTypeMap = when (typeContext) {
-            TypeArgument -> builtInNamesInTypeArgument
+            TypeArgument, TypeArgumentInReturnType -> builtInNamesInTypeArgument
             Parameter -> builtInTypeInParameter
             TypeParameterDeclaration, Other -> builtInNames
+            else -> builtInNames
         }
         val typeStr = when (irType) {
             is IrNullableType -> {
@@ -284,7 +285,7 @@ class JavaIrClassPrinter(
                 data.append(
                     printType(
                         typeParam.upperbound,
-                        TypeArgument,
+                        FunctionTypeParameterUpperBound,
                         printNullableAnnotation,
                         noNullabilityAnnotation = false
                     )
@@ -338,9 +339,9 @@ class JavaIrClassPrinter(
                  */
                 printNullableAnnotation = printNullableAnnotation || anyOverrideReturnTypeIsTypeParameter,
                 typeContext = if (anyOverrideReturnTypeIsTypeParameter) {
-                    TypeArgument
+                    TypeArgumentInReturnType
                 } else {
-                    Other
+                    ReturnType
                 }
             )
         )

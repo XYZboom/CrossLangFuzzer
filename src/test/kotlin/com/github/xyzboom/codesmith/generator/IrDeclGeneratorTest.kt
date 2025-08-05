@@ -962,7 +962,7 @@ class IrDeclGeneratorTest {
         )
         funcInP.assertParameters(
             listOf(
-                "arg" to t1
+                "arg" to t0
             )
         )
 
@@ -979,7 +979,7 @@ class IrDeclGeneratorTest {
         )
         funcInC.assertParameters(
             listOf(
-                "arg" to t2
+                "arg" to t0
             )
         )
     }
@@ -1052,7 +1052,7 @@ class IrDeclGeneratorTest {
         )
         val gpWithT1 = gp.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t1)
+            putTypeArgument(t0, t0)
         }
         funcInP.assertParameters(
             listOf(
@@ -1073,7 +1073,7 @@ class IrDeclGeneratorTest {
         )
         val gpWithT2 = gp.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t2)
+            putTypeArgument(t0, t0)
         }
         funcInC.assertParameters(
             listOf(
@@ -1163,7 +1163,7 @@ class IrDeclGeneratorTest {
         )
         val gpWithT1 = gp.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t1)
+            putTypeArgument(t0, t0)
         }
         funcInP.assertParameters(
             listOf(
@@ -1184,7 +1184,7 @@ class IrDeclGeneratorTest {
         )
         val gpWithT2 = gp.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t2)
+            putTypeArgument(t0, t0)
         }
         funcInC.assertParameters(
             listOf(
@@ -1205,7 +1205,7 @@ class IrDeclGeneratorTest {
         )
         val gpWithT3 = gp.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t3)
+            putTypeArgument(t0, t0)
         }
         funcInGC.assertParameters(
             listOf(
@@ -1278,8 +1278,8 @@ class IrDeclGeneratorTest {
         )
         val pWithT2T3 = p.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, t3)
-            putTypeArgument(t1, t2)
+            putTypeArgument(t0, t1)
+            putTypeArgument(t1, t0)
         }
         funcInC.assertParameters(
             listOf(
@@ -1354,7 +1354,7 @@ class IrDeclGeneratorTest {
         )
         val iOfP = i.type.apply {
             this as IrParameterizedClassifier
-            putTypeArgument(t0, p.type)
+            putTypeArgument(t0, t0)
         }
         funcInP.assertParameters(
             listOf(

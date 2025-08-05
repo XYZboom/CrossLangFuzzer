@@ -469,7 +469,7 @@ open class IrDeclGenerator(
             logger.trace { "must override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
-                isStub = false, superFunc?.isFinal, language = this.language, allSuperTypeArguments
+                isStub = false, superFunc?.isFinal, language = this.language
             )
         }
 
@@ -480,7 +480,7 @@ open class IrDeclGenerator(
             logger.trace { "stub override" }
             genOverrideFunction(
                 superAndIntf.toList(), makeAbstract = false,
-                isStub = true, superFunc?.isFinal, language = this.language, allSuperTypeArguments
+                isStub = true, superFunc?.isFinal, language = this.language
             )
         }
 
@@ -504,7 +504,7 @@ open class IrDeclGenerator(
             val isFinal = doOverride && !makeAbstract && classKind != ClassKind.INTERFACE
             logger.trace { "can override" }
             genOverrideFunction(
-                superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language, allSuperTypeArguments
+                superAndIntf.toList(), makeAbstract, !doOverride, isFinal, this.language
             )
         }
     }
@@ -616,47 +616,12 @@ open class IrDeclGenerator(
         }
     }
 
-    /**
-     * ```kotlin
-     * interface I<T0> {
-     *     fun func(i: I<Any>)
-     * }
-     * ```
-     * For `i` in `func`, its type is "I(T0 [ Any ])".
-     * If we have a class implements I<String>, the [typeArguments] here will be "T0 [ String ]".
-     * For such situation, [onlyValue] must be `true`.
-     * @see [IrParameterizedClassifier.putAllTypeArguments]
-     */
-    private fun getActualTypeFromArguments(
-        oriType: IrType,
-        typeArguments: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
-        onlyValue: Boolean
-    ): IrType {
-        if (oriType is IrTypeParameter) {
-            val oriName = IrTypeParameterName(oriType.name)
-            if (oriName in typeArguments) {
-                // replace type parameter in super with type argument
-                return typeArguments[oriName]!!.second
-            }
-        }
-        if (oriType is IrNullableType) {
-            return buildNullableType {
-                innerType = getActualTypeFromArguments(oriType.innerType, typeArguments, onlyValue)
-            }
-        }
-        if (oriType is IrParameterizedClassifier) {
-            oriType.putAllTypeArguments(typeArguments, onlyValue)
-        }
-        return oriType
-    }
-
     fun IrClassDeclaration.genOverrideFunction(
         from: List<IrFunctionDeclaration>,
         makeAbstract: Boolean,
         isStub: Boolean,
         isFinal: Boolean?,
-        language: Language,
-        putAllTypeArguments: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
+        language: Language
     ) {
         logger.trace {
             val sb = StringBuilder("gen override for class: $name\n")
@@ -684,12 +649,8 @@ open class IrDeclGenerator(
                  *     //                ^^ need to be replaced by `Any`
                  * }
                  * ```
+                 * The logic for replacing type arguments has been postponed to the print phase.
                  */
-                typeParameter.upperbound = getActualTypeFromArguments(
-                    typeParameter.upperbound,
-                    this@genOverrideFunction.allSuperTypeArguments,
-                    false
-                )
                 this.typeParameters.add(typeParameter)
             }
             isOverride = true
@@ -697,11 +658,7 @@ open class IrDeclGenerator(
             override += from
             parameterList = first.parameterList.copyForOverride()
             containingClassName = this@genOverrideFunction.name
-            for (param in parameterList.parameters) {
-                param.type = getActualTypeFromArguments(param.type, putAllTypeArguments, true)
-            }
-            val returnType = first.returnType.copy()
-            this.returnType = getActualTypeFromArguments(returnType, putAllTypeArguments, true)
+            this.returnType = first.returnType.copy()
             if (!makeAbstract) {
                 body = buildBlock()
 
