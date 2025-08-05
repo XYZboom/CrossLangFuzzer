@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
@@ -90,6 +91,40 @@ fun IrParameterizedClassifier.putAllTypeArguments(
             }
         }
     }
+}
+
+/**
+ * ```kotlin
+ * interface I<T0> {
+ *     fun func(i: I<Any>)
+ * }
+ * ```
+ * For `i` in `func`, its type is "I(T0 [ Any ])".
+ * If we have a class implements I<String>, the [typeArguments] here will be "T0 [ String ]".
+ * For such situation, [onlyValue] must be `true`.
+ * @see [IrParameterizedClassifier.putAllTypeArguments]
+ */
+fun getActualTypeFromArguments(
+    oriType: IrType,
+    typeArguments: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
+    onlyValue: Boolean
+): IrType {
+    if (oriType is IrTypeParameter) {
+        val oriName = IrTypeParameterName(oriType.name)
+        if (oriName in typeArguments) {
+            // replace type parameter in super with type argument
+            return typeArguments[oriName]!!.second
+        }
+    }
+    if (oriType is IrNullableType) {
+        return buildNullableType {
+            innerType = getActualTypeFromArguments(oriType.innerType, typeArguments, onlyValue)
+        }
+    }
+    if (oriType is IrParameterizedClassifier) {
+        oriType.putAllTypeArguments(typeArguments, onlyValue)
+    }
+    return oriType
 }
 
 fun areEqualTypes(a: IrType?, b: IrType?): Boolean {

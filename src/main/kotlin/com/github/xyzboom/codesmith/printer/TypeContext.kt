@@ -17,5 +17,16 @@ enum class TypeContext {
      * ```
      */
     TypeParameterDeclaration,
+
+    /**
+     * ```kt
+     * fun <T: T1> func() {}
+     * //      ^^ FunctionTypeParameterUpperBound
+     * ```
+     */
+    FunctionTypeParameterUpperBound,
+    ReturnType,
+    // used for JavaPrinter only
+    TypeArgumentInReturnType,
     Other
 }

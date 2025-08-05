@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.areEqualTypes
+import com.github.xyzboom.codesmith.ir.types.render
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -14,7 +15,8 @@ fun IrFunctionDeclaration.assertParameters(
     for ((index, param) in parameterList.parameters.withIndex()) {
         val (expectedName, expectedType) = shouldBe[index]
         assertEquals(expectedName, param.name, "name of parameter $index in $name is unexpected!")
-        assertTrue(areEqualTypes(expectedType, param.type), "type of parameter $index in $name is unexpected!")
+        assertTrue(areEqualTypes(expectedType, param.type), "type of parameter $index in $name is unexpected!\n" +
+                "expect: ${expectedType.render()}, actual: ${param.type.render()}")
     }
 }
 

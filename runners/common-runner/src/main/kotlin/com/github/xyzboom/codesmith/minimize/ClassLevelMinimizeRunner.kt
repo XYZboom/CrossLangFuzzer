@@ -16,6 +16,7 @@ import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
+import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.copy
 import com.github.xyzboom.codesmith.ir.types.type
@@ -110,6 +111,15 @@ class ClassLevelMinimizeRunner(
 
         fun replaceType(type: IrType): IrType {
             return when {
+                type is IrParameterizedClassifier && type.classDecl.typeParameters.isEmpty() -> {
+                    // when the type parameters were all removed,
+                    // we must replace IrParameterizedClassifier with IrSimpleClassifier
+                    val replaceWithSimple = buildSimpleClassifier {
+                        classDecl = type.classDecl
+                    }
+                    replaceType(replaceWithSimple)
+                }
+
                 type is IrParameterizedClassifier && type.classDecl !in removedClasses -> {
                     type.arguments = replaceTypeArgs(type.arguments)
                     type
@@ -146,22 +156,33 @@ class ClassLevelMinimizeRunner(
             }
         }
 
-        private fun doReplaceTypes() {
+        private fun doReplaceTypes(removeIfSuperChanged: Boolean = true) {
             for (c in classes) {
                 c.superType?.let {
                     val replaced = replaceType(it)
                     // super was deleted
-                    if (replaced !== c.superType) {
+                    if (removeIfSuperChanged && replaced !== c.superType) {
                         c.superType = null
+                    } else {
+                        c.superType = replaced
                     }
                 }
-                val iterImpl = c.implementedTypes.iterator()
-                while (iterImpl.hasNext()) {
-                    val impl = iterImpl.next()
-                    val replaced = replaceType(impl)
-                    // super was deleted
-                    if (replaced !== impl) {
-                        iterImpl.remove()
+                if (removeIfSuperChanged) {
+                    val iterImpl = c.implementedTypes.iterator()
+                    while (iterImpl.hasNext()) {
+                        val impl = iterImpl.next()
+                        val replaced = replaceType(impl)
+                        // super was deleted
+                        if (replaced !== impl) {
+                            iterImpl.remove()
+                        }
+                    }
+                } else {
+                    for ((index, impl) in c.implementedTypes.withIndex()) {
+                        val replaced = replaceType(impl)
+                        if (replaced !== impl) {
+                            c.implementedTypes[index] = replaced
+                        }
                     }
                 }
 
@@ -280,7 +301,7 @@ class ClassLevelMinimizeRunner(
             val result = HashSet<IrTypeParameterName>()
             for (c in classes) {
                 result.addAll(c.typeParameters.map { IrTypeParameterName(it.name) })
-                for (f in functions) {
+                for (f in c.functions) {
                     result.addAll(f.typeParameters.map { IrTypeParameterName(it.name) })
                 }
             }
@@ -291,11 +312,18 @@ class ClassLevelMinimizeRunner(
             typeParameterReplaceWith[typeParam] = IrAny
             for (c in classes) {
                 c.typeParameters.removeIf { it.name == typeParam.value }
+                c.allSuperTypeArguments.remove(typeParam)
+                for ((name, pair) in c.allSuperTypeArguments) {
+                    val (typeParamNow, typeArg) = pair
+                    if (typeArg is IrTypeParameter && typeArg.name == typeParam.value) {
+                        c.allSuperTypeArguments[name] = typeParamNow to IrAny
+                    }
+                }
                 for (f in c.functions) {
                     f.typeParameters.removeIf { it.name == typeParam.value }
                 }
             }
-            doReplaceTypes()
+            doReplaceTypes(false)
         }
 
         fun collectAllParameters(): Set<String> {
@@ -476,21 +504,6 @@ class ClassLevelMinimizeRunner(
         var resultPair = removeUnrelatedFunctions(initProg, initCompileResult)
         resultPair = removeUnrelatedClass(resultPair.first, resultPair.second)
         resultPair = removeUnrelatedParameters(resultPair.first, resultPair.second)
-        /**
-         * fixme: After type parameters are replaced,
-         *   the parameters filled with type arguments in subclasses should also be replaced.
-         *   This requires storing type arguments in the class and deferring them to the printer for printing,
-         *   rather than directly replacing them.
-         * ```kt
-         * abstract class A<T> {
-         *     fun func(t: T)
-         * }
-         * class B : A<String> {
-         *     override fun func(t: String) {}
-         * }
-         * ```
-         * Store `t: T` and `T` replaced by `String` in `B` instead of directly store `String`
-         */
         resultPair = removeUnrelatedTypeParameters(resultPair.first, resultPair.second)
         return resultPair.first to resultPair.second
     }

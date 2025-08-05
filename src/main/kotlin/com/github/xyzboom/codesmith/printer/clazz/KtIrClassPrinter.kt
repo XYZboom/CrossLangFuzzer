@@ -51,7 +51,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         return data.toString()
     }
 
-    override fun printType(
+    override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
         printNullableAnnotation: Boolean,
@@ -181,7 +181,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(": ")
                 data.append(printType(
                     typeParam.upperbound,
-                    TypeContext.TypeArgument,
+                    TypeContext.FunctionTypeParameterUpperBound,
                     function.printNullableAnnotations,
                     noNullabilityAnnotation = false
                 ))
@@ -195,7 +195,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         data.append("(")
         visitParameterList(function.parameterList, data)
         data.append("): ")
-        data.append(printType(function.returnType))
+        data.append(printType(function.returnType, typeContext = TypeContext.ReturnType))
         val body = function.body
         if (body != null) {
             data.append(" {\n")
@@ -220,7 +220,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
         for ((index, parameter) in parameters.withIndex()) {
             data.append(parameter.name)
             data.append(": ")
-            data.append(printType(parameter.type))
+            data.append(printType(parameter.type, typeContext = TypeContext.Parameter))
             if (index != parameters.lastIndex) {
                 data.append(", ")
             }
