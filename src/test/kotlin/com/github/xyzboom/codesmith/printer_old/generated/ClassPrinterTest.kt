@@ -9,29 +9,11 @@ import java.nio.file.Path
 
 class ClassPrinterTest : BaseClassPrinterTester() {
     @Test
-    fun test_newExpression() {
+    fun test_simpleProperty() {
         doValidate(
-            """src/testData/printer/newExpression/ir.json""",
-            """src/testData/printer/newExpression/result.kt""",
-            """src/testData/printer/newExpression/result.java"""
-        )
-    }
-    
-    @Test
-    fun test_simpleClassWithFunctionHasParameter() {
-        doValidate(
-            """src/testData/printer/simpleClassWithFunctionHasParameter/ir.json""",
-            """src/testData/printer/simpleClassWithFunctionHasParameter/result.kt""",
-            """src/testData/printer/simpleClassWithFunctionHasParameter/result.java"""
-        )
-    }
-    
-    @Test
-    fun test_simpleClassWithSimpleFunction() {
-        doValidate(
-            """src/testData/printer/simpleClassWithSimpleFunction/ir.json""",
-            """src/testData/printer/simpleClassWithSimpleFunction/result.kt""",
-            """src/testData/printer/simpleClassWithSimpleFunction/result.java"""
+            """src/testData/printer/simpleProperty/ir.json""",
+            """src/testData/printer/simpleProperty/result.kt""",
+            """src/testData/printer/simpleProperty/result.java"""
         )
     }
     
@@ -45,11 +27,29 @@ class ClassPrinterTest : BaseClassPrinterTester() {
     }
     
     @Test
-    fun test_simpleProperty() {
+    fun test_newExpression() {
         doValidate(
-            """src/testData/printer/simpleProperty/ir.json""",
-            """src/testData/printer/simpleProperty/result.kt""",
-            """src/testData/printer/simpleProperty/result.java"""
+            """src/testData/printer/newExpression/ir.json""",
+            """src/testData/printer/newExpression/result.kt""",
+            """src/testData/printer/newExpression/result.java"""
+        )
+    }
+    
+    @Test
+    fun test_simpleClassWithSimpleFunction() {
+        doValidate(
+            """src/testData/printer/simpleClassWithSimpleFunction/ir.json""",
+            """src/testData/printer/simpleClassWithSimpleFunction/result.kt""",
+            """src/testData/printer/simpleClassWithSimpleFunction/result.java"""
+        )
+    }
+    
+    @Test
+    fun test_simpleClassWithFunctionHasParameter() {
+        doValidate(
+            """src/testData/printer/simpleClassWithFunctionHasParameter/ir.json""",
+            """src/testData/printer/simpleClassWithFunctionHasParameter/result.kt""",
+            """src/testData/printer/simpleClassWithFunctionHasParameter/result.java"""
         )
     }
     

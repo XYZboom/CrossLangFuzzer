@@ -256,6 +256,10 @@ class JavaIrClassPrinter(
             data.append(indent)
             data.append("/*\n")
         }
+        if (function.isOverride) {
+            data.append(indent)
+            data.append("@Override\n")
+        }
         data.append(indent)
         data.append("public ")
         if (function.body == null) {

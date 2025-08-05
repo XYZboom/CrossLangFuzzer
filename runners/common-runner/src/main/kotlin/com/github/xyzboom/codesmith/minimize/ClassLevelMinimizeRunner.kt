@@ -77,13 +77,16 @@ class ClassLevelMinimizeRunner(
             }
         }
 
-//        val classReplaceWith: MutableMap<String, IrClassDeclaration> = DelegateMutableMap(mutableMapOf())
         val classReplaceWith: MutableMap<String, IrType> = DelegateMutableMap(mutableMapOf())
+        val typeParameterReplaceWith = HashMap<IrTypeParameterName, IrType>()
 
         fun replaceTypeArgsForClass(oriTypeArgs: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>)
                 : HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>> {
             val newTypeArgs = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>()
             for ((typeParamName, pair) in oriTypeArgs) {
+                if (typeParamName in typeParameterReplaceWith) {
+                    continue
+                }
                 val (typeParam, typeArg) = pair
                 val newTypeParam = replaceType(typeParam.copy()) as IrTypeParameter
                 newTypeArgs[typeParamName] = newTypeParam to replaceType(typeArg)
@@ -95,6 +98,9 @@ class ClassLevelMinimizeRunner(
                 : HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>> {
             val newTypeArgs = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>()
             for ((typeParamName, pair) in oriTypeArgs) {
+                if (typeParamName in typeParameterReplaceWith) {
+                    continue
+                }
                 val (typeParam, typeArg) = pair
                 val newTypeParam = replaceType(typeParam.copy()) as IrTypeParameter
                 newTypeArgs[typeParamName] = newTypeParam to typeArg?.let { replaceType(it) }
@@ -113,8 +119,9 @@ class ClassLevelMinimizeRunner(
                     val replaceWith = classReplaceWith[type.classDecl.name]!!
                     if (type is IrParameterizedClassifier) {
                         val newTypeArgs = replaceTypeArgs(type.arguments)
-                        replaceWith as IrParameterizedClassifier
-                        replaceWith.arguments = newTypeArgs
+                        if (replaceWith is IrParameterizedClassifier) {
+                            replaceWith.arguments = newTypeArgs
+                        }
                     }
                     replaceWith
                 }
@@ -126,12 +133,95 @@ class ClassLevelMinimizeRunner(
                 }
 
                 type is IrTypeParameter -> {
-                    val newUpperbound = type.upperbound
-                    type.upperbound = replaceType(newUpperbound)
-                    type
+                    if (IrTypeParameterName(type.name) in typeParameterReplaceWith) {
+                        typeParameterReplaceWith[IrTypeParameterName(type.name)]!!
+                    } else {
+                        val newUpperbound = type.upperbound
+                        type.upperbound = replaceType(newUpperbound)
+                        type
+                    }
                 }
 
                 else -> type
+            }
+        }
+
+        private fun doReplaceTypes() {
+            for (c in classes) {
+                c.superType?.let {
+                    val replaced = replaceType(it)
+                    // super was deleted
+                    if (replaced !== c.superType) {
+                        c.superType = null
+                    }
+                }
+                val iterImpl = c.implementedTypes.iterator()
+                while (iterImpl.hasNext()) {
+                    val impl = iterImpl.next()
+                    val replaced = replaceType(impl)
+                    // super was deleted
+                    if (replaced !== impl) {
+                        iterImpl.remove()
+                    }
+                }
+
+                fun removeIfTypeParameterWasReplaced(iter: MutableIterator<IrTypeParameter>) {
+                    while (iter.hasNext()) {
+                        val typeParam = iter.next()
+                        if (IrTypeParameterName(typeParam.name) in typeParameterReplaceWith) {
+                            iter.remove()
+                            continue
+                        }
+                        typeParam.upperbound = replaceType(typeParam.upperbound)
+                    }
+                }
+
+                removeIfTypeParameterWasReplaced(c.typeParameters.iterator())
+                c.allSuperTypeArguments = replaceTypeArgsForClass(c.allSuperTypeArguments)
+                val iter = c.functions.iterator()
+                while (iter.hasNext()) {
+                    val f = iter.next()
+                    removeIfTypeParameterWasReplaced(f.typeParameters.iterator())
+                    for (param in f.parameterList.parameters) {
+                        param.type = replaceType(param.type)
+                    }
+                    f.returnType = replaceType(f.returnType)
+                }
+            }
+        }
+
+        fun removeIfOverrideWereAllRemoved() {
+            val funcToBeRemoveFromOverride = mutableSetOf<IrFunctionDeclaration>()
+            for (c in classes) {
+                val iter = c.functions.iterator()
+                while (iter.hasNext()) {
+                    val f = iter.next()
+                    if (f.override.isNotEmpty()) {
+                        val overrideCopy = ArrayList(f.override)
+                        f.postorderTraverseOverride { overrideF, iter ->
+                            if (overrideF.containingClassName in classReplaceWith) {
+                                funcToBeRemoveFromOverride.add(overrideF)
+                                iter.remove()
+                                return@postorderTraverseOverride
+                            }
+                            if (overrideF.override.isEmpty()) {
+                                return@postorderTraverseOverride
+                            }
+                            if (overrideF.override.all { it.containingClassName in classReplaceWith }) {
+                                funcToBeRemoveFromOverride.add(overrideF)
+                                iter.remove()
+                            } else if (overrideF.override.all { it in funcToBeRemoveFromOverride }) {
+                                funcToBeRemoveFromOverride.add(overrideF)
+                                iter.remove()
+                            }
+                        }
+                        if (overrideCopy.all { it in funcToBeRemoveFromOverride } ||
+                            overrideCopy.all { it.containingClassName in classReplaceWith }) {
+                            funcToBeRemoveFromOverride.add(f)
+                            iter.remove()
+                        }
+                    }
+                }
             }
         }
 
@@ -148,65 +238,8 @@ class ClassLevelMinimizeRunner(
             classes.remove(clazz)
             removedClasses.add(clazz)
             //<editor-fold desc="Replace types">
-            val funcToBeRemoveFromOverride = mutableSetOf<IrFunctionDeclaration>()
-            for (c in classes) {
-                c.superType?.let {
-                    val replaced = replaceType(it)
-                    // super was deleted
-                    if (replaced !== c.superType) {
-                        c.superType = null
-                    }
-                }
-                val iterImpl = c.implementedTypes.iterator()
-                while (iterImpl.hasNext()) {
-                    val impl = iterImpl.next()
-                    val replaced = replaceType(impl)
-                    // super was deleted
-                    if (replaced !== impl) {
-                        iterImpl.remove()
-                    }
-                }
-                for (typeParam in c.typeParameters) {
-                    typeParam.upperbound = replaceType(typeParam.upperbound)
-                }
-                c.allSuperTypeArguments = replaceTypeArgsForClass(c.allSuperTypeArguments)
-                val iter = c.functions.iterator()
-                while (iter.hasNext()) {
-                    val f = iter.next()
-                    if (f.override.isNotEmpty()) {
-                        val overrideCopy = ArrayList(f.override)
-                        f.postorderTraverseOverride { overrideF, it ->
-                            if (overrideF.containingClassName in classReplaceWith) {
-                                funcToBeRemoveFromOverride.add(overrideF)
-                                it.remove()
-                                return@postorderTraverseOverride
-                            }
-                            if (overrideF.override.isEmpty()) {
-                                return@postorderTraverseOverride
-                            }
-                            if (overrideF.override.all { it.containingClassName in classReplaceWith }) {
-                                funcToBeRemoveFromOverride.add(overrideF)
-                                it.remove()
-                            } else if (overrideF.override.all { it in funcToBeRemoveFromOverride }) {
-                                funcToBeRemoveFromOverride.add(overrideF)
-                                it.remove()
-                            }
-                        }
-                        if (overrideCopy.all { it in funcToBeRemoveFromOverride } ||
-                            overrideCopy.all { it.containingClassName in classReplaceWith }) {
-                            funcToBeRemoveFromOverride.add(f)
-                            iter.remove()
-                        }
-                    }
-                    for (typeParam in f.typeParameters) {
-                        typeParam.upperbound = replaceType(typeParam.upperbound)
-                    }
-                    for (param in f.parameterList.parameters) {
-                        param.type = replaceType(param.type)
-                    }
-                    f.returnType = replaceType(f.returnType)
-                }
-            }
+            doReplaceTypes()
+            removeIfOverrideWereAllRemoved()
             //</editor-fold>
             if (usedClassReplaceWith.contains(replaceWithType)) {
                 classes.add(replaceWith)
@@ -221,65 +254,8 @@ class ClassLevelMinimizeRunner(
             classes.remove(clazz)
             removedClasses.add(clazz)
             //<editor-fold desc="Replace types">
-            val funcToBeRemoveFromOverride = mutableSetOf<IrFunctionDeclaration>()
-            for (c in classes) {
-                c.superType?.let {
-                    val replaced = replaceType(it)
-                    // super was deleted
-                    if (replaced !== c.superType) {
-                        c.superType = null
-                    }
-                }
-                val iterImpl = c.implementedTypes.iterator()
-                while (iterImpl.hasNext()) {
-                    val impl = iterImpl.next()
-                    val replaced = replaceType(impl)
-                    // super was deleted
-                    if (replaced !== impl) {
-                        iterImpl.remove()
-                    }
-                }
-                for (typeParam in c.typeParameters) {
-                    typeParam.upperbound = replaceType(typeParam.upperbound)
-                }
-                c.allSuperTypeArguments = replaceTypeArgsForClass(c.allSuperTypeArguments)
-                val iter = c.functions.iterator()
-                while (iter.hasNext()) {
-                    val f = iter.next()
-                    if (f.override.isNotEmpty()) {
-                        val overrideCopy = ArrayList(f.override)
-                        f.postorderTraverseOverride { overrideF, it ->
-                            if (overrideF.containingClassName in classReplaceWith) {
-                                funcToBeRemoveFromOverride.add(overrideF)
-                                it.remove()
-                                return@postorderTraverseOverride
-                            }
-                            if (overrideF.override.isEmpty()) {
-                                return@postorderTraverseOverride
-                            }
-                            if (overrideF.override.all { it.containingClassName in classReplaceWith }) {
-                                funcToBeRemoveFromOverride.add(overrideF)
-                                it.remove()
-                            } else if (overrideF.override.all { it in funcToBeRemoveFromOverride }) {
-                                funcToBeRemoveFromOverride.add(overrideF)
-                                it.remove()
-                            }
-                        }
-                        if (overrideCopy.all { it in funcToBeRemoveFromOverride } ||
-                            overrideCopy.all { it.containingClassName in classReplaceWith }) {
-                            funcToBeRemoveFromOverride.add(f)
-                            iter.remove()
-                        }
-                    }
-                    for (typeParam in f.typeParameters) {
-                        typeParam.upperbound = replaceType(typeParam.upperbound)
-                    }
-                    for (param in f.parameterList.parameters) {
-                        param.type = replaceType(param.type)
-                    }
-                    f.returnType = replaceType(f.returnType)
-                }
-            }
+            doReplaceTypes()
+            removeIfOverrideWereAllRemoved()
             //</editor-fold>
         }
 
@@ -296,6 +272,46 @@ class ClassLevelMinimizeRunner(
                     if (f.name == name) {
                         fIter.remove()
                     }
+                }
+            }
+        }
+
+        fun collectAllTypeParameters(): Set<IrTypeParameterName> {
+            val result = HashSet<IrTypeParameterName>()
+            for (c in classes) {
+                result.addAll(c.typeParameters.map { IrTypeParameterName(it.name) })
+                for (f in functions) {
+                    result.addAll(f.typeParameters.map { IrTypeParameterName(it.name) })
+                }
+            }
+            return result
+        }
+
+        fun replaceTypeParameterWithIrAny(typeParam: IrTypeParameterName) {
+            typeParameterReplaceWith[typeParam] = IrAny
+            for (c in classes) {
+                c.typeParameters.removeIf { it.name == typeParam.value }
+                for (f in c.functions) {
+                    f.typeParameters.removeIf { it.name == typeParam.value }
+                }
+            }
+            doReplaceTypes()
+        }
+
+        fun collectAllParameters(): Set<String> {
+            val result = HashSet<String>()
+            for (c in classes) {
+                for (f in c.functions) {
+                    result.addAll(f.parameterList.parameters.map { it.name })
+                }
+            }
+            return result
+        }
+
+        fun removeParameter(name: String) {
+            for (c in classes) {
+                for (f in c.functions) {
+                    f.parameterList.parameters.removeIf { it.name == name }
                 }
             }
         }
@@ -393,12 +409,89 @@ class ClassLevelMinimizeRunner(
         return result.prog to lastCompileResult
     }
 
+    fun removeUnrelatedTypeParameters(
+        initProg: IrProgram,
+        initCompileResult: List<CompileResult>
+    ): Pair<IrProgram, List<CompileResult>> {
+        val progNew = initProg.deepCopy()
+        var result = ProgramWithRemovedDecl(progNew)
+        var anyClassRemoved = false
+        var newCompileResult: List<CompileResult> = initCompileResult
+        var lastCompileResult = newCompileResult
+        while (true) {
+            val allTypeParameters = result.collectAllTypeParameters()
+            for (typeParameterName in allTypeParameters) {
+                val backup = result.prog.deepCopy()
+                result.replaceTypeParameterWithIrAny(typeParameterName)
+                newCompileResult = compile(result)
+                if (newCompileResult != initCompileResult) {
+                    // bug disappear, rollback
+                    result = ProgramWithRemovedDecl(backup)
+                    newCompileResult = lastCompileResult
+                } else {
+                    anyClassRemoved = true
+                }
+                lastCompileResult = newCompileResult
+            }
+            if (!anyClassRemoved) break
+            anyClassRemoved = false
+        }
+        return result.prog to lastCompileResult
+    }
+
+    fun removeUnrelatedParameters(
+        initProg: IrProgram,
+        initCompileResult: List<CompileResult>
+    ): Pair<IrProgram, List<CompileResult>> {
+        val progNew = initProg.deepCopy()
+        var result = ProgramWithRemovedDecl(progNew)
+        var anyClassRemoved = false
+        var newCompileResult: List<CompileResult> = initCompileResult
+        var lastCompileResult = newCompileResult
+        while (true) {
+            val allParameters = result.collectAllParameters()
+            for (parameterName in allParameters) {
+                val backup = result.prog.deepCopy()
+                result.removeParameter(parameterName)
+                newCompileResult = compile(result)
+                if (newCompileResult != initCompileResult) {
+                    // bug disappear, rollback
+                    result = ProgramWithRemovedDecl(backup)
+                    newCompileResult = lastCompileResult
+                } else {
+                    anyClassRemoved = true
+                }
+                lastCompileResult = newCompileResult
+            }
+            if (!anyClassRemoved) break
+            anyClassRemoved = false
+        }
+        return result.prog to lastCompileResult
+    }
+
     override fun minimize(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>
     ): Pair<IrProgram, List<CompileResult>> {
         var resultPair = removeUnrelatedFunctions(initProg, initCompileResult)
         resultPair = removeUnrelatedClass(resultPair.first, resultPair.second)
+        resultPair = removeUnrelatedParameters(resultPair.first, resultPair.second)
+        /**
+         * fixme: After type parameters are replaced,
+         *   the parameters filled with type arguments in subclasses should also be replaced.
+         *   This requires storing type arguments in the class and deferring them to the printer for printing,
+         *   rather than directly replacing them.
+         * ```kt
+         * abstract class A<T> {
+         *     fun func(t: T)
+         * }
+         * class B : A<String> {
+         *     override fun func(t: String) {}
+         * }
+         * ```
+         * Store `t: T` and `T` replaced by `String` in `B` instead of directly store `String`
+         */
+        resultPair = removeUnrelatedTypeParameters(resultPair.first, resultPair.second)
         return resultPair.first to resultPair.second
     }
 }

@@ -67,6 +67,7 @@ class JavaIrClassPrinterTest {
                 "public final class $clazzName {\n" +
                 "    // stub\n"+
                 "    /*\n"+
+                "    @Override\n"+
                 "    public final @NotNull void $funcName() {\n" +
                 todoFunctionBody +
                 "    }\n" +
