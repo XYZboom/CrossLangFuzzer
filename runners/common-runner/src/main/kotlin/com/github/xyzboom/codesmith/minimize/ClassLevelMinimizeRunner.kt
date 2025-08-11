@@ -4,15 +4,23 @@ import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompilerRunner
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.copyForOverride
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.RemoveOnlyIterator
+import com.github.xyzboom.codesmith.ir.declarations.SuperAndIntfFunctions
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.postorderTraverseOverride
 import com.github.xyzboom.codesmith.ir.declarations.render
+import com.github.xyzboom.codesmith.ir.declarations.traceFunc
 import com.github.xyzboom.codesmith.ir.deepCopy
+import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
@@ -20,7 +28,13 @@ import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.copy
 import com.github.xyzboom.codesmith.ir.types.type
+import com.github.xyzboom.codesmith.validator.collectFunctionSignatureMap
+import com.github.xyzboom.codesmith.validator.getOverrideCandidates
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
+import kotlin.collections.set
 
 private val logger = KotlinLogging.logger {}
 
@@ -156,17 +170,125 @@ class ClassLevelMinimizeRunner(
             }
         }
 
-        private fun doReplaceTypes(removeIfSuperChanged: Boolean = true) {
+        /**
+         * ```kt
+         * open class A<T0> {}
+         * open class A1<T1> : A<T1>() {}
+         * open class A2 : A1<A2>() {}
+         * ```
+         * Remove `A1`.
+         * ```kt
+         * open class A<T0> {}
+         * open class A2 : A1<A2>() {}
+         * ```
+         * Before: T1[ A2 ], T0[ T1 ], after: T0[ A2 ]
+         */
+        fun arrangeOnTypeParameter(
+            args: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
+            after: IrParameterizedClassifier
+        ) {
+            for ((typeParamName, pair) in after.arguments) {
+                val (_, typeArg) = pair
+                if (typeArg is IrTypeParameter && typeParamName in args) {
+                    after.arguments[typeParamName] = args[typeParamName]!!
+                }
+            }
+        }
+
+        /**
+         * make super of replaced super be current super.
+         * ```kt
+         * open class I {}
+         * open class I1: I {}
+         * open class I2: I1 {}
+         * ```
+         * After remove `I1` with `arrangeHierarchy`:
+         * ```kt
+         * open class I {}
+         * open class I2: I {}
+         * ```
+         */
+        fun arrangeSuperHierarchy(c: IrClassDeclaration, superType: IrType): Pair<IrType?, List<IrType>> {
+            if (superType is IrNullableType) {
+                // what an amazing thing if super type is nullable, but we still handle this.
+                return arrangeSuperHierarchy(c, superType.innerType)
+            }
+            if (superType !is IrClassifier) {
+                return superType to emptyList()
+            }
+            val superOfSuper = superType.classDecl.superType?.copy()?.let { replaceType(it) }
+            val intfOfSuper = nonRepeatIntf(c, superType)
+            if (superOfSuper is IrParameterizedClassifier) {
+                arrangeOnTypeParameter(c.allSuperTypeArguments, superOfSuper)
+            }
+            for (intfType in intfOfSuper) {
+                if (intfType is IrParameterizedClassifier) {
+                    arrangeOnTypeParameter(c.allSuperTypeArguments, intfType)
+                }
+            }
+
+            return superOfSuper to intfOfSuper
+        }
+
+        fun arrangeIntfHierarchy(c: IrClassDeclaration, intfType: IrType): List<IrType> {
+            if (intfType is IrNullableType) {
+                // what an amazing thing if super type is nullable, but we still handle this.
+                return arrangeIntfHierarchy(c, intfType.innerType)
+            }
+            if (intfType !is IrClassifier) {
+                return emptyList()
+            }
+            val intfOfSuper = nonRepeatIntf(c, intfType)
+            for (intfType in intfOfSuper) {
+                if (intfType is IrParameterizedClassifier) {
+                    arrangeOnTypeParameter(c.allSuperTypeArguments, intfType)
+                }
+            }
+
+            return intfOfSuper
+        }
+
+        private fun nonRepeatIntf(
+            c: IrClassDeclaration,
+            intfType: IrClassifier
+        ): List<IrType> {
+            val existsIntfNames = c.implementedTypes.mapNotNull { (it as? IrClassDeclaration)?.name }.toSet()
+            val intfOfSuper = intfType.classDecl.implementedTypes.mapNotNull {
+                if (it in c.implementedTypes) {
+                    return@mapNotNull null
+                }
+                if (it is IrSimpleClassifier && it.classDecl.name in existsIntfNames) {
+                    return@mapNotNull null
+                }
+                replaceType(it.copy())
+            }
+            return intfOfSuper
+        }
+
+        /**
+         * @param arrangeHierarchy do [ProgramWithRemovedDecl.arrangeSuperHierarchy]
+         * and [ProgramWithRemovedDecl.arrangeIntfHierarchy] when super was replaced
+         */
+        private fun doReplaceTypes(
+            removeIfSuperChanged: Boolean = true,
+            arrangeHierarchy: Boolean = false,
+        ) {
             for (c in classes) {
                 c.superType?.let {
                     val replaced = replaceType(it)
-                    // super was deleted
-                    if (removeIfSuperChanged && replaced !== c.superType) {
-                        c.superType = null
+                    if (replaced !== c.superType && removeIfSuperChanged) {
+                        if (arrangeHierarchy) {
+                            val (newSuper, newIntf) = arrangeSuperHierarchy(c, it)
+                            c.superType = newSuper
+                            c.implementedTypes += newIntf
+                        } else {
+                            c.superType = null
+                        }
                     } else {
                         c.superType = replaced
                     }
                 }
+                val adding2Impl = ArrayList<IrType>()
                 if (removeIfSuperChanged) {
                     val iterImpl = c.implementedTypes.iterator()
                     while (iterImpl.hasNext()) {
@@ -175,6 +297,9 @@ class ClassLevelMinimizeRunner(
                         // super was deleted
                         if (replaced !== impl) {
                             iterImpl.remove()
+                            if (arrangeHierarchy) {
+                                adding2Impl.addAll(arrangeIntfHierarchy(c, impl))
+                            }
                         }
                     }
                 } else {
@@ -182,6 +307,18 @@ class ClassLevelMinimizeRunner(
                         val replaced = replaceType(impl)
                         if (replaced !== impl) {
                             c.implementedTypes[index] = replaced
+                        }
+                    }
+                }
+                val existsIntfNames = c.implementedTypes.mapNotNull { (it as? IrClassDeclaration)?.name }.toMutableSet()
+                if (adding2Impl.isNotEmpty()) {
+                    for (impl in adding2Impl) {
+                        if (impl is IrClassifier) {
+                            if (impl.classDecl.name in existsIntfNames) {
+                                continue
+                            }
+                            c.implementedTypes.add(impl)
+                            existsIntfNames.add(impl.classDecl.name)
                         }
                     }
                 }
@@ -246,7 +383,7 @@ class ClassLevelMinimizeRunner(
             }
         }
 
-        fun replaceClass(className: String, nextReplacementName: String) {
+        fun replaceClassDeeply(className: String, nextReplacementName: String) {
             val clazz = classes.first { it.name == className }
             logger.trace { "try to remove ${clazz.render()}" }
             val replaceWith = buildClassDeclaration {
@@ -267,9 +404,9 @@ class ClassLevelMinimizeRunner(
             }
         }
 
-        fun replaceClassWithIrAny(className: String) {
+        fun replaceClassWithIrAnyDeeply(className: String) {
             val clazz = classes.first { it.name == className }
-            logger.trace { "try to remove ${clazz.render()}" }
+            logger.trace { "try to remove ${clazz.render()} deeply" }
             val replaceWith = IrAny
             classReplaceWith[clazz.name] = replaceWith
             classes.remove(clazz)
@@ -278,6 +415,171 @@ class ClassLevelMinimizeRunner(
             doReplaceTypes()
             removeIfOverrideWereAllRemoved()
             //</editor-fold>
+        }
+
+        fun IrClassDeclaration.regenOverrideFunction(
+            from: List<IrFunctionDeclaration>,
+            makeAbstract: Boolean,
+            isStub: Boolean,
+            isFinal: Boolean,
+            printJavaNullableAnnotationProbability: Boolean,
+            language: Language
+        ) {
+            logger.trace {
+                val sb = StringBuilder("gen override for class: $name\n")
+                for (func in from) {
+                    sb.append("\t\t")
+                    sb.traceFunc(func)
+                    sb.append("\n")
+                }
+                sb.append("\t\tstillAbstract: $makeAbstract, isStub: $isStub, isFinal: $isFinal")
+                sb.toString()
+            }
+            val first = from.first()
+            val function = buildFunctionDeclaration {
+                this.name = first.name
+                this.language = language
+                for (typeParam in first.typeParameters) {
+                    val typeParameter = typeParam.copy()
+                    /**
+                     * ```kt
+                     * interface I<T1> {
+                     *     fun <T2: T1> func()
+                     * }
+                     * class A: I<Any> {
+                     *     override fun <T2: T1> func() {}
+                     *     //                ^^ need to be replaced by `Any`
+                     * }
+                     * ```
+                     * The logic for replacing type arguments has been postponed to the print phase.
+                     */
+                    this.typeParameters.add(typeParameter)
+                }
+                isOverride = true
+                isOverrideStub = isStub
+                override += from
+                parameterList = first.parameterList.copyForOverride()
+                containingClassName = this@regenOverrideFunction.name
+                this.returnType = first.returnType.copy()
+                if (!makeAbstract) {
+                    body = buildBlock()
+
+                    this.isFinal = isFinal
+                }
+                require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
+                printNullableAnnotations = printJavaNullableAnnotationProbability
+            }
+            functions.add(function)
+        }
+
+        fun replaceClassWithIrAnyShallowly(className: String) {
+            val clazz = classes.first { it.name == className }
+            logger.trace { "try to remove ${clazz.render()} shallowly" }
+            val replaceWith = IrAny
+            classReplaceWith[clazz.name] = replaceWith
+            classes.remove(clazz)
+            removedClasses.add(clazz)
+            doReplaceTypes()
+
+            // value: ClassName::FunctionName
+            val handledFunctions = hashSetOf<String>()
+            val topologicalOrderedFunctions = sequence<Triple<IrClassDeclaration,
+                    IrFunctionDeclaration, RemoveOnlyIterator>> {
+                outer@ while (true) {
+                    for (c in classes) {
+                        val fIter = c.functions.iterator()
+                        while (fIter.hasNext()) {
+                            val f = fIter.next()
+                            if ("${f.containingClassName}::${f.name}" in handledFunctions) {
+                                continue
+                            }
+
+                            class RemoveCurrent : RemoveOnlyIterator {
+                                override fun remove() {
+                                    fIter.remove()
+                                }
+                            }
+
+                            val override = f.override
+                            if (override.isEmpty()) {
+                                yield(Triple(c, f, RemoveCurrent()))
+                                continue@outer
+                            }
+                            if (override.size == 1 && override.single().containingClassName == className) {
+                                yield(Triple(c, f, RemoveCurrent()))
+                                continue@outer
+                            } else if (override.size > 1) {
+                                var anyInReplacedClass = false
+                                var allNotInReplacedClass = true
+                                // except the one in the replaced class, others are all handled
+                                var otherAllHandled = true
+                                var allHandled = true
+                                for (o in f.override) {
+                                    val handled = "${o.containingClassName}::${o.name}" in handledFunctions
+                                    if (!handled) {
+                                        allHandled = false
+                                    }
+                                    if (o.containingClassName == className) {
+                                        anyInReplacedClass = true
+                                        allNotInReplacedClass = false
+                                    } else if (!handled) {
+                                        otherAllHandled = false
+                                    }
+
+                                }
+                                if ((anyInReplacedClass && otherAllHandled) || (allNotInReplacedClass && allHandled)) {
+                                    yield(Triple(c, f, RemoveCurrent()))
+                                    continue@outer
+                                }
+                            }
+                        }
+                    }
+                    break
+                }
+            }
+
+            for ((c, f, iter) in topologicalOrderedFunctions) {
+                val override = f.override
+                if (override.size == 1 && override.single().containingClassName == className) {
+                    override.clear()
+                    f.isOverride = false
+                    f.isOverrideStub = false
+                } else if (override.size > 1) {
+                    override.removeIf { it.containingClassName == className }
+                    iter.remove()
+                    val signatureMap = c.collectFunctionSignatureMap()
+                    val (must, can, stub) = c.getOverrideCandidates(signatureMap)
+                    fun List<SuperAndIntfFunctions>.matchesOrNull(): SuperAndIntfFunctions? {
+                        return firstOrNull { it.first?.name == f.name || it.second.any { it1 -> it1.name == f.name } }
+                    }
+                    fun SuperAndIntfFunctions.flatten(): List<IrFunctionDeclaration> {
+                        return (if (first != null) {
+                            second + first!!
+                        } else second).toList()
+                    }
+
+                    val mustMatches = must.matchesOrNull()
+                    val canMatches = can.matchesOrNull()
+                    val stubMatches = stub.matchesOrNull()
+                    if (mustMatches != null || canMatches != null) {
+                        val mustOrCan = (mustMatches ?: canMatches)!!
+                        c.regenOverrideFunction(
+                            mustOrCan.flatten(), makeAbstract = false,
+                            isStub = false, mustOrCan.first?.isFinal ?: false,
+                            printJavaNullableAnnotationProbability = f.printNullableAnnotations,
+                            language = c.language
+                        )
+                    } else {
+                        c.regenOverrideFunction(
+                            stubMatches!!.flatten(), makeAbstract = false,
+                            isStub = true, stubMatches.first?.isFinal ?: false,
+                            printJavaNullableAnnotationProbability = f.printNullableAnnotations,
+                            language = c.language
+                        )
+                    }
+                }
+                handledFunctions.add("${f.containingClassName}::${f.name}")
+            }
         }
 
         fun removeFunction(name: String) {
@@ -420,7 +722,7 @@ class ClassLevelMinimizeRunner(
             val classNames = result.classes.map { it.name }
             for (className in classNames) {
                 val backup = result.prog.deepCopy()
-                result.replaceClassWithIrAny(className)
+                result.replaceClassWithIrAnyDeeply(className)
                 newCompileResult = compile(result)
                 if (newCompileResult != initCompileResult) {
                     // bug disappear, rollback
@@ -497,6 +799,39 @@ class ClassLevelMinimizeRunner(
         return result.prog to lastCompileResult
     }
 
+    fun reduceInheritanceHierarchy(
+        initProg: IrProgram,
+        initCompileResult: List<CompileResult>
+    ): Pair<IrProgram, List<CompileResult>> {
+        val progNew = initProg.deepCopy()
+        var result = ProgramWithRemovedDecl(progNew)
+        var anyClassRemoved = false
+        var newCompileResult: List<CompileResult> = initCompileResult
+        var lastCompileResult = newCompileResult
+        while (true) {
+            if (result.classes.size <= 3) {
+                break
+            }
+            val classNames = result.classes.map { it.name }
+            for (className in classNames) {
+                val backup = result.prog.deepCopy()
+                result.replaceClassWithIrAnyShallowly(className)
+                newCompileResult = compile(result)
+                if (newCompileResult != initCompileResult) {
+                    // bug disappear, rollback
+                    result = ProgramWithRemovedDecl(backup)
+                    newCompileResult = lastCompileResult
+                } else {
+                    anyClassRemoved = true
+                }
+                lastCompileResult = newCompileResult
+            }
+            if (!anyClassRemoved) break
+            anyClassRemoved = false
+        }
+        return result.prog to lastCompileResult
+    }
+
     override fun minimize(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>
@@ -505,6 +840,7 @@ class ClassLevelMinimizeRunner(
         resultPair = removeUnrelatedClass(resultPair.first, resultPair.second)
         resultPair = removeUnrelatedParameters(resultPair.first, resultPair.second)
         resultPair = removeUnrelatedTypeParameters(resultPair.first, resultPair.second)
+        resultPair = reduceInheritanceHierarchy(resultPair.first, resultPair.second)
         return resultPair.first to resultPair.second
     }
 }
