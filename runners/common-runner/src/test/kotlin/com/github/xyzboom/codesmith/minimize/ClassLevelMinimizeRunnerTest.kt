@@ -59,7 +59,7 @@ class ClassLevelMinimizeRunnerTest {
             classes.add(child)
         })
         with(minimizer) {
-            prog.replaceClass(parent.name, "A0")
+            prog.replaceClassDeeply(parent.name, "A0")
         }
         prog.classes.size shouldBe 1
         prog.classes.single() shouldBeSameInstanceAs child
@@ -122,7 +122,7 @@ class ClassLevelMinimizeRunnerTest {
             classes.add(child)
         })
         with(minimizer) {
-            prog.replaceClass(parent.name, "A0")
+            prog.replaceClassDeeply(parent.name, "A0")
         }
         prog.classes.size shouldBe 2
         prog.classes shouldBeEqual listOf(parent1, child)
