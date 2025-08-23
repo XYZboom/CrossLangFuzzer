@@ -508,7 +508,7 @@ class ClassLevelMinimizeRunner(
                             if (override.size == 1 && override.single().containingClassName == className) {
                                 yield(Triple(c, f, RemoveCurrent()))
                                 continue@outer
-                            } else if (override.size > 1) {
+                            } else {
                                 var anyInReplacedClass = false
                                 var allNotInReplacedClass = true
                                 // except the one in the replaced class, others are all handled

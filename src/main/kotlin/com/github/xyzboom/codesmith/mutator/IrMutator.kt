@@ -5,10 +5,14 @@ import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.areEqualTypes
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.types.getTypeArguments
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
+import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
@@ -38,7 +42,7 @@ class IrMutator(
                     val replaceArg = generator.randomType(
                         program.classes, clazz.typeParameters, false
                     ) { type ->
-                        type !is IrParameterizedClassifier && type != typeArg
+                        type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg)
                     } ?: continue
                     logger.trace {
                         "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
@@ -78,7 +82,7 @@ class IrMutator(
                 val replaceArg = generator.randomType(
                     program.classes, clazz.typeParameters + func.typeParameters, false
                 ) { type ->
-                    type !is IrParameterizedClassifier && type != typeArg
+                    type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg)
                 } ?: return@randomTraverseMemberFunctions false
                 paramType.putTypeArgument(typeParam, replaceArg)
                 logger.trace {
@@ -119,8 +123,8 @@ class IrMutator(
         return false
     }
 
-    @ConfigBy("mutateClassTypeParameterUpperBoundWeight")
-    fun mutateClassTypeParameterUpperBound(program: IrProgram): Boolean {
+    @ConfigBy("mutateClassTypeParameterUpperBoundNullabilityWeight")
+    fun mutateClassTypeParameterUpperBoundNullability(program: IrProgram): Boolean {
         program.randomTraverseClasses(random) { clazz ->
             if (clazz.typeParameters.isNotEmpty()) {
                 val typeParameter = clazz.typeParameters.random(random)
@@ -130,6 +134,33 @@ class IrMutator(
                 } else {
                     typeParameter.upperbound = buildNullableType { innerType = upperbound }
                 }
+                return@mutateClassTypeParameterUpperBoundNullability true
+            }
+            return@randomTraverseClasses false
+        }
+        return false
+    }
+
+    @ConfigBy("mutateClassTypeParameterUpperBoundWeight")
+    fun mutateClassTypeParameterUpperBound(program: IrProgram): Boolean {
+        program.randomTraverseClasses(random) { clazz ->
+            if (clazz.typeParameters.isNotEmpty()) {
+                val typeParameter = clazz.typeParameters.random(random)
+                val replace = generator.randomType(
+                    program.classes, clazz.typeParameters, false
+                ) { type ->
+                    type !is IrParameterizedClassifier && !areEqualTypes(type, typeParameter)
+                            && (generator.config.allowUnitInTypeArgument || type !== IrUnit)
+                            && (generator.config.allowNothingInTypeArgument || type !== IrNothing)
+                } ?: return@mutateClassTypeParameterUpperBound false
+                val before = typeParameter.upperbound
+                if (typeParameter.upperbound is IrNullableType) {
+                    (typeParameter.upperbound as IrNullableType).innerType = replace
+                } else {
+                    typeParameter.upperbound = replace
+                }
+                logger.trace { "mutateClassTypeParameterUpperBound in class ${clazz.name}," +
+                        " before: ${before.render()}, after: ${replace.render()}" }
                 return@mutateClassTypeParameterUpperBound true
             }
             return@randomTraverseClasses false
