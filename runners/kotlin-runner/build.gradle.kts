@@ -9,13 +9,15 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenCentral()
     maven("https://redirector.kotlinlang.org/maven/bootstrap")
+    mavenLocal()
 }
 
-val kotlinVersion = "2.2.0"
+val kotlinVersion = "2.1.20-Beta1"
 
 dependencies {
     implementation(project.rootProject)
     implementation(project(":runners:common-runner"))
+    implementation(project(":ged"))
     implementation(kotlin("compiler-internal-test-framework", kotlinVersion))
     implementation(kotlin("compiler", kotlinVersion))
     runtimeOnly(kotlin("test-junit5"))
@@ -60,7 +62,7 @@ tasks.withType<JavaExec> {
     if (tmpPath != null) {
         systemProperties["java.io.tmpdir"] = tmpPath
     }
-    systemProperties["codesmith.logger.outdir"] = System.getProperty("codesmith.logger.outdir") ?: "./out"
+    systemProperties["codesmith.logger.outdir"] = System.getProperty("codesmith.logger.outdir") ?: "./out/raw"
 
     workingDir = rootDir
     // Properties required to run the internal test framework.

@@ -49,6 +49,10 @@
       <AppenderRef ref="InfoFile"/>
       <AppenderRef ref="TraceFile"/>
     </Logger>
+    <Logger name="io.github.xyzboom.clf" level="TRACE" additivity="false">
+      <AppenderRef ref="InfoFile"/>
+      <AppenderRef ref="TraceFile"/>
+    </Logger>
 
     <!-- 根 Logger -->
     <Root level="INFO">

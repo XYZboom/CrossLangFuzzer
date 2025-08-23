@@ -7,6 +7,7 @@ data class MutatorConfig(
     val removeOverrideMemberFunctionWeight: Int = 1,
     val mutateGenericArgumentInMemberFunctionParameterWeight: Int = 3,
     val mutateParameterNullabilityWeight: Int = 2,
+    val mutateClassTypeParameterUpperBoundNullabilityWeight: Int = 1,
     val mutateClassTypeParameterUpperBoundWeight: Int = 3,
 ) {
     companion object {
@@ -19,6 +20,7 @@ data class MutatorConfig(
             removeOverrideMemberFunctionWeight = 0,
             mutateGenericArgumentInMemberFunctionParameterWeight = 0,
             mutateParameterNullabilityWeight = 0,
+            mutateClassTypeParameterUpperBoundNullabilityWeight = 0,
             mutateClassTypeParameterUpperBoundWeight = 0
         )
     }

@@ -19,6 +19,12 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
         mustBeReadable = true
     ).default(File("config/default.json"))
     protected lateinit var runConfig: RunConfig
+    protected val nonSimilarOutDir by option("-nso", "--non-similar-out").file(
+        mustExist = false,
+        canBeFile = false,
+        canBeDir = true,
+        mustBeReadable = true
+    ).default(File("out/min"))
 
     abstract fun runnerMain()
 

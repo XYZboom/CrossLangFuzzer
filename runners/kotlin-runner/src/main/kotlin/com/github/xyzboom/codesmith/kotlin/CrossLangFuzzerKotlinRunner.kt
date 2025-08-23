@@ -12,6 +12,8 @@ import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.github.xyzboom.clf.BugData
+import io.github.xyzboom.gedlib.GEDEnv
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
@@ -33,9 +35,10 @@ val testInfo = run {
 
 class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 
-    private val logger = KotlinLogging.logger { }
+    private val gedEnv = GEDEnv()
 
     companion object {
+        private val logger = KotlinLogging.logger {}
         fun TestConfigurationBuilder.config() {
             /*
              * Containers of different directives, which can be used in tests:
@@ -151,7 +154,18 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
             } catch (_: Throwable) {
                 null to null
             }
-            recordCompileResult(Language.KOTLIN, program, testResults, minimize, minResult)
+            val anySimilar = if (minimize != null) {
+                with(BugData) {
+                    gedEnv.similarToAnyExistedBug(minimize)
+                }
+            } else false
+            if (anySimilar) {
+                recordCompileResult(Language.KOTLIN, program, testResults, minimize, minResult)
+            } else {
+                recordCompileResult(
+                    Language.KOTLIN, program, testResults, minimize, minResult, outDir = nonSimilarOutDir
+                )
+            }
             if (throwException) {
                 throw RuntimeException()
             }
@@ -225,5 +239,11 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 }
 
 fun main(args: Array<String>) {
+    /*Thread {
+        println("start timer")
+        Thread.sleep(15 * 3600 * 1000)
+        println("timeout")
+        exitProcess(0)
+    }.start()*/
     CrossLangFuzzerKotlinRunner().main(args)
 }

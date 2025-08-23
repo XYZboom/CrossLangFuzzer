@@ -61,6 +61,7 @@
     "removeOverrideMemberFunctionWeight": 1,
     "mutateGenericArgumentInMemberFunctionParameterWeight": 3,
     "mutateParameterNullabilityWeight": 2,
+    "mutateClassTypeParameterUpperBoundNullabilityWeight": 1,
     "mutateClassTypeParameterUpperBoundWeight": 3
   },
   "langShuffleTimesBeforeMutate": 3,

@@ -104,7 +104,7 @@ class IrProgramPrinter(
     fun printToSingle(element: IrProgram): String {
         val map = print(element)
         val sb = StringBuilder(
-            "// JVM_DEFAULT_MODE: enable\n" +
+            "// JVM_DEFAULT_MODE: all\n" +
                     "// TARGET_BACKEND: JVM\n" +
                     "// JVM_TARGET: 1.8\n"
         )

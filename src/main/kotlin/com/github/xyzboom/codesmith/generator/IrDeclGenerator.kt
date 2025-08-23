@@ -28,7 +28,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.random.Random
 
 open class IrDeclGenerator(
-    private val config: GeneratorConfig = GeneratorConfig.default,
+    internal val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
     private val majorLanguage: Language = Language.KOTLIN
 ) {

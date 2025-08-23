@@ -100,13 +100,14 @@ fun recordCompileResult(
     compileResults: List<CompileResult>,
     minimizedProgram: IrProgram? = null,
     minimizedCompileResults: List<CompileResult>? = null,
+    outDir: File = logFile
 ) {
     val resultSet = compileResults.toSet()
     require(compileResults.size == 1 || resultSet.size != 1)
     if (shouldNotRecord(resultSet)) {
         return
     }
-    val dir = File(logFile, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
+    val dir = File(outDir, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
     File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
     for (compileResult in compileResults) {
         val (majorResult, javaResult) = compileResult
@@ -119,6 +120,7 @@ fun recordCompileResult(
     if (minimizedProgram != null) {
         File(dir, "main-min.${majorLanguage.extension}")
             .writeText(IrProgramPrinter(majorLanguage).printToSingle(minimizedProgram))
+        File(dir, "main-min.json").writeText(gson.toJson(minimizedProgram))
     }
     if (minimizedCompileResults != null) {
         for (compileResult in minimizedCompileResults) {
