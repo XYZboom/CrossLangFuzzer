@@ -5,7 +5,9 @@ import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
 import com.github.xyzboom.codesmith.ir.visitors.IrTopDownVisitor
 import com.github.xyzboom.codesmith.printer.IrPrinter
@@ -50,7 +52,17 @@ abstract class AbstractIrClassPrinter(
         irType: IrType,
         typeContext: TypeContext = TypeContext.Other,
         printNullableAnnotation: Boolean = true,
-        noNullabilityAnnotation: Boolean = false
+        noNullabilityAnnotation: Boolean = false,
+        /**
+         * ```java
+         * public class A<T extends @NotNull Object> {
+         *     public void func(@Nullable T t) {}
+         *     //               ^^^^^^^^^
+         *     // need to force print. Otherwise a kotlin child will consider `t` as NotNull
+         * }
+         * ```
+         */
+        forcePrintNullableAnnotationIfIsTypeParameter: Boolean = false,
     ): String {
         return when (typeContext) {
             Parameter, ReturnType, TypeArgumentInReturnType, FunctionTypeParameterUpperBound -> {
@@ -76,7 +88,20 @@ abstract class AbstractIrClassPrinter(
                 } else {
                     irType
                 }
-                printTypeDirectly(replaceTypeArg, typeContext, printNullableAnnotation, noNullabilityAnnotation)
+                val actualPrintNullableAnno =
+                    if (printNullableAnnotation || forcePrintNullableAnnotationIfIsTypeParameter) {
+                        true
+                    } else if (irType is IrTypeParameter ||
+                        (irType is IrNullableType && irType.innerType is IrTypeParameter)
+                    ) {
+                        replaceTypeArg is IrTypeParameter ||
+                                (replaceTypeArg is IrNullableType && replaceTypeArg.innerType is IrTypeParameter)
+                    } else false
+                printTypeDirectly(
+                    replaceTypeArg, typeContext,
+                    actualPrintNullableAnno,
+                    noNullabilityAnnotation
+                )
             }
 
             else -> printTypeDirectly(irType, typeContext, printNullableAnnotation, noNullabilityAnnotation)

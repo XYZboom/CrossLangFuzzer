@@ -42,8 +42,8 @@ open class IrDeclGenerator(
         addAll(KeyWords.windows)
     }
 
-    private val subClassMap = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
-    private val notSubClassCache = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
+    internal val subClassMap = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
+    internal val notSubClassCache = hashMapOf<IrClassDeclaration, MutableList<IrClassDeclaration>>()
 
     fun IrClassDeclaration.isSubClassOf(other: IrClassDeclaration): Boolean {
         if (notSubClassCache.containsKey(other)) {
@@ -216,9 +216,9 @@ open class IrDeclGenerator(
         this.typeParameters.add(buildTypeParameter {
             this.name = nextTypeParameterName()
             logger.trace { "generated parameter ${this.name}" }
-            if (config.typeParameterUpperboundAlwaysAny) {
+            val upperboundOri = if (config.typeParameterUpperboundAlwaysAny) {
                 logger.trace { "choose IrAny as upperbound config set always" }
-                upperbound = IrAny
+                IrAny
             } else {
                 // allow upperbound to be a type parameter generated just now
                 val typeParametersGeneratedJustNow =
@@ -228,7 +228,13 @@ open class IrDeclGenerator(
                         // to avoid KT-78819
                         emptyList()
                     }
-                this.upperbound = randomType(
+                logger.trace {
+                    "typeParametersGeneratedJustNow: ${
+                        typeParametersGeneratedJustNow
+                            .joinToString { it.render() }
+                    }"
+                }
+                randomType(
                     context.classes - classesShouldNotBeIncluded,
                     availableTypeParameters + typeParametersGeneratedJustNow,
                     false
@@ -237,9 +243,15 @@ open class IrDeclGenerator(
                     it !is IrParameterizedClassifier
                             && (config.allowUnitInTypeArgument || it !== IrUnit)
                             && (config.allowNothingInTypeArgument || it !== IrNothing)
-                } ?: IrAny
-                logger.trace { "choose upperbound ${this.upperbound.render()}" }
+                }
+            } ?: IrAny
+            val makeNullable = if (random.nextBoolean(config.typeParameterUpperboundNullableProbability)) {
+                buildNullableType { innerType = upperboundOri }
+            } else {
+                upperboundOri
             }
+            this.upperbound = makeNullable
+            logger.trace { "choose upperbound ${this.upperbound.render()}" }
         })
     }
 
@@ -383,9 +395,11 @@ open class IrDeclGenerator(
                 recordedChosen[IrTypeParameterName(record.name)] ?: record.upperbound
             } else record
         }
-        for (typeParam in superType.classDecl.typeParameters) {
-            val upperbound = typeParam.upperbound
-            val argUpperbound = getTypeArg(typeParam)
+        for (superTypeParam in superType.classDecl.typeParameters) {
+            val superUpperbound = superTypeParam.upperbound
+            val notNullUpperbound = superUpperbound.notNullType
+            val argUpperbound = getTypeArg(superTypeParam)
+            val notNullArgUpperbound = argUpperbound.notNullType
 
             /**
              * ```kt
@@ -403,7 +417,7 @@ open class IrDeclGenerator(
              * }
              * ```
              */
-            val chooseType = argUpperbound as? IrTypeParameter
+            val chooseType = notNullArgUpperbound as? IrTypeParameter
                 ?: (randomType(fromClasses, fromTypeParameters, false) {
                     it !is IrParameterizedClassifier // for now, we forbid nested cases
                             && (config.allowUnitInTypeArgument || it !== IrUnit)
@@ -443,16 +457,23 @@ open class IrDeclGenerator(
                              * That's because the argument of `T3` can be `B`
                              * which is not within the upperbound `T1`(replaced by type argument `A` just now)
                              */
-                            && (it !is IrTypeParameter || upperbound !is IrTypeParameter)
+                            && (it !is IrTypeParameter || notNullUpperbound !is IrTypeParameter)
                 } ?: run {
                     logger.trace {
-                        "choose default upperbound as the argument of ${typeParam.render()}"
+                        "choose default upperbound as the argument of ${superTypeParam.render()}"
                     }
                     argUpperbound.copy()
                 })
-            logger.trace { "choose ${chooseType.render()} as the the argument of ${typeParam.render()}" }
-            recordedChosen[IrTypeParameterName(typeParam.name)] = chooseType
-            superType.putTypeArgument(typeParam, chooseType)
+            val makeNullable = if (superUpperbound is IrNullableType &&
+                random.nextBoolean(config.notNullTypeArgForNullableUpperboundProbability)
+            ) {
+                buildNullableType { innerType = chooseType }
+            } else {
+                chooseType
+            }
+            logger.trace { "choose ${makeNullable.render()} as the the argument of ${superTypeParam.render()}" }
+            recordedChosen[IrTypeParameterName(superTypeParam.name)] = makeNullable
+            superType.putTypeArgument(superTypeParam, makeNullable)
         }
     }
 
@@ -693,11 +714,7 @@ open class IrDeclGenerator(
                 typeParameterFromFunction + (classContext?.typeParameters ?: emptyList()),
                 true
             ) {
-                if (classContext == null) {
-                    it !is IrTypeParameter
-                } else {
-                    true
-                } && it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
+                it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
             } ?: IrAny
         logger.trace { "gen parameter: $name, ${chooseType.render()}" }
         val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)

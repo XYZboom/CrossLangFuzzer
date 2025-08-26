@@ -40,6 +40,8 @@ data class GeneratorConfig(
     val allowUnitInTypeArgument: Boolean = false,
     val allowNothingInTypeArgument: Boolean = false,
     val typeParameterUpperboundAlwaysAny: Boolean = false,
+    val typeParameterUpperboundNullableProbability: Float = 0.4f,
+    val notNullTypeArgForNullableUpperboundProbability: Float = 0.4f,
     /**
      * Set this false to avoid [KT-78819](https://youtrack.jetbrains.com/issue/KT-78819).
      */

@@ -6,12 +6,15 @@ import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaratio
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildParameter
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
+import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
+import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
 import org.junit.jupiter.api.Test
@@ -41,7 +44,7 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
-                "    public final /*@NotNull*/ void $funcName() {\n" +
+                "    public final void $funcName() {\n" +
                 todoFunctionBody +
                 "    }\n" +
                 "}\n"
@@ -73,7 +76,7 @@ class JavaIrClassPrinterTest {
                 "    // stub\n"+
                 "    /*\n"+
                 "    @Override\n"+
-                "    public final @NotNull void $funcName() {\n" +
+                "    public final void $funcName() {\n" +
                 todoFunctionBody +
                 "    }\n" +
                 "    */\n"+
@@ -108,9 +111,11 @@ class JavaIrClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
+        // We now stipulate that the top-level Java classes are not allowed to use platform types
+        // todo: we may allow platform type in IR, not late in printer
         val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
-                "    public final /*@NotNull*/ void $funcName(/*@NotNull*/ Object arg0, /*@NotNull*/ $clazzName arg1) {\n" +
+                "    public final void $funcName(@NotNull Object arg0, @NotNull $clazzName arg1) {\n" +
                 todoFunctionBody +
                 "    }\n" +
                 "}\n"
@@ -165,12 +170,55 @@ class JavaIrClassPrinterTest {
                 name = "t"
                 type = t
             })
+            override.add(funcInA)
         }
         classB.functions.add(funcInB)
         val result = printer.print(classB)
         val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class B extends A<B>  {\n" +
-                "    public abstract /*@NotNull*/ void func(@NotNull B t);\n" +
+                "    public abstract void func(/*@NotNull*/ B t);\n" +
+                "}\n"
+        assertEquals(expect, result)
+    }
+
+    @Test
+    fun testPrintNullableTypeArg0() {
+        /**
+         * ```kt
+         * open class A<T>
+         * class B {
+         *     fun func(a: A<B?>) {}
+         * }
+         * ```
+         */
+        val printer = JavaIrClassPrinter()
+        val t = buildTypeParameter { name = "T"; upperbound = IrAny }
+        val classA = buildClassDeclaration {
+            name = "A"
+            classKind = ClassKind.OPEN
+            typeParameters += t
+        }
+        val classB = buildClassDeclaration {
+            name = "B"
+            classKind = ClassKind.FINAL
+        }
+        val funcInB = buildFunctionDeclaration {
+            name = "func"
+            parameterList = buildParameterList()
+            parameterList.parameters.add(buildParameter {
+                name = "a"
+                type = classA.type.apply {
+                    this as IrParameterizedClassifier
+                    putTypeArgument(t, buildNullableType { innerType = classB.type })
+                }
+            })
+            printNullableAnnotations = true
+        }
+        classB.functions.add(funcInB)
+        val result = printer.print(classB)
+        val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                "public final class B {\n" +
+                "    public abstract void func(@NotNull A<@Nullable B> a);\n" +
                 "}\n"
         assertEquals(expect, result)
     }

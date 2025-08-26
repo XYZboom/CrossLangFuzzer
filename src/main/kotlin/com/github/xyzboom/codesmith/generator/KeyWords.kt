@@ -53,7 +53,10 @@ object KeyWords {
         "void",
         "volatile",
         "while",
-        "object"
+        "object",
+        "true",
+        "false",
+        "null"
     )
     val kotlin = listOf(
         "as", "break", "fun", "in", "is", "object", "typealias", "typeof", "val", "var", "when",
