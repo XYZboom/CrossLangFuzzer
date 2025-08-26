@@ -6,6 +6,7 @@ import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.impl.IrNullableTypeImpl
+import com.github.xyzboom.codesmith.ir.types.notNullType
 import kotlin.contracts.*
 
 @BuilderDsl
@@ -14,11 +15,7 @@ class IrNullableTypeBuilder {
     var innerType: IrType
         get() = _innerType
         set(value) {
-            _innerType = if (value is IrNullableType) {
-                value.innerType
-            } else {
-                value
-            }
+            _innerType = value.notNullType
         }
 
     fun build(): IrNullableType {

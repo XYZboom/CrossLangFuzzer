@@ -177,7 +177,7 @@ class JavaIrClassPrinter(
         } else {
             "@NotNull"
         }
-        val finalAnnotationStr = if (noNullabilityAnnotation) {
+        val finalAnnotationStr = if (noNullabilityAnnotation || typeStr == "void") {
             ""
         } else if (!printNullableAnnotation || typeContext == TypeParameterDeclaration) {
             "/*$annotationStr*/ "
@@ -380,10 +380,9 @@ class JavaIrClassPrinter(
             data.append(
                 printType(
                     parameterType, Parameter,
-                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub
-                            || parameterType is IrTypeParameter
-                            || (parameterType is IrNullableType && parameterType.innerType is IrTypeParameter)
-                            || (anyOverrideParameterIsTypeParameter and current) != 0,
+                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub,
+                    forcePrintNullableAnnotationIfIsTypeParameter = func.override.isEmpty()
+//                        (anyOverrideParameterIsTypeParameter and current) != 0
                 )
             )
             data.append(" ")

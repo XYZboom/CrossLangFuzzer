@@ -11,8 +11,8 @@ class IrTypeMatcher(private val ori: IrType) : Matcher<IrType> {
         return if (areEqualTypes(ori, value)) {
             MatcherResult(true, { "" }) { "" }
         } else {
-            MatcherResult(false, { "IrType should be ${value.render()} but was ${ori.render()}" }) {
-                "IrType should not be ${value.render()} but was ${ori.render()}"
+            MatcherResult(false, { "IrType should be ${ori.render()} but was ${value.render()}" }) {
+                "IrType should not be ${ori.render()} but was ${value.render()}"
             }
         }
     }

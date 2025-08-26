@@ -162,3 +162,10 @@ fun areEqualTypes(a: IrType?, b: IrType?): Boolean {
         else -> a === b
     }
 }
+
+val IrType.notNullType: IrType
+    get() = if (this is IrNullableType) {
+        this.innerType
+    } else {
+        this
+    }
