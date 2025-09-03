@@ -164,11 +164,7 @@ class JavaIrClassPrinter(
                     }
                 }
 
-            is IrTypeParameter -> if (typeContext != TypeParameterDeclaration) {
-                irType.name
-            } else {
-                "${irType.name} extends ${printType(irType.upperbound, printNullableAnnotation = true)}"
-            }
+            is IrTypeParameter -> irType.name
 
             else -> throw NoWhenBranchMatchedException()
         }
@@ -224,6 +220,15 @@ class JavaIrClassPrinter(
                 data.append(
                     printType(
                         typeParameter, typeContext = TypeParameterDeclaration, printNullableAnnotation = false
+                    )
+                )
+                data.append(" extends ")
+                data.append(
+                    printType(
+                        typeParameter.upperbound,
+                        // todo: now upperbound is platform type.
+                        // we should make platform into IR
+                        noNullabilityAnnotation = true
                     )
                 )
                 if (index != typeParameters.lastIndex) {

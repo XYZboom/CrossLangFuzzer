@@ -87,7 +87,14 @@ open class IrDeclGenerator(
             return true
         }
         if (other === IrAny) {
-            return this !is IrNullableType
+            return if (this !is IrTypeParameter) {
+                this !is IrNullableType
+            } else {
+                this.upperbound !is IrNullableType
+            }
+        }
+        if (this === IrNothing) {
+            return true
         }
 
         return when (this) {
@@ -95,7 +102,7 @@ open class IrDeclGenerator(
             is IrTypeParameter -> when (other) {
                 is IrTypeParameter -> this.upperboundHave(other)
                 is IrSimpleClassifier, is IrNullableType -> this.upperbound.isSubTypeOf(other)
-                else -> false
+                else -> false // todo other is IrParameterizedClassifier
             }
 
             is IrSimpleClassifier -> when (other) {
@@ -431,15 +438,6 @@ open class IrDeclGenerator(
                              *  and we are considering `T2` in the second loop.
                              *  Now the upperbound of `T2` is no longer `T1` but `MyClass` instead.
                              */
-                            /**
-                             *  If some type parameter has been replaced by a type argument,
-                             *  we should consider the upperbound as this type argument,
-                             *  not the original type parameter.
-                             *  For example: `A<T1: Any?, T2: T1>`
-                             *  Consuming we have replaced `T1` with `MyClass`,
-                             *  and we are considering `T2` in the second loop.
-                             *  Now the upperbound of `T2` is no longer `T1` but `MyClass` instead.
-                             */
                             && it.isSubTypeOf(argUpperbound)
                             /**
                              * If we have `A <: B`, `class C<T1: A, T2: T1, T3: B>`
@@ -467,6 +465,7 @@ open class IrDeclGenerator(
             val makeNullable = if (superUpperbound is IrNullableType &&
                 random.nextBoolean(config.notNullTypeArgForNullableUpperboundProbability)
             ) {
+                logger.trace { "make nullable (type parameter ${superTypeParam.render()} upperbound is nullable)" }
                 buildNullableType { innerType = chooseType }
             } else {
                 chooseType

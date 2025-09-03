@@ -1,5 +1,13 @@
 package com.github.xyzboom.codesmith.printer
 
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
+
+/**
+ * The context for printer to printer Java types.
+ * [IrUnit] in Java is `void` or [Void] which depends on context.
+ * todo: refactor [TypeContext] and [JavaIrClassPrinter]
+ */
 enum class TypeContext {
     /**
      * ```kt
