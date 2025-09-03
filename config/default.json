@@ -48,6 +48,7 @@
     "allowUnitInTypeArgument": false,
     "allowNothingInTypeArgument": false,
     "typeParameterUpperboundAlwaysAny": false,
+    "typeParameterUpperboundNullableProbability": 0.4,
     "allowFunctionLevelTypeParameterAsUpperbound": true,
     "printJavaNullableAnnotationProbability": 0.4,
     "newExpressionWeight": 1,

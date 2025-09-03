@@ -82,8 +82,10 @@ fun IrParameterizedClassifier.putAllTypeArguments(
              * [args] will be {"T2": "T1"},
              * "T1" here matches value in [args] above.
              */
-            if (typeArg !is IrTypeParameter) continue
-            val typeArgAsTypeParameterName = IrTypeParameterName(typeArg.name)
+            if (typeArg == null) continue
+            val notNullTypeArg = typeArg.notNullType
+            if (notNullTypeArg !is IrTypeParameter) continue
+            val typeArgAsTypeParameterName = IrTypeParameterName(notNullTypeArg.name)
             if (args.containsKey(typeArgAsTypeParameterName)) {
                 val replaceWith = args[typeArgAsTypeParameterName]!!
                 logger.trace { "replace ${typeParam.render()} with ${replaceWith.second.render()}" }
