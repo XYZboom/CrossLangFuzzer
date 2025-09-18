@@ -17,6 +17,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -24,6 +25,7 @@ class JavaIrClassPrinterTest {
     companion object {
         private val todoFunctionBody = "${" ".repeat(8)}throw new RuntimeException();\n"
     }
+
     @Test
     fun testPrintSimpleClassWithSimpleFunction() {
         val printer = JavaIrClassPrinter()
@@ -73,13 +75,13 @@ class JavaIrClassPrinterTest {
         val result = printer.print(clazz)
         val expect = NULLABILITY_ANNOTATION_IMPORTS +
                 "public final class $clazzName {\n" +
-                "    // stub\n"+
-                "    /*\n"+
-                "    @Override\n"+
+                "    // stub\n" +
+                "    /*\n" +
+                "    @Override\n" +
                 "    public final void $funcName() {\n" +
                 todoFunctionBody +
                 "    }\n" +
-                "    */\n"+
+                "    */\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -221,6 +223,119 @@ class JavaIrClassPrinterTest {
                 "    public abstract void func(@NotNull A<@Nullable B> a);\n" +
                 "}\n"
         assertEquals(expect, result)
+    }
+
+    @Nested
+    inner class TypeParameterTest {
+
+        @Test
+        fun testUpperbound0() {
+            /**
+             * ```kt
+             * open class A<T> {
+             *     abstract fun func(t: T)
+             * }
+             * ```
+             */
+            val printer = JavaIrClassPrinter()
+            val t = buildTypeParameter { name = "T"; upperbound = buildNullableType { innerType = IrAny } }
+            val classA = buildClassDeclaration {
+                name = "A"
+                classKind = ClassKind.OPEN
+                typeParameters += t
+            }
+            val func = buildFunctionDeclaration {
+                name = "func"
+                parameterList = buildParameterList()
+                parameterList.parameters.add(buildParameter {
+                    name = "t"
+                    type = t
+                })
+                printNullableAnnotations = true
+            }
+            classA.functions.add(func)
+            val result = printer.print(classA)
+            val expect = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T extends @Nullable Object> {\n" +
+                    "    public abstract void func(T t);\n" +
+                    "}\n"
+            assertEquals(expect, result)
+
+            run {
+                /**
+                 * ```kt
+                 * class B : A<Any> {
+                 *     override fun func(t: Any)
+                 * }
+                 * ```
+                 */
+                val classB = buildClassDeclaration {
+                    name = "B"
+                    classKind = ClassKind.FINAL
+                    superType = classA.type.apply {
+                        this as IrParameterizedClassifier
+                        putTypeArgument(t, IrAny)
+                    }
+                    allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
+                        put(IrTypeParameterName(t.name), t to IrAny)
+                    }
+                }
+
+                val funcInB = buildFunctionDeclaration {
+                    name = "func"
+                    parameterList = buildParameterList()
+                    parameterList.parameters.add(buildParameter {
+                        name = "t"
+                        type = t
+                    })
+                    printNullableAnnotations = true
+                }
+                classB.functions.add(funcInB)
+                val resultB = printer.print(classB)
+                val expectB = NULLABILITY_ANNOTATION_IMPORTS +
+                        "public final class B extends A<@NotNull Object>  {\n" +
+                        "    public abstract void func(@NotNull Object t);\n" +
+                        "}\n"
+                assertEquals(expectB, resultB)
+            }
+            run {
+                /**
+                 * ```kt
+                 * class B : A<Any?> {
+                 *     override fun func(t: Any?)
+                 * }
+                 * ```
+                 */
+                val classB = buildClassDeclaration {
+                    name = "B"
+                    classKind = ClassKind.FINAL
+                    superType = classA.type.apply {
+                        this as IrParameterizedClassifier
+                        putTypeArgument(t, buildNullableType { innerType = IrAny })
+                    }
+                    allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
+                        put(IrTypeParameterName(t.name), t to buildNullableType { innerType = IrAny })
+                    }
+                }
+
+                val funcInB = buildFunctionDeclaration {
+                    name = "func"
+                    parameterList = buildParameterList()
+                    parameterList.parameters.add(buildParameter {
+                        name = "t"
+                        type = t
+                    })
+                    printNullableAnnotations = true
+                }
+                classB.functions.add(funcInB)
+                val resultB = printer.print(classB)
+                val expectB = NULLABILITY_ANNOTATION_IMPORTS +
+                        "public final class B extends A<@Nullable Object>  {\n" +
+                        "    public abstract void func(@Nullable Object t);\n" +
+                        "}\n"
+                assertEquals(expectB, resultB)
+            }
+        }
     }
 //
 //    //<editor-fold desc="Property">
