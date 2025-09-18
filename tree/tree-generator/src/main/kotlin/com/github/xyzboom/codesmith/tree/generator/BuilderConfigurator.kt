@@ -28,6 +28,7 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
             parents += typeParameterContainerBuilder
         }
         noBuilder(nullableType)
+        noBuilder(platformType)
 
         val funcContainerBuilder by builder {
             fields from funcContainer

@@ -67,6 +67,9 @@ abstract class IrVisitor<out R, in D> {
     open fun visitNullableType(nullableType: IrNullableType, data: D): R =
         visitElement(nullableType, data)
 
+    open fun visitPlatformType(platformType: IrPlatformType, data: D): R =
+        visitElement(platformType, data)
+
     open fun visitTypeParameter(typeParameter: IrTypeParameter, data: D): R =
         visitElement(typeParameter, data)
 

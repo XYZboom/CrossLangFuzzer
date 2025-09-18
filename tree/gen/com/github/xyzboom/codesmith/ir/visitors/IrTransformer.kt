@@ -146,6 +146,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
         return transformNullableType(nullableType, data)
     }
 
+    open fun transformPlatformType(platformType: IrPlatformType, data: D): IrType {
+        return transformElement(platformType, data)
+    }
+
+    final override fun visitPlatformType(platformType: IrPlatformType, data: D): IrType {
+        return transformPlatformType(platformType, data)
+    }
+
     open fun transformTypeParameter(typeParameter: IrTypeParameter, data: D): IrType {
         return transformElement(typeParameter, data)
     }

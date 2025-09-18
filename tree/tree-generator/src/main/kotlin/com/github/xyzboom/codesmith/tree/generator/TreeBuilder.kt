@@ -104,6 +104,12 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +field("innerType", type)
     }
 
+    val platformType: Element by element(Element.Kind.Type, name = "PlatformType") {
+        parent(type)
+
+        +field("innerType", type)
+    }
+
     val typeParameter: Element by element(Element.Kind.Type, name = "TypeParameter") {
         parent(type)
         parent(namedElement)

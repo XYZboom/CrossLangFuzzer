@@ -146,6 +146,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
         visitElement(nullableType)
     }
 
+    final override fun visitPlatformType(platformType: IrPlatformType, data: Nothing?) {
+        visitPlatformType(platformType)
+    }
+
+    open fun visitPlatformType(platformType: IrPlatformType) {
+        visitElement(platformType)
+    }
+
     final override fun visitTypeParameter(typeParameter: IrTypeParameter, data: Nothing?) {
         visitTypeParameter(typeParameter)
     }
