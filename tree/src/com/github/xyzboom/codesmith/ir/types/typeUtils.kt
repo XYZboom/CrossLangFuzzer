@@ -171,3 +171,10 @@ val IrType.notNullType: IrType
     } else {
         this
     }
+
+val IrType.notPlatformType: IrType
+    get() = if (this is IrPlatformType) {
+        this.innerType
+    } else {
+        this
+    }
