@@ -111,7 +111,6 @@ class JavaIrClassPrinter(
     override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
-        printNullableAnnotation: Boolean,
         noNullabilityAnnotation: Boolean
     ): String {
         val chooseTypeMap = when (typeContext) {
@@ -128,7 +127,6 @@ class JavaIrClassPrinter(
                 val result = printType(
                     irType.innerType,
                     typeContext = typeContext,
-                    printNullableAnnotation = printNullableAnnotation,
                     noNullabilityAnnotation = true,
                 )
                 result
@@ -150,9 +148,7 @@ class JavaIrClassPrinter(
                             sb.append(
                                 printType(
                                     typeArg,
-                                    typeContext = TypeArgument,
-                                    printNullableAnnotation = printNullableAnnotation,
-                                    noNullabilityAnnotation = noNullabilityAnnotation,
+                                    typeContext = TypeArgument
                                 )
                             )
                             if (index != irType.classDecl.typeParameters.lastIndex) {
@@ -173,11 +169,12 @@ class JavaIrClassPrinter(
         } else {
             "@NotNull"
         }
-        val finalAnnotationStr = if (noNullabilityAnnotation || typeStr == "void") {
-            ""
-        } else if (!printNullableAnnotation || typeContext == TypeParameterDeclaration) {
-            "/*$annotationStr*/ "
-        } else "$annotationStr "
+        val finalAnnotationStr =
+            if (noNullabilityAnnotation || typeStr == "void" ||
+                (irType is IrTypeParameter && irType.upperbound is IrNullableType)
+            ) {
+                ""
+            } else "$annotationStr "
         return "$finalAnnotationStr$typeStr"
     }
 
@@ -189,7 +186,7 @@ class JavaIrClassPrinter(
         }
         if (superType != null) {
             sb.append("extends ")
-            sb.append(printType(superType, printNullableAnnotation = false, noNullabilityAnnotation = true))
+            sb.append(printType(superType, noNullabilityAnnotation = true))
             sb.append(" ")
         }
         if (implList.isNotEmpty()) {
@@ -199,7 +196,7 @@ class JavaIrClassPrinter(
                 sb.append("extends ")
             }
             for ((index, type) in implList.withIndex()) {
-                sb.append(printType(type, printNullableAnnotation = false, noNullabilityAnnotation = true))
+                sb.append(printType(type, noNullabilityAnnotation = true))
                 if (index != implList.lastIndex) {
                     sb.append(", ")
                 }
@@ -219,17 +216,13 @@ class JavaIrClassPrinter(
             for ((index, typeParameter) in typeParameters.withIndex()) {
                 data.append(
                     printType(
-                        typeParameter, typeContext = TypeParameterDeclaration, printNullableAnnotation = false
+                        typeParameter, typeContext = TypeParameterDeclaration,
+                        noNullabilityAnnotation = true
                     )
                 )
                 data.append(" extends ")
                 data.append(
-                    printType(
-                        typeParameter.upperbound,
-                        // todo: now upperbound is platform type.
-                        // we should make platform into IR
-                        noNullabilityAnnotation = true
-                    )
+                    printType(typeParameter.upperbound)
                 )
                 if (index != typeParameters.lastIndex) {
                     data.append(", ")
@@ -290,9 +283,7 @@ class JavaIrClassPrinter(
                 data.append(
                     printType(
                         typeParam.upperbound,
-                        FunctionTypeParameterUpperBound,
-                        printNullableAnnotation,
-                        noNullabilityAnnotation = false
+                        FunctionTypeParameterUpperBound
                     )
                 )
                 if (index != function.typeParameters.lastIndex) {
@@ -321,7 +312,8 @@ class JavaIrClassPrinter(
             for (param in it.parameterList.parameters) {
                 val paramType = param.type
                 if (paramType is IrTypeParameter ||
-                    (paramType is IrNullableType && paramType.innerType is IrTypeParameter)) {
+                    (paramType is IrNullableType && paramType.innerType is IrTypeParameter)
+                ) {
                     anyOverrideParameterIsTypeParameter = anyOverrideParameterIsTypeParameter or current
                 }
                 current = current shl 1 // current << 1 (shl is shift left in Kotlin)
@@ -342,12 +334,6 @@ class JavaIrClassPrinter(
                  * }
                  * ```
                  */
-                printNullableAnnotation = printNullableAnnotation || anyOverrideReturnTypeIsTypeParameter,
-                typeContext = if (anyOverrideReturnTypeIsTypeParameter) {
-                    TypeArgumentInReturnType
-                } else {
-                    ReturnType
-                }
             )
         )
         data.append(" ")
@@ -385,7 +371,6 @@ class JavaIrClassPrinter(
             data.append(
                 printType(
                     parameterType, Parameter,
-                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub,
                     forcePrintNullableAnnotationIfIsTypeParameter = func.override.isEmpty()
 //                        (anyOverrideParameterIsTypeParameter and current) != 0
                 )
