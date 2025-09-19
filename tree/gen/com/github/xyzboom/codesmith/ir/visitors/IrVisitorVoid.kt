@@ -154,6 +154,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
         visitElement(platformType)
     }
 
+    final override fun visitDefinitelyNotNullType(definitelyNotNullType: IrDefinitelyNotNullType, data: Nothing?) {
+        visitDefinitelyNotNullType(definitelyNotNullType)
+    }
+
+    open fun visitDefinitelyNotNullType(definitelyNotNullType: IrDefinitelyNotNullType) {
+        visitElement(definitelyNotNullType)
+    }
+
     final override fun visitTypeParameter(typeParameter: IrTypeParameter, data: Nothing?) {
         visitTypeParameter(typeParameter)
     }

@@ -162,6 +162,8 @@ class JavaIrClassPrinter(
 
             is IrTypeParameter -> irType.name
 
+            is IrDefinitelyNotNullType -> printType(irType.innerType, noNullabilityAnnotation = true)
+
             else -> throw NoWhenBranchMatchedException()
         }
         val annotationStr = if (irType is IrNullableType) {

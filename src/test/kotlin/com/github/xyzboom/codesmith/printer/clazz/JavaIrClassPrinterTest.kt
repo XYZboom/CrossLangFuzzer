@@ -10,9 +10,9 @@ import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
+import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifier
-import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
@@ -178,8 +178,8 @@ class JavaIrClassPrinterTest {
         classB.functions.add(funcInB)
         val result = printer.print(classB)
         val expect = NULLABILITY_ANNOTATION_IMPORTS +
-                "public final class B extends A<B>  {\n" +
-                "    public abstract void func(/*@NotNull*/ B t);\n" +
+                "public final class B extends A<@NotNull B>  {\n" +
+                "    public abstract void func(@NotNull B t);\n" +
                 "}\n"
         assertEquals(expect, result)
     }
@@ -254,7 +254,7 @@ class JavaIrClassPrinterTest {
             }
             val t = buildTypeParameter { name = "T"; this.upperbound = upperbound }
             val funcParamType = when (funcParamNullable) {
-                null -> buildPlatformType { innerType = t }
+                null -> buildDefinitelyNotNullType { innerType = t }
                 true -> buildNullableType { innerType = t }
                 false -> t
             }
@@ -451,6 +451,36 @@ class JavaIrClassPrinterTest {
                 funcParamNullable = true,
                 expectA,
                 expectAnyB
+            )
+        }
+
+        @Test
+        fun testUpperbound4() {
+            /**
+             * ```kt
+             * open class A<T: Any?> {
+             *     abstract fun func(t: T & Any)
+             * }
+             * ```
+             */
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T extends @Nullable Object> {\n" +
+                    "    public abstract void func(@NotNull T t);\n" +
+                    "}\n"
+            val expectAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<@NotNull Object>  {\n" +
+                    "    public abstract void func(@NotNull Object t);\n" +
+                    "}\n"
+            val expectNullableAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<@Nullable Object>  {\n" +
+                    "    public abstract void func(@NotNull Object t);\n" +
+                    "}\n"
+            assertTemplate(
+                typeParameterUpperboundNullable = true,
+                funcParamNullable = null,
+                expectA,
+                expectAnyB,
+                expectNullableAnyB
             )
         }
     }

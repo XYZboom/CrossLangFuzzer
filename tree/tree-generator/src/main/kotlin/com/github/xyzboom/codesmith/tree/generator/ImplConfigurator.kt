@@ -30,6 +30,9 @@ object ImplConfigurator : AbstractImplementationConfigurator<Implementation, Ele
         impl(platformType) {
             delegateFields(listOf("classKind"), "innerType")
         }
+        impl(definitelyNotNullType) {
+            delegateFields(listOf("classKind"), "innerType")
+        }
         Unit
     }
 

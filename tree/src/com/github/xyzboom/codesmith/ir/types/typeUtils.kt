@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
@@ -122,6 +123,15 @@ fun getActualTypeFromArguments(
         return buildNullableType {
             innerType = getActualTypeFromArguments(oriType.innerType, typeArguments, onlyValue)
         }
+    }
+    if (oriType is IrDefinitelyNotNullType) {
+        val typeArg = getActualTypeFromArguments(oriType.innerType, typeArguments, onlyValue)
+        if (typeArg is IrTypeParameter) {
+            return buildDefinitelyNotNullType {
+                innerType = typeArg
+            }
+        }
+        return typeArg.notNullType
     }
     if (oriType is IrParameterizedClassifier) {
         oriType.putAllTypeArguments(typeArguments, onlyValue)
