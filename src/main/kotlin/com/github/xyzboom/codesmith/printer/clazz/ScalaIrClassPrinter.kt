@@ -40,7 +40,6 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
     override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
-        printNullableAnnotation: Boolean,
         noNullabilityAnnotation: Boolean
     ): String {
         val typeStr = when (irType) {
@@ -122,7 +121,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
         if (typeParameters.isNotEmpty()) {
             data.append("[")
             for ((index, typeParameter) in typeParameters.withIndex()) {
-                data.append(printType(typeParameter, printNullableAnnotation = false))
+                data.append(printType(typeParameter))
                 if (index != typeParameters.lastIndex) {
                     data.append(", ")
                 }
@@ -165,9 +164,7 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(" <: ")
                 data.append(printType(
                     typeParam.upperbound,
-                    TypeContext.FunctionTypeParameterUpperBound,
-                    function.printNullableAnnotations,
-                    noNullabilityAnnotation = false
+                    TypeContext.FunctionTypeParameterUpperBound
                 ))
                 if (index != function.typeParameters.lastIndex) {
                     data.append(", ")

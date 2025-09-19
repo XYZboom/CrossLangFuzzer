@@ -54,7 +54,6 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
     override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
-        printNullableAnnotation: Boolean,
         noNullabilityAnnotation: Boolean
     ): String {
         return when (irType) {
@@ -181,9 +180,7 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                 data.append(": ")
                 data.append(printType(
                     typeParam.upperbound,
-                    TypeContext.FunctionTypeParameterUpperBound,
-                    function.printNullableAnnotations,
-                    noNullabilityAnnotation = false
+                    TypeContext.FunctionTypeParameterUpperBound
                 ))
                 if (index != function.typeParameters.lastIndex) {
                     data.append(", ")
