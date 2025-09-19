@@ -154,6 +154,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
         return transformPlatformType(platformType, data)
     }
 
+    open fun transformDefinitelyNotNullType(definitelyNotNullType: IrDefinitelyNotNullType, data: D): IrType {
+        return transformElement(definitelyNotNullType, data)
+    }
+
+    final override fun visitDefinitelyNotNullType(definitelyNotNullType: IrDefinitelyNotNullType, data: D): IrType {
+        return transformDefinitelyNotNullType(definitelyNotNullType, data)
+    }
+
     open fun transformTypeParameter(typeParameter: IrTypeParameter, data: D): IrType {
         return transformElement(typeParameter, data)
     }

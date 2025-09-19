@@ -110,6 +110,12 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +field("innerType", type)
     }
 
+    val definitelyNotNullType: Element by element(Element.Kind.Type, name = "DefinitelyNotNullType") {
+        parent(type)
+
+        +field("innerType", typeParameter)
+    }
+
     val typeParameter: Element by element(Element.Kind.Type, name = "TypeParameter") {
         parent(type)
         parent(namedElement)

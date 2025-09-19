@@ -30,6 +30,10 @@ abstract class IrDefaultVisitorVoid : IrVisitorVoid() {
         visitType(platformType)
     }
 
+    override fun visitDefinitelyNotNullType(definitelyNotNullType: IrDefinitelyNotNullType) {
+        visitType(definitelyNotNullType)
+    }
+
     override fun visitClassifier(classifier: IrClassifier) {
         visitType(classifier)
     }

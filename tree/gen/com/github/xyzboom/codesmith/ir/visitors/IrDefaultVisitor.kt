@@ -27,6 +27,9 @@ abstract class IrDefaultVisitor<out R, in D> : IrVisitor<R, D>() {
     override fun visitPlatformType(platformType: IrPlatformType, data: D): R =
         visitType(platformType, data)
 
+    override fun visitDefinitelyNotNullType(definitelyNotNullType: IrDefinitelyNotNullType, data: D): R =
+        visitType(definitelyNotNullType, data)
+
     override fun visitClassifier(classifier: IrClassifier, data: D): R =
         visitType(classifier, data)
 
