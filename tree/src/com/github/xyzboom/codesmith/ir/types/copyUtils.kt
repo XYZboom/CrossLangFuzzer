@@ -7,7 +7,7 @@ import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 fun IrTypeParameter.copy(): IrTypeParameter {
     return buildTypeParameter {
         name = this@copy.name
-        upperbound = this@copy.upperbound
+        upperbound = this@copy.upperbound.copy()
     }
 }
 

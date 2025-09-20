@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.declarations.builder.IrFunctionDeclarationBuilder
+import com.github.xyzboom.codesmith.ir.render
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -40,6 +41,10 @@ fun StringBuilder.traceFunc(target: IrFunctionDeclaration) {
     if (target.containingClassName != null) {
         append("class ")
         append(target.containingClassName)
+    }
+    append("parameters: ")
+    for (param in target.parameterList.parameters) {
+        append(param.render())
     }
 }
 
