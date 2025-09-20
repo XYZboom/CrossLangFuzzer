@@ -147,30 +147,27 @@ class JavaIrClassPrinter(
             is IrBuiltInType -> chooseTypeMap[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 
-            is IrClassifier ->
-                when (irType) {
-                    is IrSimpleClassifier -> irType.classDecl.name
-                    is IrParameterizedClassifier -> {
-                        val sb = StringBuilder(irType.classDecl.name)
-                        sb.append("<")
-                        // print type arg in the order of superType
-                        val typeArgs = irType.getTypeArguments()
-                        for ((index, typeParam) in irType.classDecl.typeParameters.withIndex()) {
-                            val typeArg = typeArgs[IrTypeParameterName(typeParam.name)]!!.second
-                            sb.append(
-                                printType(
-                                    typeArg,
-                                    typeContext = TypeArgument
-                                )
-                            )
-                            if (index != irType.classDecl.typeParameters.lastIndex) {
-                                sb.append(", ")
-                            }
-                        }
-                        sb.append(">")
-                        sb.toString()
+            is IrSimpleClassifier -> irType.classDecl.name
+            is IrParameterizedClassifier -> {
+                val sb = StringBuilder(irType.classDecl.name)
+                sb.append("<")
+                // print type arg in the order of superType
+                val typeArgs = irType.getTypeArguments()
+                for ((index, typeParam) in irType.classDecl.typeParameters.withIndex()) {
+                    val typeArg = typeArgs[IrTypeParameterName(typeParam.name)]!!.second
+                    sb.append(
+                        printType(
+                            typeArg,
+                            typeContext = TypeArgument
+                        )
+                    )
+                    if (index != irType.classDecl.typeParameters.lastIndex) {
+                        sb.append(", ")
                     }
                 }
+                sb.append(">")
+                sb.toString()
+            }
 
             is IrTypeParameter -> irType.name
 
@@ -349,6 +346,7 @@ class JavaIrClassPrinter(
                  * }
                  * ```
                  */
+                typeContext = ReturnType,
             )
         )
         data.append(" ")
