@@ -22,6 +22,7 @@ import com.github.xyzboom.codesmith.ir.types.set
 import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
 import com.github.xyzboom.codesmith.ir.TypeKind.*
+import com.github.xyzboom.codesmith.ir.render
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -731,39 +732,50 @@ class JavaIrClassPrinterTest {
         //<editor-fold desc="Template1">
         /**
          * ```kt
-         * open class A</*type 1*/> {
-         *     abstract fun func(t: /*type 2*/)
-         * }
-         *
-         * open class B</*type 3*/> : A</*type 3*/> {
-         *     override fun func(t: /*type 3*/)
+         * open class A<T0/*type 1*/, T1: T0/*type2*/> {
+         *     abstract fun func(t: T1/*type 3*/)
          * }
          * ```
          */
         private fun assertTemplate1(
-            typeParameterUpperboundNullable: Boolean,
-            funcParamNullable: TypeKind,
+            t0UpperboundNullable: Boolean,
+            t1UpperboundNullable: Boolean?,
+            funcParamTypeKind: TypeKind,
             expectClassA: String,
-            expectClassBWithTypeArgAny: String,
-            expectClassBWithTypeArgNullableAny: String? = null
+            /**
+             * ```kt
+             * class B : A</*type arg 1*/, /*type arg 2*/>
+             * ```
+             * type arg 1: Any, Any?, Any!;
+             * type arg 2: Any, Any?, Any!;
+             * for example `expectClassB[1][2]` do the assertion of `class B : A<Any, Any!>`
+             */
+            expectClassB: Array<Array<String?>>,
         ) {
             val printer = JavaIrClassPrinter()
-            val upperbound = if (typeParameterUpperboundNullable) {
+            val t0Upperbound = if (t0UpperboundNullable) {
                 buildNullableType { innerType = IrAny }
             } else {
                 IrAny
             }
-            val t = buildTypeParameter { name = "T"; this.upperbound = upperbound }
-            val funcParamType = when (funcParamNullable) {
-                DNN -> buildDefinitelyNotNullType { innerType = t }
-                Nullable -> buildNullableType { innerType = t }
-                NotNull -> t
-                Platform -> buildPlatformType { innerType = t }
+            val t0 = buildTypeParameter { name = "T0"; this.upperbound = t0Upperbound }
+            val t1Upperbound = when (t1UpperboundNullable) {
+                true -> buildNullableType { innerType = t0 }
+                false -> t0
+                null -> buildDefinitelyNotNullType { innerType = t0 }
+            }
+            val t1 = buildTypeParameter { name = "T1"; this.upperbound = t1Upperbound }
+            val funcParamType = when (funcParamTypeKind) {
+                DNN -> buildDefinitelyNotNullType { innerType = t1 }
+                Nullable -> buildNullableType { innerType = t1 }
+                NotNull -> t1
+                Platform -> buildPlatformType { innerType = t1 }
             }
             val classA = buildClassDeclaration {
                 name = "A"
                 classKind = ClassKind.OPEN
-                typeParameters += t
+                typeParameters += t0
+                typeParameters += t1
             }
             val func = buildFunctionDeclaration {
                 name = "func"
@@ -778,73 +790,401 @@ class JavaIrClassPrinterTest {
             val resultA = printer.print(classA)
             assertEquals(expectClassA, resultA)
 
-            run {
-                /**
-                 * ```kt
-                 * class B : A<Any> {
-                 *     override fun func(t: Any)
-                 * }
-                 * ```
-                 */
-                val classB = buildClassDeclaration {
-                    name = "B"
-                    classKind = ClassKind.FINAL
-                    superType = classA.type.apply {
-                        this as IrParameterizedClassifier
-                        putTypeArgument(t, IrAny)
+            val typeArg0Array = arrayOf(
+                IrAny,
+                buildNullableType { innerType = IrAny }, buildPlatformType { innerType = IrAny }
+            )
+            val typeArg1Array = arrayOf(
+                IrAny,
+                buildNullableType { innerType = IrAny }, buildPlatformType { innerType = IrAny }
+            )
+            for (i0 in 0..2) {
+                for (i1 in 0..2) {
+                    val expectB = expectClassB[i0][i1] ?: continue
+                    val typeArg0 = typeArg0Array[i0]
+                    val typeArg1 = typeArg1Array[i1]
+                    val classB = buildClassDeclaration {
+                        name = "B"
+                        classKind = ClassKind.FINAL
+                        superType = classA.type.apply {
+                            this as IrParameterizedClassifier
+                            putTypeArgument(t0, typeArg0)
+                            putTypeArgument(t1, typeArg1)
+                        }
+                        allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
+                            put(IrTypeParameterName(t0.name), t0 to typeArg0)
+                            put(IrTypeParameterName(t1.name), t1 to typeArg1)
+                        }
                     }
-                    allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
-                        put(IrTypeParameterName(t.name), t to IrAny)
-                    }
-                }
 
-                val funcInB = buildFunctionDeclaration {
-                    name = "func"
-                    parameterList = buildParameterList()
-                    parameterList.parameters.add(buildParameter {
-                        name = "t"
-                        type = funcParamType
-                    })
-                    printNullableAnnotations = true
-                }
-                classB.functions.add(funcInB)
-                val resultB = printer.print(classB)
-                assertEquals(expectClassBWithTypeArgAny, resultB)
-            }
-            expectClassBWithTypeArgNullableAny?.let {
-                /**
-                 * ```kt
-                 * class B : A<Any?> {
-                 *     override fun func(t: Any?)
-                 * }
-                 * ```
-                 */
-                val classB = buildClassDeclaration {
-                    name = "B"
-                    classKind = ClassKind.FINAL
-                    superType = classA.type.apply {
-                        this as IrParameterizedClassifier
-                        putTypeArgument(t, buildNullableType { innerType = IrAny })
+                    val funcInB = buildFunctionDeclaration {
+                        name = "func"
+                        parameterList = buildParameterList()
+                        parameterList.parameters.add(buildParameter {
+                            name = "t"
+                            type = funcParamType
+                        })
+                        isOverride = true
+                        printNullableAnnotations = true
                     }
-                    allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
-                        put(IrTypeParameterName(t.name), t to buildNullableType { innerType = IrAny })
-                    }
+                    classB.functions.add(funcInB)
+                    val resultB = printer.print(classB)
+                    assertEquals(
+                        NULLABILITY_ANNOTATION_IMPORTS + expectB,
+                        resultB,
+                        "failed.\n" +
+                                "class A:\n" +
+                                resultA +
+                                "typeArg0 is ${typeArg0.render()}, typeArg1 is ${typeArg1.render()}\n"
+                    )
                 }
-
-                val funcInB = buildFunctionDeclaration {
-                    name = "func"
-                    parameterList = buildParameterList()
-                    parameterList.parameters.add(buildParameter {
-                        name = "t"
-                        type = funcParamType
-                    })
-                    printNullableAnnotations = true
-                }
-                classB.functions.add(funcInB)
-                val resultB = printer.print(classB)
-                assertEquals(it, resultB)
             }
         }
+
+        @Test
+        fun testTemplate1Upperbound0() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @Nullable Object, T1 extends @Nullable T0> {\n" +
+                    "    public abstract void func(@Nullable T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = true,
+                Nullable,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        // compile error source code
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
+
+        @Test
+        fun testTemplate1Upperbound1() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @Nullable Object, T1 extends T0> {\n" +
+                    "    public abstract void func(@Nullable T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = false,
+                Nullable,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        // compile error source code
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
+
+        @Test
+        fun testTemplate1Upperbound2() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @Nullable Object, T1 extends @NotNull T0> {\n" +
+                    "    public abstract void func(@Nullable T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = null,
+                Nullable,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        // compile error source code
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
+
+        @Test
+        fun testTemplate1Upperbound3() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @NotNull Object, T1 extends @Nullable T0> {\n" +
+                    "    public abstract void func(@Nullable T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = false,
+                t1UpperboundNullable = true,
+                Nullable,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
+
+        // todo finish other template1
         //</editor-fold>
     }
 //

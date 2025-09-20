@@ -11,6 +11,8 @@ fun IrType.render(): String {
         is IrSimpleClassifier -> classDecl.render()
         is IrTypeParameter -> "IrTypeParameter($name: ${upperbound.render()})"
         is IrBuiltInType -> this::class.simpleName!!
+        is IrDefinitelyNotNullType -> "IrDefinitelyNotNullType(${innerType.render()})"
+        is IrPlatformType -> "IrPlatformType(${innerType.render()})"
         else -> throw NoWhenBranchMatchedException("Unexpected IrType ${this::class.qualifiedName}")
     }
 }
