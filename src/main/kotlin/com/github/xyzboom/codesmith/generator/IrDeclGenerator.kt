@@ -397,9 +397,10 @@ open class IrDeclGenerator(
             if (superType.classDecl.typeParameters.all { it.name != typeParam.name }) {
                 return typeParam
             }
-            val record = recordedChosen[IrTypeParameterName(typeParam.name)] ?: typeParam.upperbound
+            val record = recordedChosen[IrTypeParameterName(typeParam.name)]
+                ?: typeParam.upperbound.notNullType
             return if (record is IrTypeParameter) {
-                recordedChosen[IrTypeParameterName(record.name)] ?: record.upperbound
+                recordedChosen[IrTypeParameterName(record.name)] ?: record.upperbound.notNullType
             } else record
         }
         for (superTypeParam in superType.classDecl.typeParameters) {
@@ -460,10 +461,17 @@ open class IrDeclGenerator(
                     logger.trace {
                         "choose default upperbound as the argument of ${superTypeParam.render()}"
                     }
+                    /*
+                    val defaultArg = argUpperbound.copy()
+                    if (defaultArg is IrTypeParameter) {
+                        recordedChosen[IrTypeParameterName(defaultArg.name)] ?: defaultArg
+                    } else {
+                        defaultArg
+                    }*/
                     argUpperbound.copy()
                 })
             val makeNullable = if (superUpperbound is IrNullableType &&
-                random.nextBoolean(config.notNullTypeArgForNullableUpperboundProbability)
+                !random.nextBoolean(config.notNullTypeArgForNullableUpperboundProbability)
             ) {
                 logger.trace { "make nullable (type parameter ${superTypeParam.render()} upperbound is nullable)" }
                 buildNullableType { innerType = chooseType }

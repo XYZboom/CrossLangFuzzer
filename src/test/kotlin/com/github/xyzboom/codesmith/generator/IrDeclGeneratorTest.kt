@@ -20,7 +20,6 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.maps.shouldMatchExactly
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeSameInstanceAs
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Nested
@@ -406,5 +405,157 @@ class IrDeclGeneratorTest {
         }
     }
 
+    @Nested
+    inner class GenTypeArg {
 
+        /**
+         * ```kt
+         * class A<T0: /*type 0*/, T1: T0/*1*/>
+         * class B
+         * ```
+         * call [IrDeclGenerator.genTypeArguments], the unfinished type is:
+         * `A<B/*3*/, /*unfinished*/>`
+         *
+         * @param expectCallback to get [IrType] of the above classes and types, we use callback
+         */
+        fun testTemplate0(
+            t0UpperboundNullable: Boolean,
+            t1UpperboundNullable: Boolean,
+            makeArgNullableIfCan: Boolean,
+            expectCallback: (
+                IrTypeParameter/*T0*/, IrTypeParameter/*T1*/,
+                IrParameterizedClassifier/*A*/, IrType/*B*/
+            ) -> IrType
+        ) {
+            val t0Upperbound = if (t0UpperboundNullable) {
+                buildNullableType { innerType = IrAny }
+            } else {
+                IrAny
+            }
+            val t0 = buildTypeParameter { name = "T0"; upperbound = t0Upperbound }
+            val t1Upperbound = if (t1UpperboundNullable) {
+                buildNullableType { innerType = t0 }
+            } else {
+                t0
+            }
+            val t1 = buildTypeParameter { name = "T1"; upperbound = t1Upperbound }
+            val classA = buildClassDeclaration {
+                name = "A"
+                classKind = ClassKind.FINAL
+                typeParameters.add(t0)
+                typeParameters.add(t1)
+            }
+            val classB = buildClassDeclaration {
+                name = "B"
+                classKind = ClassKind.OPEN
+            }
+            val generator = SequentialTypeSelectionIrDeclGenerator(
+                listOf(classB.type),
+                config = GeneratorConfig(
+                    notNullTypeArgForNullableUpperboundProbability =
+                        if (makeArgNullableIfCan) {
+                            0f
+                        } else {
+                            1f
+                        }
+                )
+            )
+            val typeA = classA.type
+            generator.genTypeArguments(
+                listOf(classB),
+                emptyList(),
+                typeA as IrParameterizedClassifier
+            )
+            val expect = expectCallback(t0, t1, classA.type as IrParameterizedClassifier, classB.type)
+            typeA shouldBe IrTypeMatcher(expect)
+        }
+
+        @Test
+        fun genTypeArgOfUpperbound0() {
+            testTemplate0(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = true,
+                makeArgNullableIfCan = true,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, buildNullableType { innerType = typeB })
+                typeA.putTypeArgument(t1, buildNullableType { innerType = typeB })
+                typeA
+            }
+            testTemplate0(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = true,
+                makeArgNullableIfCan = false,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, typeB)
+                typeA.putTypeArgument(t1, typeB)
+                typeA
+            }
+        }
+
+        @Test
+        fun genTypeArgOfUpperbound1() {
+            testTemplate0(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = false,
+                makeArgNullableIfCan = true,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, buildNullableType { innerType = typeB })
+                typeA.putTypeArgument(t1, buildNullableType { innerType = typeB })
+                typeA
+            }
+            testTemplate0(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = false,
+                makeArgNullableIfCan = false,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, typeB)
+                typeA.putTypeArgument(t1, typeB)
+                typeA
+            }
+        }
+
+        @Test
+        fun genTypeArgOfUpperbound2() {
+            testTemplate0(
+                t0UpperboundNullable = false,
+                t1UpperboundNullable = true,
+                makeArgNullableIfCan = true,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, typeB)
+                typeA.putTypeArgument(t1, buildNullableType { innerType = typeB })
+                typeA
+            }
+            testTemplate0(
+                t0UpperboundNullable = false,
+                t1UpperboundNullable = true,
+                makeArgNullableIfCan = false,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, typeB)
+                typeA.putTypeArgument(t1, typeB)
+                typeA
+            }
+        }
+
+        @Test
+        fun genTypeArgOfUpperbound3() {
+            testTemplate0(
+                t0UpperboundNullable = false,
+                t1UpperboundNullable = false,
+                makeArgNullableIfCan = true,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, typeB)
+                typeA.putTypeArgument(t1, typeB)
+                typeA
+            }
+            testTemplate0(
+                t0UpperboundNullable = false,
+                t1UpperboundNullable = false,
+                makeArgNullableIfCan = false,
+            ) { t0, t1, typeA, typeB ->
+                typeA.putTypeArgument(t0, typeB)
+                typeA.putTypeArgument(t1, typeB)
+                typeA
+            }
+        }
+    }
 }

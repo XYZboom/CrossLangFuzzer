@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.TypeKind
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
@@ -20,17 +21,11 @@ import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.set
 import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
-import com.github.xyzboom.codesmith.printer.clazz.ParamType.*
+import com.github.xyzboom.codesmith.ir.TypeKind.*
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
-private enum class ParamType {
-    NotNull,
-    Nullable,
-    DNN,
-    Platform
-}
 
 class JavaIrClassPrinterTest {
     companion object {
@@ -394,7 +389,7 @@ class JavaIrClassPrinterTest {
          */
         private fun assertTemplate0(
             typeParameterUpperboundNullable: Boolean,
-            funcParamNullable: ParamType,
+            funcParamNullable: TypeKind,
             expectClassA: String,
             expectClassBWithTypeArgAny: String,
             expectClassBWithTypeArgNullableAny: String? = null,
@@ -747,7 +742,7 @@ class JavaIrClassPrinterTest {
          */
         private fun assertTemplate1(
             typeParameterUpperboundNullable: Boolean,
-            funcParamNullable: ParamType,
+            funcParamNullable: TypeKind,
             expectClassA: String,
             expectClassBWithTypeArgAny: String,
             expectClassBWithTypeArgNullableAny: String? = null
