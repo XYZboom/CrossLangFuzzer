@@ -246,7 +246,7 @@ class JavaIrClassPrinterTest {
          * open class B : A</*type arg*/> { ... }
          * ```
          */
-        private fun assertTemplate(
+        private fun assertTemplate0(
             typeParameterUpperboundNullable: Boolean,
             funcParamNullable: ParamType,
             expectClassA: String,
@@ -373,7 +373,7 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(@Nullable Object t);\n" +
                     "}\n"
-            assertTemplate(
+            assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = NotNull,
                 expectA,
@@ -399,7 +399,7 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@NotNull Object>  {\n" +
                     "    public abstract void func(@NotNull Object t);\n" +
                     "}\n"
-            assertTemplate(
+            assertTemplate0(
                 typeParameterUpperboundNullable = false,
                 funcParamNullable = NotNull,
                 expectA,
@@ -428,7 +428,7 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(@Nullable Object t);\n" +
                     "}\n"
-            assertTemplate(
+            assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = Nullable,
                 expectA,
@@ -454,7 +454,7 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@NotNull Object>  {\n" +
                     "    public abstract void func(@Nullable Object t);\n" +
                     "}\n"
-            assertTemplate(
+            assertTemplate0(
                 typeParameterUpperboundNullable = false,
                 funcParamNullable = Nullable,
                 expectA,
@@ -483,9 +483,39 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(@NotNull Object t);\n" +
                     "}\n"
-            assertTemplate(
+            assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = DNN,
+                expectA,
+                expectAnyB,
+                expectNullableAnyB
+            )
+        }
+
+        @Test
+        fun testUpperbound5() {
+            /**
+             * ```kt
+             * open class A<T: Any?> {
+             *     abstract fun func(t: T!)
+             * }
+             * ```
+             */
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T extends @Nullable Object> {\n" +
+                    "    public abstract void func(T t);\n" +
+                    "}\n"
+            val expectAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<@NotNull Object>  {\n" +
+                    "    public abstract void func(@NotNull Object t);\n" +
+                    "}\n"
+            val expectNullableAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<@Nullable Object>  {\n" +
+                    "    public abstract void func(Object t);\n" +
+                    "}\n"
+            assertTemplate0(
+                typeParameterUpperboundNullable = true,
+                funcParamNullable = Platform,
                 expectA,
                 expectAnyB,
                 expectNullableAnyB
