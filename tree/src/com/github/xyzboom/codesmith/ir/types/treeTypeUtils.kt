@@ -1,5 +1,3 @@
-@file:JvmName("treeTypeUtils")
-
 package com.github.xyzboom.codesmith.ir.types
 
 val IrType.notNullType: IrType
