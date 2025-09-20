@@ -424,6 +424,7 @@ open class IrDeclGenerator(
              *     fun func(a: A<T2, T2, MyClass>) {}
              * }
              * ```
+             * todo: A<Any, X1, ...> when gen X1, X1 can be subclass of Any.
              */
             val chooseType = notNullArgUpperbound as? IrTypeParameter
                 ?: (randomType(fromClasses, fromTypeParameters, false) {
