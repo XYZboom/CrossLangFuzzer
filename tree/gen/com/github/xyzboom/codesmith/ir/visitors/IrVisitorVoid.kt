@@ -138,6 +138,14 @@ abstract class IrVisitorVoid : IrVisitor<Unit, Nothing?>() {
         visitElement(type)
     }
 
+    final override fun visitTypeContainer(typeContainer: IrTypeContainer, data: Nothing?) {
+        visitTypeContainer(typeContainer)
+    }
+
+    open fun visitTypeContainer(typeContainer: IrTypeContainer) {
+        visitElement(typeContainer)
+    }
+
     final override fun visitNullableType(nullableType: IrNullableType, data: Nothing?) {
         visitNullableType(nullableType)
     }

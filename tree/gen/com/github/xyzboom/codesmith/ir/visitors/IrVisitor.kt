@@ -64,6 +64,9 @@ abstract class IrVisitor<out R, in D> {
     open fun visitType(type: IrType, data: D): R =
         visitElement(type, data)
 
+    open fun visitTypeContainer(typeContainer: IrTypeContainer, data: D): R =
+        visitElement(typeContainer, data)
+
     open fun visitNullableType(nullableType: IrNullableType, data: D): R =
         visitElement(nullableType, data)
 

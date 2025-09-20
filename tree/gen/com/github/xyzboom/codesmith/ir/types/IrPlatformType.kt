@@ -14,9 +14,9 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.platformType]
  */
-abstract class IrPlatformType : IrPureAbstractElement(), IrType {
+abstract class IrPlatformType : IrPureAbstractElement(), IrType, IrTypeContainer {
     abstract override val classKind: ClassKind
-    abstract var innerType: IrType
+    abstract override var innerType: IrType
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitPlatformType(this, data)
@@ -25,5 +25,5 @@ abstract class IrPlatformType : IrPureAbstractElement(), IrType {
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformPlatformType(this, data) as E
 
-    abstract fun <D> transformInnerType(transformer: IrTransformer<D>, data: D): IrPlatformType
+    abstract override fun <D> transformInnerType(transformer: IrTransformer<D>, data: D): IrPlatformType
 }
