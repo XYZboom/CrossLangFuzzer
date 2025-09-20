@@ -13,14 +13,23 @@ import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter.Companion.NULLABILITY_ANNOTATION_IMPORTS
+import com.github.xyzboom.codesmith.printer.clazz.ParamType.*
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+
+private enum class ParamType {
+    NotNull,
+    Nullable,
+    DNN,
+    Platform
+}
 
 class JavaIrClassPrinterTest {
     companion object {
@@ -228,7 +237,6 @@ class JavaIrClassPrinterTest {
 
     @Nested
     inner class TypeParameterTest {
-
         /**
          * ```kt
          * open class A</*type 1*/> {
@@ -237,11 +245,10 @@ class JavaIrClassPrinterTest {
          *
          * open class B : A</*type arg*/> { ... }
          * ```
-         * @param funcParamNullable true if type 2 is nullable. null if type 2 is DNN.
          */
-        fun assertTemplate(
+        private fun assertTemplate(
             typeParameterUpperboundNullable: Boolean,
-            funcParamNullable: Boolean?,
+            funcParamNullable: ParamType,
             expectClassA: String,
             expectClassBWithTypeArgAny: String,
             expectClassBWithTypeArgNullableAny: String? = null
@@ -254,9 +261,10 @@ class JavaIrClassPrinterTest {
             }
             val t = buildTypeParameter { name = "T"; this.upperbound = upperbound }
             val funcParamType = when (funcParamNullable) {
-                null -> buildDefinitelyNotNullType { innerType = t }
-                true -> buildNullableType { innerType = t }
-                false -> t
+                DNN -> buildDefinitelyNotNullType { innerType = t }
+                Nullable -> buildNullableType { innerType = t }
+                NotNull -> t
+                Platform -> buildPlatformType { innerType = t }
             }
             val classA = buildClassDeclaration {
                 name = "A"
@@ -367,7 +375,7 @@ class JavaIrClassPrinterTest {
                     "}\n"
             assertTemplate(
                 typeParameterUpperboundNullable = true,
-                funcParamNullable = false,
+                funcParamNullable = NotNull,
                 expectA,
                 expectAnyB,
                 expectNullableAnyB
@@ -393,7 +401,7 @@ class JavaIrClassPrinterTest {
                     "}\n"
             assertTemplate(
                 typeParameterUpperboundNullable = false,
-                funcParamNullable = false,
+                funcParamNullable = NotNull,
                 expectA,
                 expectAnyB
             )
@@ -422,7 +430,7 @@ class JavaIrClassPrinterTest {
                     "}\n"
             assertTemplate(
                 typeParameterUpperboundNullable = true,
-                funcParamNullable = true,
+                funcParamNullable = Nullable,
                 expectA,
                 expectAnyB,
                 expectNullableAnyB
@@ -448,7 +456,7 @@ class JavaIrClassPrinterTest {
                     "}\n"
             assertTemplate(
                 typeParameterUpperboundNullable = false,
-                funcParamNullable = true,
+                funcParamNullable = Nullable,
                 expectA,
                 expectAnyB
             )
@@ -477,7 +485,7 @@ class JavaIrClassPrinterTest {
                     "}\n"
             assertTemplate(
                 typeParameterUpperboundNullable = true,
-                funcParamNullable = null,
+                funcParamNullable = DNN,
                 expectA,
                 expectAnyB,
                 expectNullableAnyB
