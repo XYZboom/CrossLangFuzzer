@@ -237,6 +237,7 @@ class JavaIrClassPrinterTest {
 
     @Nested
     inner class TypeParameterTest {
+        //<editor-fold desc="Template0">
         /**
          * ```kt
          * open class A</*type 1*/> {
@@ -251,7 +252,8 @@ class JavaIrClassPrinterTest {
             funcParamNullable: ParamType,
             expectClassA: String,
             expectClassBWithTypeArgAny: String,
-            expectClassBWithTypeArgNullableAny: String? = null
+            expectClassBWithTypeArgNullableAny: String? = null,
+            expectClassBWithTypeArgPlatformAny: String? = null,
         ) {
             val printer = JavaIrClassPrinter()
             val upperbound = if (typeParameterUpperboundNullable) {
@@ -288,7 +290,7 @@ class JavaIrClassPrinterTest {
                 /**
                  * ```kt
                  * class B : A<Any> {
-                 *     override fun func(t: Any)
+                 *     override fun func(t: /*type 2*/)
                  * }
                  * ```
                  */
@@ -321,7 +323,7 @@ class JavaIrClassPrinterTest {
                 /**
                  * ```kt
                  * class B : A<Any?> {
-                 *     override fun func(t: Any?)
+                 *     override fun func(t: /*type 2*/)
                  * }
                  * ```
                  */
@@ -334,6 +336,39 @@ class JavaIrClassPrinterTest {
                     }
                     allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
                         put(IrTypeParameterName(t.name), t to buildNullableType { innerType = IrAny })
+                    }
+                }
+
+                val funcInB = buildFunctionDeclaration {
+                    name = "func"
+                    parameterList = buildParameterList()
+                    parameterList.parameters.add(buildParameter {
+                        name = "t"
+                        type = funcParamType
+                    })
+                    printNullableAnnotations = true
+                }
+                classB.functions.add(funcInB)
+                val resultB = printer.print(classB)
+                assertEquals(it, resultB)
+            }
+            expectClassBWithTypeArgPlatformAny?.let {
+                /**
+                 * ```kt
+                 * class B : A<Any!> {
+                 *     override fun func(t: /*type 2*/)
+                 * }
+                 * ```
+                 */
+                val classB = buildClassDeclaration {
+                    name = "B"
+                    classKind = ClassKind.FINAL
+                    superType = classA.type.apply {
+                        this as IrParameterizedClassifier
+                        putTypeArgument(t, buildPlatformType { innerType = IrAny })
+                    }
+                    allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {
+                        put(IrTypeParameterName(t.name), t to buildPlatformType { innerType = IrAny })
                     }
                 }
 
@@ -373,12 +408,17 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(@Nullable Object t);\n" +
                     "}\n"
+            val expectPlatformAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<Object>  {\n" +
+                    "    public abstract void func(Object t);\n" +
+                    "}\n"
             assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = NotNull,
                 expectA,
                 expectAnyB,
-                expectNullableAnyB
+                expectNullableAnyB,
+                expectPlatformAnyB
             )
         }
 
@@ -399,11 +439,16 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@NotNull Object>  {\n" +
                     "    public abstract void func(@NotNull Object t);\n" +
                     "}\n"
+            val expectPlatformAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<Object>  {\n" +
+                    "    public abstract void func(Object t);\n" +
+                    "}\n"
             assertTemplate0(
                 typeParameterUpperboundNullable = false,
                 funcParamNullable = NotNull,
                 expectA,
-                expectAnyB
+                expectAnyB,
+                expectClassBWithTypeArgPlatformAny = expectPlatformAnyB
             )
         }
 
@@ -428,12 +473,17 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(@Nullable Object t);\n" +
                     "}\n"
+            val expectPlatformAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<Object>  {\n" +
+                    "    public abstract void func(@Nullable Object t);\n" +
+                    "}\n"
             assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = Nullable,
                 expectA,
                 expectAnyB,
-                expectNullableAnyB
+                expectNullableAnyB,
+                expectPlatformAnyB
             )
         }
 
@@ -454,11 +504,16 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@NotNull Object>  {\n" +
                     "    public abstract void func(@Nullable Object t);\n" +
                     "}\n"
+            val expectPlatformAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<Object>  {\n" +
+                    "    public abstract void func(@Nullable Object t);\n" +
+                    "}\n"
             assertTemplate0(
                 typeParameterUpperboundNullable = false,
                 funcParamNullable = Nullable,
                 expectA,
-                expectAnyB
+                expectAnyB,
+                expectClassBWithTypeArgPlatformAny = expectPlatformAnyB
             )
         }
 
@@ -483,12 +538,17 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(@NotNull Object t);\n" +
                     "}\n"
+            val expectPlatformAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<Object>  {\n" +
+                    "    public abstract void func(@NotNull Object t);\n" +
+                    "}\n"
             assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = DNN,
                 expectA,
                 expectAnyB,
-                expectNullableAnyB
+                expectNullableAnyB,
+                expectPlatformAnyB
             )
         }
 
@@ -513,12 +573,17 @@ class JavaIrClassPrinterTest {
                     "public final class B extends A<@Nullable Object>  {\n" +
                     "    public abstract void func(Object t);\n" +
                     "}\n"
+            val expectPlatformAnyB = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public final class B extends A<Object>  {\n" +
+                    "    public abstract void func(Object t);\n" +
+                    "}\n"
             assertTemplate0(
                 typeParameterUpperboundNullable = true,
                 funcParamNullable = Platform,
                 expectA,
                 expectAnyB,
-                expectNullableAnyB
+                expectNullableAnyB,
+                expectPlatformAnyB
             )
         }
     }
