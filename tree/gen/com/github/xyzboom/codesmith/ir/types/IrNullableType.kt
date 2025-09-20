@@ -14,9 +14,9 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.nullableType]
  */
-abstract class IrNullableType : IrPureAbstractElement(), IrType {
+abstract class IrNullableType : IrPureAbstractElement(), IrType, IrTypeContainer {
     abstract override val classKind: ClassKind
-    abstract var innerType: IrType
+    abstract override var innerType: IrType
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitNullableType(this, data)
@@ -25,5 +25,5 @@ abstract class IrNullableType : IrPureAbstractElement(), IrType {
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformNullableType(this, data) as E
 
-    abstract fun <D> transformInnerType(transformer: IrTransformer<D>, data: D): IrNullableType
+    abstract override fun <D> transformInnerType(transformer: IrTransformer<D>, data: D): IrNullableType
 }

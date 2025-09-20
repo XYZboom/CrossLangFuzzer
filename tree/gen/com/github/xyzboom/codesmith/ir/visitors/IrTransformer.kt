@@ -138,6 +138,14 @@ abstract class IrTransformer<in D> : IrVisitor<IrElement, D>() {
         return transformType(type, data)
     }
 
+    open fun transformTypeContainer(typeContainer: IrTypeContainer, data: D): IrTypeContainer {
+        return transformElement(typeContainer, data)
+    }
+
+    final override fun visitTypeContainer(typeContainer: IrTypeContainer, data: D): IrTypeContainer {
+        return transformTypeContainer(typeContainer, data)
+    }
+
     open fun transformNullableType(nullableType: IrNullableType, data: D): IrType {
         return transformElement(nullableType, data)
     }

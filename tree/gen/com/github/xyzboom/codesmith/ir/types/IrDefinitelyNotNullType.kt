@@ -14,9 +14,9 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.definitelyNotNullType]
  */
-abstract class IrDefinitelyNotNullType : IrPureAbstractElement(), IrType {
+abstract class IrDefinitelyNotNullType : IrPureAbstractElement(), IrType, IrTypeContainer {
     abstract override val classKind: ClassKind
-    abstract var innerType: IrTypeParameter
+    abstract override var innerType: IrTypeParameter
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitDefinitelyNotNullType(this, data)
@@ -25,5 +25,5 @@ abstract class IrDefinitelyNotNullType : IrPureAbstractElement(), IrType {
     override fun <E : IrElement, D> transform(transformer: IrTransformer<D>, data: D): E =
         transformer.transformDefinitelyNotNullType(this, data) as E
 
-    abstract fun <D> transformInnerType(transformer: IrTransformer<D>, data: D): IrDefinitelyNotNullType
+    abstract override fun <D> transformInnerType(transformer: IrTransformer<D>, data: D): IrDefinitelyNotNullType
 }

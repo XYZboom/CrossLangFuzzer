@@ -98,22 +98,28 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +field("classKind", classKindType, withReplace = false, withTransform = false, isChild = false, isMutable = false)
     }
 
+    val typeContainer: Element by element(Element.Kind.Type, name = "TypeContainer") {
+        +field("innerType", type, isMutable = false)
+    }
+
     val nullableType: Element by element(Element.Kind.Type, name = "NullableType") {
         parent(type)
-
-        +field("innerType", type)
+        parent(typeContainer)
+        // make innerType mutable
+        +field("innerType", type, isMutable = true)
     }
 
     val platformType: Element by element(Element.Kind.Type, name = "PlatformType") {
         parent(type)
-
-        +field("innerType", type)
+        parent(typeContainer)
+        // make innerType mutable
+        +field("innerType", type, isMutable = true)
     }
 
     val definitelyNotNullType: Element by element(Element.Kind.Type, name = "DefinitelyNotNullType") {
         parent(type)
-
-        +field("innerType", typeParameter)
+        parent(typeContainer)
+        +field("innerType", typeParameter, isMutable = true)
     }
 
     val typeParameter: Element by element(Element.Kind.Type, name = "TypeParameter") {
