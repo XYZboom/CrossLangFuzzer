@@ -1,16 +1,12 @@
 package com.github.xyzboom.codesmith.types
 
-import com.github.xyzboom.codesmith.ir.ClassKind
-import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
-import com.github.xyzboom.codesmith.ir.types.notPlatformType
 import com.github.xyzboom.codesmith.ir.types.set
-import com.github.xyzboom.codesmith.ir.types.type
 import io.kotest.matchers.types.shouldBeSameInstanceAs
 import org.junit.jupiter.api.Test
 
@@ -37,9 +33,5 @@ class TypeUtilsTest {
         }
         val getArg = getActualTypeFromArguments(t0, typeArgs, false)
         getArg shouldBeSameInstanceAs t1
-        buildClassDeclaration {
-            name = ""
-            classKind = ClassKind.OPEN
-        }.type.notPlatformType
     }
 }
