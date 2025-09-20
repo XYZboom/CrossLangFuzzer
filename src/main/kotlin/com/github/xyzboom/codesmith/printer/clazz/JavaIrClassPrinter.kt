@@ -132,6 +132,18 @@ class JavaIrClassPrinter(
                 result
             }
 
+            is IrPlatformType -> {
+                /**
+                 * Since we are going to print [IrPlatformType.innerType], so we close all nullability annotation
+                 */
+                val result = printType(
+                    irType.innerType,
+                    typeContext = typeContext,
+                    noNullabilityAnnotation = true,
+                )
+                result
+            }
+
             is IrBuiltInType -> chooseTypeMap[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 
@@ -173,7 +185,8 @@ class JavaIrClassPrinter(
         }
         val finalAnnotationStr =
             if (noNullabilityAnnotation || typeStr == "void" ||
-                (irType is IrTypeParameter && irType.upperbound is IrNullableType)
+                (irType is IrTypeParameter && irType.upperbound is IrNullableType) ||
+                irType is IrPlatformType
             ) {
                 ""
             } else "$annotationStr "
