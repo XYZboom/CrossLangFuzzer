@@ -182,7 +182,7 @@ class JavaIrClassPrinter(
         }
         val finalAnnotationStr =
             if (noNullabilityAnnotation || typeStr == "void" ||
-                (irType is IrTypeParameter && irType.upperbound is IrNullableType) ||
+                (irType is IrTypeParameter && irType.deepUpperboundNullable()) ||
                 irType is IrPlatformType
             ) {
                 ""

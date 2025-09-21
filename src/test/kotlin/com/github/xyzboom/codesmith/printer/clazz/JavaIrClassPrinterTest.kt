@@ -841,6 +841,7 @@ class JavaIrClassPrinterTest {
             }
         }
 
+        //<editor-fold desc="Template1 Nullable Parameter">
         @Test
         fun testTemplate1Upperbound0() {
             val expectA = NULLABILITY_ANNOTATION_IMPORTS +
@@ -1184,7 +1185,264 @@ class JavaIrClassPrinterTest {
             )
         }
 
+        @Test
+        fun testTemplate1Upperbound4() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @NotNull Object, T1 extends @NotNull T0> {\n" +
+                    "    public abstract void func(@Nullable T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = false,
+                t1UpperboundNullable = false,
+                Nullable,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
+        //</editor-fold>
+
+        //<editor-fold desc="Template1 Nullable Parameter">
+        @Test
+        fun testTemplate1Upperbound5() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @Nullable Object, T1 extends @Nullable T0> {\n" +
+                    "    public abstract void func(T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = true,
+                NotNull,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@NotNull Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@NotNull Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@NotNull Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
+
+        @Test
+        fun testTemplate1Upperbound6() {
+            val expectA = NULLABILITY_ANNOTATION_IMPORTS +
+                    "public class A<T0 extends @Nullable Object, T1 extends T0> {\n" +
+                    "    public abstract void func(T1 t);\n" +
+                    "}\n"
+            assertTemplate1(
+                t0UpperboundNullable = true,
+                t1UpperboundNullable = false,
+                NotNull,
+                expectA,
+                arrayOf(
+                    arrayOf(
+                        """
+                        |public final class B extends A<@NotNull Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@NotNull Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@NotNull Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(Object t);
+                        |}
+                        |
+                        """.trimMargin()
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<@Nullable Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@NotNull Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<@Nullable Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    ),
+                    arrayOf(
+                        """
+                        |public final class B extends A<Object, @NotNull Object>  {
+                        |    @Override
+                        |    public abstract void func(@NotNull Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, @Nullable Object>  {
+                        |    @Override
+                        |    public abstract void func(@Nullable Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                        """
+                        |public final class B extends A<Object, Object>  {
+                        |    @Override
+                        |    public abstract void func(Object t);
+                        |}
+                        |
+                        """.trimMargin(),
+                    )
+                )
+            )
+        }
         // todo finish other template1
+        //</editor-fold>
         //</editor-fold>
     }
 //

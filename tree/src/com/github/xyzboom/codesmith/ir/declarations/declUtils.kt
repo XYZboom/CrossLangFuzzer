@@ -45,7 +45,10 @@ fun StringBuilder.traceFunc(target: IrFunctionDeclaration) {
     append("parameters: ")
     for (param in target.parameterList.parameters) {
         append(param.render())
+        append(", ")
     }
+    append("returns: ")
+    append(target.returnType.render())
 }
 
 fun IrFunctionDeclaration.traverseOverride(

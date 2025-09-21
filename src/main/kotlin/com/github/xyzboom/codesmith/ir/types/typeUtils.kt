@@ -213,3 +213,32 @@ val IrClassDeclaration.type: IrClassifier
             })
         }
     }
+
+/**
+ * ```kt
+ * class A<T0: Any?, T1: T0> {
+ *     //            ^^
+ *     // the upperbound of T1 is not IrNullableType
+ *     // but we could not say parameter `t` is DNN
+ *     fun func(t: T1)
+ * }
+ * ```
+ * ```java
+ * class A<T0 extends @Nullable Object, T1 extend T0> {
+ *     public void func(T1 t);
+ *     //               ^^
+ *     // if we make `T1` into `@NotNull T1`, the type of `t` will be DNN
+ *     // which is not correct.
+ * }
+ * ```
+ */
+fun IrTypeParameter.deepUpperboundNullable(): Boolean {
+    val upperbound = upperbound
+    if (upperbound is IrNullableType) {
+        return true
+    }
+    if (upperbound is IrTypeParameter) {
+        return upperbound.deepUpperboundNullable()
+    }
+    return false
+}

@@ -46,6 +46,20 @@ class IrSubTypeTest {
                     true
                 )
                 result.add(args3)
+                run {
+                    val t0 = buildTypeParameter { name = "T0"; upperbound = buildNullableType { innerType = IrAny } }
+                    val t1 = buildTypeParameter { name = "T1"; upperbound = t0 }
+                    val t2 = buildTypeParameter { name = "T2"; upperbound = IrAny }
+                    val t3 = buildTypeParameter { name = "T3"; upperbound = t2 }
+                    val args4 = Arguments.of(generator0, t3, t1, false)
+                    result.add(args4)
+                }
+                run {
+                    val t0 = buildTypeParameter { name = "T0"; upperbound = buildNullableType { innerType = IrAny } }
+                    val t1 = buildTypeParameter { name = "T1"; upperbound = t0 }
+                    val args4 = Arguments.of(generator0, IrAny, t1, false)
+                    result.add(args4)
+                }
             }
         }
     }

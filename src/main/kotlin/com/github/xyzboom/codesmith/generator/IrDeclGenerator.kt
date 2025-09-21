@@ -90,7 +90,12 @@ open class IrDeclGenerator(
             return if (this !is IrTypeParameter) {
                 this !is IrNullableType
             } else {
-                this.upperbound !is IrNullableType
+                /**
+                 * T0: Any?
+                 * T1: T0
+                 * T1 is not subType of Any
+                 */
+                !this.deepUpperboundNullable()
             }
         }
         if (this === IrNothing) {
@@ -390,11 +395,20 @@ open class IrDeclGenerator(
     fun genTypeArguments(
         fromClasses: List<IrClassDeclaration>,
         fromTypeParameters: List<IrTypeParameter>,
-        superType: IrParameterizedClassifier
+        targetType: IrParameterizedClassifier
     ) {
         val recordedChosen = mutableMapOf<IrTypeParameterName, IrType>()
-        fun getTypeArg(typeParam: IrTypeParameter): IrType {
-            if (superType.classDecl.typeParameters.all { it.name != typeParam.name }) {
+
+        /**
+         * ```kt
+         * class A<T0, T1: T0, T2>
+         * ```
+         * Consuming we have replaced `T1` with `B`,
+         * and we are considering `T2` in the second loop.
+         * now we can call [getGeneratedTypeArg] passing `T1` and get `B`.
+         */
+        fun getGeneratedTypeArg(typeParam: IrTypeParameter): IrType {
+            if (targetType.classDecl.typeParameters.all { it.name != typeParam.name }) {
                 return typeParam
             }
             val record = recordedChosen[IrTypeParameterName(typeParam.name)]
@@ -403,10 +417,10 @@ open class IrDeclGenerator(
                 recordedChosen[IrTypeParameterName(record.name)] ?: record.upperbound.notNullType
             } else record
         }
-        for (superTypeParam in superType.classDecl.typeParameters) {
-            val superUpperbound = superTypeParam.upperbound
-            val notNullUpperbound = superUpperbound.notNullType
-            val argUpperbound = getTypeArg(superTypeParam)
+        for (typeParamInTarget in targetType.classDecl.typeParameters) {
+            val upperboundInTarget = typeParamInTarget.upperbound
+            val notNullUpperbound = upperboundInTarget.notNullType
+            val argUpperbound = getGeneratedTypeArg(typeParamInTarget)
             val notNullArgUpperbound = argUpperbound.notNullType
 
             /**
@@ -459,7 +473,7 @@ open class IrDeclGenerator(
                             && (it !is IrTypeParameter || notNullUpperbound !is IrTypeParameter)
                 } ?: run {
                     logger.trace {
-                        "choose default upperbound as the argument of ${superTypeParam.render()}"
+                        "choose default upperbound as the argument of ${typeParamInTarget.render()}"
                     }
                     /*
                     val defaultArg = argUpperbound.copy()
@@ -470,17 +484,17 @@ open class IrDeclGenerator(
                     }*/
                     argUpperbound.copy()
                 })
-            val makeNullable = if (superUpperbound is IrNullableType &&
+            val makeNullable = if (upperboundInTarget is IrNullableType &&
                 !random.nextBoolean(config.notNullTypeArgForNullableUpperboundProbability)
             ) {
-                logger.trace { "make nullable (type parameter ${superTypeParam.render()} upperbound is nullable)" }
+                logger.trace { "make nullable (type parameter ${typeParamInTarget.render()} upperbound is nullable)" }
                 buildNullableType { innerType = chooseType }
             } else {
                 chooseType
             }
-            logger.trace { "choose ${makeNullable.render()} as the the argument of ${superTypeParam.render()}" }
-            recordedChosen[IrTypeParameterName(superTypeParam.name)] = makeNullable
-            superType.putTypeArgument(superTypeParam, makeNullable)
+            logger.trace { "choose ${makeNullable.render()} as the the argument of ${typeParamInTarget.render()}" }
+            recordedChosen[IrTypeParameterName(typeParamInTarget.name)] = makeNullable
+            targetType.putTypeArgument(typeParamInTarget, makeNullable)
         }
     }
 
@@ -707,6 +721,12 @@ open class IrDeclGenerator(
             }
         }
         functions.add(function)
+        logger.trace {
+            val sb = StringBuilder("finish gen override function.\n")
+            sb.traceFunc(function)
+            sb.append("\n")
+            sb.toString()
+        }
     }
 
     fun genFunctionParameter(
