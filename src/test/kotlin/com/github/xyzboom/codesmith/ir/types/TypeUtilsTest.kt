@@ -1,12 +1,7 @@
-package com.github.xyzboom.codesmith.types
+package com.github.xyzboom.codesmith.ir.types
 
-import com.github.xyzboom.codesmith.ir.types.IrType
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
-import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
-import com.github.xyzboom.codesmith.ir.types.set
 import io.kotest.matchers.types.shouldBeSameInstanceAs
 import org.junit.jupiter.api.Test
 
