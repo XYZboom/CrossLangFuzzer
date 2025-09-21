@@ -137,7 +137,16 @@ class JavaIrClassPrinter(
                  * Since we are going to print [IrPlatformType.innerType], so we close all nullability annotation
                  */
                 val result = printType(
-                    irType.innerType,
+                    /**
+                     * ```kt
+                     * class A<T: Any?> {
+                     *     fun foo(t: T!)
+                     * }
+                     * ```
+                     * `A<Any>::foo::t` is `Any`, not `Any!`
+                     * `A<Any?>::foo::t` is `Any?!` and is `Any!` in Java but is `Any?` in Kotlin.
+                     */
+                    irType.innerType.notNullType,
                     typeContext = typeContext,
                     noNullabilityAnnotation = true,
                 )

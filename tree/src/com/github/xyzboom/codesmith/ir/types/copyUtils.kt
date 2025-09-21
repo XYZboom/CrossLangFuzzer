@@ -11,6 +11,18 @@ fun IrTypeParameter.copy(): IrTypeParameter {
     }
 }
 
+fun IrParameterizedClassifier.copy(): IrParameterizedClassifier {
+    return buildParameterizedClassifier {
+        classDecl = this@copy.classDecl
+        arguments = HashMap()
+        for ((typeParameterName, pair) in this@copy.arguments) {
+            val (typeParameter, typeArgument) = pair
+            val newTypeParameter = typeParameter.copy()
+            arguments[typeParameterName] = newTypeParameter to typeArgument?.copy()
+        }
+    }
+}
+
 fun IrType.copy(): IrType {
     return when (this) {
         is IrNullableType -> buildNullableType {
@@ -18,17 +30,7 @@ fun IrType.copy(): IrType {
         }
 
         is IrTypeParameter -> copy()
-
-        is IrParameterizedClassifier -> buildParameterizedClassifier {
-            classDecl = this@copy.classDecl
-            arguments = HashMap()
-            for ((typeParameterName, pair) in this@copy.arguments) {
-                val (typeParameter, typeArgument) = pair
-                val newTypeParameter = typeParameter.copy()
-                arguments[typeParameterName] = newTypeParameter to typeArgument?.copy()
-            }
-        }
-
+        is IrParameterizedClassifier -> copy()
         else -> this
     }
 }

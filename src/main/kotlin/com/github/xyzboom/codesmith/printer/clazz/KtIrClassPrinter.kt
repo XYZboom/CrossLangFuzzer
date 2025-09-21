@@ -87,6 +87,27 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
                 "${irType.name} : ${printType(irType.upperbound)}"
             }
 
+            /**
+             * ```kt
+             * class A<T: Any?> {
+             *     fun foo(t: T!)
+             * }
+             * ```
+             * `A<Any>::foo::t` is `Any`, not `Any!`
+             * `A<Any?>::foo::t` is `Any?!` and is `Any!` in Java but is `Any?` in Kotlin.
+             */
+            is IrPlatformType -> printTypeDirectly(
+                irType.innerType,
+                typeContext,
+                noNullabilityAnnotation
+            )
+
+            is IrDefinitelyNotNullType -> printTypeDirectly(
+                irType.innerType,
+                typeContext,
+                noNullabilityAnnotation
+            ) + " & Any"
+
             else -> throw NoWhenBranchMatchedException()
         }
     }
