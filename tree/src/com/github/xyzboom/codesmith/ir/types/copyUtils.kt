@@ -24,10 +24,7 @@ fun IrType.copy(): IrType {
             arguments = HashMap()
             for ((typeParameterName, pair) in this@copy.arguments) {
                 val (typeParameter, typeArgument) = pair
-                val newTypeParameter = buildTypeParameter {
-                    name = typeParameterName.value
-                    upperbound = typeParameter.upperbound
-                }
+                val newTypeParameter = typeParameter.copy()
                 arguments[typeParameterName] = newTypeParameter to typeArgument?.copy()
             }
         }
