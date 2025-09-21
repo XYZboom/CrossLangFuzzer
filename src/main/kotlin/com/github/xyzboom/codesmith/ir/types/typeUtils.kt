@@ -75,7 +75,14 @@ fun IrParameterizedClassifier.putAllTypeArguments(
             if (args.containsKey(typeArgAsTypeParameterName)) {
                 val replaceWith = args[typeArgAsTypeParameterName]!!
                 logger.trace { "replace ${typeParam.render()} with ${replaceWith.second.render()}" }
-                putTypeArgument(typeParam, replaceWith.second)
+                putTypeArgument(
+                    typeParam,
+                    if (typeArg is IrNullableType) {
+                        buildNullableType { innerType = replaceWith.second }
+                    } else {
+                        replaceWith.second
+                    }
+                )
             }
         }
     }
@@ -135,7 +142,7 @@ fun getActualTypeFromArguments(
         val oriInner = oriType.innerType
         val typeArg = getActualTypeFromArguments(oriInner, typeArguments, onlyValue)
         if (typeArg is IrTypeParameter) {
-            return if (typeArg.upperbound is IrNullableType) {
+            return if (typeArg.deepUpperboundNullable()) {
                 buildPlatformType { innerType = typeArg }
             } else {
                 typeArg
@@ -147,19 +154,24 @@ fun getActualTypeFromArguments(
          *     fun foo(t: T!)
          * }
          * ```
-         * `A<Any>::foo::t` is `Any`, not `Any!`
-         * `A<Any?>::foo::t` and `A<Any!>::foo::t` is `Any!`
+         * 1. `A<Any>::foo::t` is `Any`, not `Any!`
+         * 2. `A<Any?>::foo::t` is different in Kotlin and Java.
+         *    `A<Any?>::foo::t` in Kotlin is `Any?`
+         *    `A<Any?>::foo::t` in Java is `Any!`
+         * 3. `A<Any!>::foo::t` is `Any!`
          */
-        if (oriInner is IrTypeParameter && oriInner.upperbound is IrNullableType) {
+        if (oriInner is IrTypeParameter && oriInner.deepUpperboundNullable()) {
             return if (typeArg is IrNullableType || typeArg is IrPlatformType) {
-                buildPlatformType {  innerType = typeArg.innerType }
+                buildPlatformType { innerType = typeArg }
             } else {
                 typeArg.notPlatformType
             }
         }
     }
     if (oriType is IrParameterizedClassifier) {
-        oriType.putAllTypeArguments(typeArguments, onlyValue)
+        return oriType.copy().apply {
+            putAllTypeArguments(typeArguments, onlyValue)
+        }
     }
     return oriType
 }
