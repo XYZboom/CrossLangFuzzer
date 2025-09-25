@@ -25,7 +25,8 @@ kotlin {
     jvmToolchain(11)
 }
 
-tasks.withType<JavaExec> {
+tasks.named<JavaExec>("run") {
+    workingDir = rootDir
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(11)
     }

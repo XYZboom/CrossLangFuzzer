@@ -1,11 +1,14 @@
 package com.github.xyzboom.codesmith.kotlin
 
 import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ICompiler
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import org.jetbrains.kotlin.test.TestJdkKind
 import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import java.io.File
 
-interface IKotlinCompilerTest {
+interface IKotlinCompiler : ICompiler {
     val jdk: TestJdkKind
     fun testProgram(fileContent: String): CompileResult {
         val tempFile = File.createTempFile("code-smith", ".kt")
@@ -22,11 +25,16 @@ interface IKotlinCompilerTest {
     fun runTest(filePath: String)
     fun initTestInfo(testInfo: KotlinTestInfo)
 
-    interface IJDK8Test: IKotlinCompilerTest {
+    interface IJDK8Compiler: IKotlinCompiler {
         override val jdk: TestJdkKind get() = TestJdkKind.FULL_JDK
     }
 
-    interface IJDK17Test: IKotlinCompilerTest {
+    interface IJDK17Compiler: IKotlinCompiler {
         override val jdk: TestJdkKind get() = TestJdkKind.FULL_JDK_17
+    }
+
+    override fun compile(program: IrProgram): CompileResult {
+        val fileContent = IrProgramPrinter().printToSingle(program)
+        return testProgram(fileContent)
     }
 }

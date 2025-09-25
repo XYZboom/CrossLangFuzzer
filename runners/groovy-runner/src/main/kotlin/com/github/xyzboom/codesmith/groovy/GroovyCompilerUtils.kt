@@ -1,11 +1,13 @@
 package com.github.xyzboom.codesmith.groovy
 
 import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.listResourceFiles
 import com.github.xyzboom.codesmith.newTempPath
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
 import java.lang.reflect.InvocationTargetException
@@ -17,7 +19,7 @@ import kotlin.io.path.pathString
 
 class GroovyCompilerWrapper internal constructor(
     val version: String
-) {
+): ICompiler {
     companion object {
         // key: version, value: resource path
         val groovyJarsWithVersion: Map<String, String> = listResourceFiles("groovyJars").associateBy {
@@ -51,12 +53,10 @@ class GroovyCompilerWrapper internal constructor(
     private val fsc = classLoader.loadClass("org.codehaus.groovy.tools.FileSystemCompiler")
     private val commandLineCompileMethod = fsc.getMethod("commandLineCompile", Array<String>::class.java)
 
-    fun compileGroovyWithJava(
-        printer: IrProgramPrinter,
-        program: IrProgram
-    ): CompileResult {
+    override fun compile(program: IrProgram): CompileResult {
+        val printer = IrProgramPrinter(majorLanguage = language)
         val tempPath = newTempPath()
-        val outDir = File(tempPath, "out-scala3").mkdirsIfNotExists()
+        val outDir = File(tempPath, "out-groovy").mkdirsIfNotExists()
         val fileMap = printer.print(program)
         printer.saveFileMap(fileMap, tempPath)
         val allSourceFiles = fileMap.map { Path(tempPath, it.key).pathString }
@@ -75,6 +75,7 @@ class GroovyCompilerWrapper internal constructor(
         } catch (e: InvocationTargetException) {
             e.cause!!.message
         }
+        File(tempPath).deleteRecursively()
         if (groovyResult == null) {
             return CompileResult(versionStr, null, null)
         }

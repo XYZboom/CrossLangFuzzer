@@ -11,9 +11,9 @@ import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.setMajorLanguage
+import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
-import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.tempDir
 import kotlin.system.exitProcess
@@ -31,7 +31,9 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         groovyVersions.map { GroovyCompilerWrapper(it) }
     }
 
-    override fun run() {
+    private val minimizeRunner = MinimizeRunnerImpl(this)
+
+    override fun runnerMain() {
         val doOneRoundFunction: () -> Unit
         if (differentialTesting) {
             if (groovyVersions.size <= 1) {
@@ -42,7 +44,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         } else {
             doOneRoundFunction = ::doOneRound
         }
-        println("start at: ${tempDir}")
+        println("start at: $tempDir")
         var i = 0
         while (true) {
             val dur = measureTime { doOneRoundFunction() }
@@ -50,12 +52,10 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         }
     }
 
-        private fun runDifferential(
+    private fun runDifferential(
         groovyCompilers: List<GroovyCompilerWrapper>,
         generator: IrDeclGenerator,
-        printer: IrProgramPrinter,
-        program: IrProgram,
-        stopOnErrors: Boolean
+        program: IrProgram
     ) {
         val compileResults = groovyCompilers.map { compiler ->
             if (compiler.isGroovy5) {
@@ -65,12 +65,19 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             }
             // Due to the compatibility between Groovy syntax and Java,
             // it is reasonable to conduct differential testing directly using the 'shuffle language'
-            generator.shuffleLanguage(program)
-            compiler.compileGroovyWithJava(printer, program)
+//            generator.shuffleLanguage(program)
+            compiler.compile(program)
         }
 
         if (compileResults.toSet().size != 1) {
-            recordCompileResult(Language.GROOVY4, program, compileResults)
+            val (minimize, minResult) = try {
+                minimizeRunner.minimize(program, compileResults, groovyCompilers)
+            } catch (_: Throwable) {
+                null to null
+            }
+            recordCompileResult(
+                Language.GROOVY4, program, compileResults, minimize, minResult, outDir = nonSimilarOutDir
+            )
             if (stopOnErrors) {
                 exitProcess(-1)
             }
@@ -78,19 +85,14 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
     }
 
     private fun doDifferentialTestingOneRound() {
-        val printer = IrProgramPrinter(Language.GROOVY4)
         val generator = IrDeclGenerator(
-            GeneratorConfig(
-                classMemberIsPropertyWeight = 0,
-                allowUnitInTypeArgument = true,
-                printJavaNullableAnnotationProbability = 0f
-            ),
+            runConfig.generatorConfig,
             majorLanguage = Language.GROOVY4,
         )
         val program = generator.genProgram()
-        repeat(langShuffleTimesBeforeMutate) {
+        repeat(runConfig.langShuffleTimesBeforeMutate) {
             run normalDifferential@{
-                runDifferential(groovyCompilers, generator, printer, program, stopOnErrors)
+                runDifferential(groovyCompilers, generator, program)
             }
             generator.shuffleLanguage(program)
         }
@@ -104,9 +106,9 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             )
         )
         if (mutator.mutate(program)) {
-            repeat(langShuffleTimesAfterMutate) {
+            repeat(runConfig.langShuffleTimesAfterMutate) {
                 run mutatedDifferential@{
-                    runDifferential(groovyCompilers, generator, printer, program, stopOnErrors)
+                    runDifferential(groovyCompilers, generator, program)
                 }
                 generator.shuffleLanguage(program)
             }
@@ -115,18 +117,13 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private fun doOneRound() {
         for (groovyCompiler in groovyCompilers) {
-            val printer = IrProgramPrinter(groovyCompiler.language)
             val generator = IrDeclGenerator(
-                GeneratorConfig(
-                    classMemberIsPropertyWeight = 0,
-                    allowUnitInTypeArgument = true,
-                    printJavaNullableAnnotationProbability = 0f
-                ),
+                runConfig.generatorConfig,
                 majorLanguage = groovyCompiler.language,
             )
             val program = generator.genProgram()
-            repeat(langShuffleTimesBeforeMutate) {
-                val compileResult = groovyCompiler.compileGroovyWithJava(printer, program)
+            repeat(runConfig.langShuffleTimesBeforeMutate) {
+                val compileResult = groovyCompiler.compile(program)
                 if (!compileResult.success) {
                     recordCompileResult(
                         groovyCompiler.language,
