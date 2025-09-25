@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.kotlin
 import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
@@ -57,7 +58,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
-    object K2Jdk8Test : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK8Test {
+    object K2Jdk8Compiler : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompiler.IJDK8Compiler {
         init {
             initTestInfo(testInfo)
         }
@@ -72,7 +73,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
-    object K2Jdk17Test : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
+    object K2Jdk17Compiler : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompiler.IJDK17Compiler {
         init {
             initTestInfo(testInfo)
         }
@@ -87,7 +88,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
-    object K1Jdk8Test : AbstractIrBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK8Test {
+    object K1Jdk8Compiler : AbstractIrBlackBoxCodegenTest(), IKotlinCompiler.IJDK8Compiler {
         init {
             initTestInfo(testInfo)
         }
@@ -102,7 +103,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
-    object K1Jdk17Test : AbstractIrBlackBoxCodegenTest(), IKotlinCompilerTest.IJDK17Test {
+    object K1Jdk17Compiler : AbstractIrBlackBoxCodegenTest(), IKotlinCompiler.IJDK17Compiler {
         init {
             initTestInfo(testInfo)
         }
@@ -117,14 +118,14 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
-    private val testers = listOf<IKotlinCompilerTest>(
-        K1Jdk8Test, K1Jdk17Test,
-        K2Jdk8Test, K2Jdk17Test,
+    private val testers = listOf<IKotlinCompiler>(
+        /*K1Jdk8Test,*/ K1Jdk17Compiler,
+        /*K2Jdk8Test,*/ K2Jdk17Compiler,
     )
 
     private val minimizeRunner = MinimizeRunnerImpl(this)
 
-    override fun compile(program: IrProgram): List<CompileResult> {
+    override fun compile(program: IrProgram, compilers: List<ICompiler>): List<CompileResult> {
         return if (differentialTesting) {
             doDifferentialCompile(program)
         } else {
@@ -139,7 +140,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 
     fun doNormalCompile(program: IrProgram): CompileResult {
         val printer = IrProgramPrinter(Language.KOTLIN)
-        val testResult = K2Jdk8Test.testProgram(printer.printToSingle(program))
+        val testResult = K2Jdk8Compiler.testProgram(printer.printToSingle(program))
         return testResult
     }
 
@@ -150,7 +151,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         val resultSet = testResults.toSet()
         if (resultSet.size != 1) {
             val (minimize, minResult) = try {
-                minimizeRunner.minimize(program, testResults)
+                minimizeRunner.minimize(program, testResults, testers)
             } catch (_: Throwable) {
                 null to null
             }
@@ -177,7 +178,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         val testResult = doNormalCompile(program)
         if (!testResult.success) {
             val (minimize, minResult) = try {
-                minimizeRunner.minimize(program, listOf(testResult))
+                minimizeRunner.minimize(program, listOf(testResult), testers)
             } catch (_: Throwable) {
                 null to null
             }
@@ -229,7 +230,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
             }
         } else {
             while (true) {
-                val generator = IrDeclGenerator()
+                val generator = IrDeclGenerator(runConfig.generatorConfig)
                 val prog = generator.genProgram()
                 val dur = measureTime { doOneRoundAndRecord(prog, stopOnErrors) }
                 println("${i.incrementAndGet()}:${dur}\t\t")

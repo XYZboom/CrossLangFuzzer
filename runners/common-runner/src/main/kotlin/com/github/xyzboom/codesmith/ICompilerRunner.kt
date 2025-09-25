@@ -8,5 +8,7 @@ interface ICompilerRunner {
      * returns one element if we are doing normal testing,
      * otherwise differential testing
      */
-    fun compile(program: IrProgram): List<CompileResult>
+    fun compile(program: IrProgram, compilers: List<ICompiler>): List<CompileResult> {
+        return compilers.map { compiler -> compiler.compile(program) }
+    }
 }
