@@ -31,7 +31,7 @@ class ClassLevelMinimizeRunnerTest {
          * }
          * ```
          */
-        val minimizer = ClassLevelMinimizeRunner(MockCompilerRunner)
+        val minimizer = MinimizeRunnerImpl(MockCompilerRunner)
         val parent = buildClassDeclaration {
             name = "P"
             classKind = ClassKind.INTERFACE
@@ -54,7 +54,7 @@ class ClassLevelMinimizeRunnerTest {
             body = buildBlock()
         }
         child.functions.add(funcInC)
-        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedDecl(buildProgram {
+        val prog = MinimizeRunnerImpl.ProgramWithRemovedDecl(buildProgram {
             classes.add(parent)
             classes.add(child)
         })
@@ -81,7 +81,7 @@ class ClassLevelMinimizeRunnerTest {
          * }
          * ```
          */
-        val minimizer = ClassLevelMinimizeRunner(MockCompilerRunner)
+        val minimizer = MinimizeRunnerImpl(MockCompilerRunner)
         val parent = buildClassDeclaration {
             name = "P"
             classKind = ClassKind.INTERFACE
@@ -116,7 +116,7 @@ class ClassLevelMinimizeRunnerTest {
             body = buildBlock()
         }
         child.functions.add(funcInC)
-        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedDecl(buildProgram {
+        val prog = MinimizeRunnerImpl.ProgramWithRemovedDecl(buildProgram {
             classes.add(parent)
             classes.add(parent1)
             classes.add(child)
@@ -165,7 +165,7 @@ class ClassLevelMinimizeRunnerTest {
          * }
          * ```
          */
-        val minimizer = ClassLevelMinimizeRunner(MockCompilerRunner)
+        val minimizer = MinimizeRunnerImpl(MockCompilerRunner)
         val classA = buildClassDeclaration {
             name = "A"
             classKind = ClassKind.FINAL
@@ -224,7 +224,7 @@ class ClassLevelMinimizeRunnerTest {
             })
         }
         child.functions.add(funcInC)
-        val prog = ClassLevelMinimizeRunner.ProgramWithRemovedDecl(buildProgram {
+        val prog = MinimizeRunnerImpl.ProgramWithRemovedDecl(buildProgram {
             classes.add(parent)
             classes.add(parent1)
             classes.add(child)
