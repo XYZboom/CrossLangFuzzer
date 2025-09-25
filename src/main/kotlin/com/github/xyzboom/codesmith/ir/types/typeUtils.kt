@@ -43,6 +43,15 @@ fun IrType.equalsIgnoreTypeArguments(other: IrType): Boolean {
     }
 }
 
+/**
+ * replace [this] from [originalType] into [newType].
+ * for example: [this]: `A<T0, B<T1?>>`; [originalType]: `T1`; [newType]: `X`.
+ * The result will be: `A<T0, B<X?>>`
+ */
+fun IrType.replaceType(originalType: IrType, newType: IrType): IrType {
+    return accept(IrTypeReplacer(originalType, newType), null) as IrType
+}
+
 fun IrParameterizedClassifier.putAllTypeArguments(
     args: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>,
     onlyValue: Boolean = false
