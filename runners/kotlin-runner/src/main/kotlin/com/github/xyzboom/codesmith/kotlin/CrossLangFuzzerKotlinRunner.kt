@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompiler
+import com.github.xyzboom.codesmith.RunMode
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
@@ -12,6 +13,8 @@ import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
+import com.github.xyzboom.codesmith.serde.gson
+import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.xyzboom.clf.BugData
 import io.github.xyzboom.gedlib.GEDEnv
@@ -24,6 +27,7 @@ import org.jetbrains.kotlin.test.services.EnvironmentBasedStandardLibrariesPathP
 import org.jetbrains.kotlin.test.services.KotlinStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import org.jetbrains.kotlin.test.util.KtTestUtil
+import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.measureTime
 
@@ -126,10 +130,11 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
     private val minimizeRunner = MinimizeRunnerImpl(this)
 
     override fun compile(program: IrProgram, compilers: List<ICompiler>): List<CompileResult> {
-        return if (differentialTesting) {
-            doDifferentialCompile(program)
-        } else {
-            listOf(doNormalCompile(program))
+        return when (runMode) {
+            RunMode.DifferentialTest -> doDifferentialCompile(program)
+            RunMode.NormalTest -> listOf(doNormalCompile(program))
+            RunMode.GenerateIROnly ->
+                throw IllegalStateException("The runner does not call compiler in GenerateIROnly mode.")
         }
     }
 
@@ -189,51 +194,66 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
     override fun runnerMain() {
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
         val parallelSize = 1
-        if (differentialTesting) {
-            runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
-                val jobs = mutableListOf<Job>()
-                repeat(parallelSize) {
-                    val job = launch {
-                        val threadName = Thread.currentThread().name
-                        while (true) {
-                            val generator = IrDeclGenerator(runConfig.generatorConfig)
-                            val prog = generator.genProgram()
-                            repeat(runConfig.langShuffleTimesBeforeMutate) {
-                                val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
-                                println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
-                                generator.shuffleLanguage(prog)
-                            }
-                            repeat(runConfig.mutateTimes) {
-                                val mutator = IrMutator(
-                                    runConfig.mutatorConfig,
-                                    generator = generator
-                                )
-                                val copiedProg = prog.deepCopy()
-                                if (mutator.mutate(copiedProg)) {
-                                    repeat(runConfig.langShuffleTimesAfterMutate) {
-                                        val dur = measureTime { doOneRoundDifferentialAndRecord(copiedProg, stopOnErrors) }
-                                        println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
-                                        generator.shuffleLanguage(copiedProg)
+        when (runMode) {
+            RunMode.DifferentialTest -> {
+                runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
+                    val jobs = mutableListOf<Job>()
+                    repeat(parallelSize) {
+                        val job = launch {
+                            val threadName = Thread.currentThread().name
+                            while (true) {
+                                val generator = IrDeclGenerator(runConfig.generatorConfig)
+                                val prog = generator.genProgram()
+                                repeat(runConfig.langShuffleTimesBeforeMutate) {
+                                    val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
+                                    println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
+                                    generator.shuffleLanguage(prog)
+                                }
+                                repeat(runConfig.mutateTimes) {
+                                    val mutator = IrMutator(
+                                        runConfig.mutatorConfig,
+                                        generator = generator
+                                    )
+                                    val copiedProg = prog.deepCopy()
+                                    if (mutator.mutate(copiedProg)) {
+                                        repeat(runConfig.langShuffleTimesAfterMutate) {
+                                            val dur =
+                                                measureTime { doOneRoundDifferentialAndRecord(copiedProg, stopOnErrors) }
+                                            println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
+                                            generator.shuffleLanguage(copiedProg)
+                                        }
                                     }
                                 }
                             }
                         }
+                        jobs.add(job)
                     }
-                    jobs.add(job)
+                    jobs.joinAll()
                 }
-                jobs.joinAll()
             }
-        } else {
-            while (true) {
-                val generator = IrDeclGenerator(runConfig.generatorConfig)
-                val prog = generator.genProgram()
-                val dur = measureTime { doOneRoundAndRecord(prog, stopOnErrors) }
-                println("${i.incrementAndGet()}:${dur}\t\t")
+            RunMode.NormalTest -> {
+                while (true) {
+                    val generator = IrDeclGenerator(runConfig.generatorConfig)
+                    val prog = generator.genProgram()
+                    val dur = measureTime { doOneRoundAndRecord(prog, stopOnErrors) }
+                    println("${i.incrementAndGet()}:${dur}\t\t")
+                }
+            }
+            RunMode.GenerateIROnly -> {
+                while (true) {
+                    val generator = IrDeclGenerator(runConfig.generatorConfig)
+                    val prog = generator.genProgram()
+                    val outDir = File(generateIROnlyOutDir, System.nanoTime().toHexString())
+                        .mkdirsIfNotExists()
+                    File(outDir, "main.json").writer().use {
+                        gson.toJson(prog, it)
+                    }
+                }
             }
         }
     }

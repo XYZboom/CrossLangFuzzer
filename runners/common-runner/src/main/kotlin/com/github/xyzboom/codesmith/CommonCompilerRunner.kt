@@ -4,13 +4,23 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.boolean
+import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.xyzboom.codesmith.RunMode.*
 import com.github.xyzboom.codesmith.config.RunConfig
 import com.github.xyzboom.codesmith.serde.configGson
 import java.io.File
 
 abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
-    protected val differentialTesting by option("--dt").boolean().default(true)
+    protected val runMode by option("-m", "--mode")
+        .enum<RunMode> {
+            when (it) {
+                NormalTest -> "normal"
+                DifferentialTest -> "diff"
+                GenerateIROnly -> "ironly"
+            }
+        }
+        .default(RunMode.DifferentialTest)
     protected val stopOnErrors by option("-s", "--stop-on-errors").boolean().default(false)
     private val configFile by option("--config-file").file(
         mustExist = true,
@@ -25,6 +35,13 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
         canBeDir = true,
         mustBeReadable = true
     ).default(File("out/min"))
+
+    protected val generateIROnlyOutDir by option("-iro", "--ir-out").file(
+        mustExist = false,
+        canBeFile = false,
+        canBeDir = true,
+        mustBeReadable = true
+    ).default(File("out/ir"))
 
     abstract fun runnerMain()
 
