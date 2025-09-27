@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.enum
@@ -20,7 +21,14 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
                 GenerateIROnly -> "ironly"
             }
         }
-        .default(RunMode.DifferentialTest)
+        .default(DifferentialTest)
+    protected val inputIR by option("-i", "--input")
+        .file(
+            mustExist = true,
+            canBeFile = true,
+            canBeDir = false,
+            mustBeReadable = true
+        ).help("Use input IR file instead of generated. Only run one time.")
     protected val stopOnErrors by option("-s", "--stop-on-errors").boolean().default(false)
     private val configFile by option("--config-file").file(
         mustExist = true,

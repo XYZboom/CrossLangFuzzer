@@ -199,6 +199,24 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         logger.info { "start kotlin runner" }
         val i = AtomicInteger(0)
         val parallelSize = 1
+        val inputIR = inputIR
+        if (inputIR != null) {
+            when (runMode) {
+                RunMode.DifferentialTest -> {
+                    val prog = gson.fromJson(inputIR.reader(), IrProgram::class.java)
+                    doOneRoundDifferentialAndRecord(prog, false)
+                }
+
+                RunMode.NormalTest -> {
+                    val prog = gson.fromJson(inputIR.reader(), IrProgram::class.java)
+                    doOneRoundAndRecord(prog, false)
+                }
+
+                RunMode.GenerateIROnly ->
+                    throw IllegalStateException("Using input IR file, cannot run GenerateIROnly mode.")
+            }
+            return
+        }
         when (runMode) {
             RunMode.DifferentialTest -> {
                 runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
