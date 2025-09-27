@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.xyzboom.codesmith.CommonCompilerRunner
-import com.github.xyzboom.codesmith.generator.GeneratorConfig
+import com.github.xyzboom.codesmith.RunMode
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
@@ -23,7 +23,7 @@ import kotlin.time.measureTime
 class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     private val groovyVersions by option("--gv")
-        .choice(*GroovyCompilerWrapper.Companion.groovyJarsWithVersion.keys.toTypedArray())
+        .choice(*GroovyCompilerWrapper.groovyJarsWithVersion.keys.toTypedArray())
         .split(",")
         .required()
 
@@ -35,14 +35,19 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
     override fun runnerMain() {
         val doOneRoundFunction: () -> Unit
-        if (differentialTesting) {
-            if (groovyVersions.size <= 1) {
-                System.err.println("You must provide at least 2 different versions of compiler to do differential testing!")
-                exitProcess(-1)
+        when (runMode) {
+             RunMode.DifferentialTest -> {
+                if (groovyVersions.size <= 1) {
+                    System.err.println("You must provide at least 2 different versions of compiler to do differential testing!")
+                    exitProcess(-1)
+                }
+                doOneRoundFunction = ::doDifferentialTestingOneRound
             }
-            doOneRoundFunction = ::doDifferentialTestingOneRound
-        } else {
-            doOneRoundFunction = ::doOneRound
+            RunMode.NormalTest -> {
+                doOneRoundFunction = ::doOneRound
+            }
+
+            RunMode.GenerateIROnly -> TODO()
         }
         println("start at: $tempDir")
         var i = 0
