@@ -94,8 +94,11 @@ class MinimizeRunnerImpl(
                     continue
                 }
                 val (typeParam, typeArg) = pair
-                val newTypeParam = replaceType(typeParam.copy()) as IrTypeParameter
-                newTypeArgs[typeParamName] = newTypeParam to replaceType(typeArg)
+                val replaceTypeParameter = replaceType(typeParam.copy())
+                if (replaceTypeParameter !is IrTypeParameter) {
+                    continue
+                }
+                newTypeArgs[typeParamName] = replaceTypeParameter to replaceType(typeArg)
             }
             return newTypeArgs
         }
