@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../containers/IrTypeParameterContainerSchema.json"
+    }
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "language": {
+      "$ref": "../IrLanguageSchema.json"
+    },
+    "functions": {
+      "$ref": "IrFunctionDeclarationSchema.json"
+    },
+    "classKind": {
+      "$ref": "../IrClassKindSchema.json"
+    },
+    "superType": {
+      "$ref": "../types/IrTypeSchema.json"
+    },
+    "allSuperTypeArguments": {
+      "type": "object" // todo
+    },
+    "implementedTypes": {
+      "type": "array",
+      "items": {
+        "$ref": "../types/IrTypeSchema.json"
+      }
+    }
+  },
+  "additionalProperties": false
+}

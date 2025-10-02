@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "oneOf": [
+    {
+      "$ref": "IrSimpleClassifierSchema.json"
+    },
+    {
+      "$ref": "IrParameterizedClassifierSchema.json"
+    },
+    {
+      "$ref": "IrParameterizedClassifierSchema.json"
+    },
+    {
+      "$ref": "IrNullableTypeSchema.json"
+    },
+    {
+      "$ref": "IrBuiltInTypeSchema.json"
+    },
+    {
+      "$ref": "IrTypeParameterSchema.json"
+    }
+  ],
+  "additionalProperties": false
+}
