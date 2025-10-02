@@ -1,4 +1,254 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$ref": "IrProgramSchema.json"
+  "definitions": {
+    "IrProgram": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "const": "IrProgram"
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/declarations/IrClassDeclaration"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "IrClassKind": {
+      "type": "string",
+      "enum": [
+        "ABSTRACT",
+        "INTERFACE",
+        "OPEN",
+        "FINAL"
+      ],
+      "additionalProperties": false
+    },
+    "Language": {
+      "type": "string",
+      "enum": [
+        "KOTLIN",
+        "JAVA",
+        "SCALA",
+        "GROOVY4",
+        "GROOVY5"
+      ],
+      "additionalProperties": false
+    },
+    "containers": {
+      "IrTypeParameterContainer": {
+        "type": "object",
+        "properties": {
+          "typeParameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/types/IrTypeParameter"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "IrFuncContainer": {
+        "type": "object",
+        "properties": {
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/declarations/IrFunctionDeclaration"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "declarations": {
+      "IrClassDeclaration": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/definitions/containers/IrTypeParameterContainer"
+          },
+          {
+            "$ref": "#/definitions/containers/IrFuncContainer"
+          }
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "language": {
+            "$ref": "#/definitions/Language"
+          },
+          "classKind": {
+            "$ref": "#/definitions/IrClassKind"
+          },
+          "superType": {
+            "$ref": "#/definitions/types/IrType"
+          },
+          "allSuperArguments": {
+            "type": "object"
+          },
+          "implementedTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/types/IrType"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "IrFunctionDeclaration": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "language": {
+            "$ref": "#/definitions/Language"
+          },
+          "parameterList": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/declarations/IrParameter"
+            }
+          },
+          "returnType": {
+            "$ref": "#/definitions/types/IrType"
+          },
+          "body": {
+            "type": "object"
+          },
+          "isOverride": {
+            "type": "boolean"
+          },
+          "isOverrideStub": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IrParameter": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/definitions/types/IrType"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "types": {
+      "IrType": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/types/IrBuiltInType"
+          },
+          {
+            "$ref": "#/definitions/types/IrNullableType"
+          },
+          {
+            "$ref": "#/definitions/types/IrParameterizedClassifier"
+          },
+          {
+            "$ref": "#/definitions/types/IrSimpleClassifier"
+          },
+          {
+            "$ref": "#/definitions/types/IrTypeParameter"
+          }
+        ],
+        "additionalProperties": false
+      },
+      "IrBuiltInType": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "IrBuiltInType"
+          },
+          "@name": {
+            "type": "string",
+            "enum": [
+              "IrAny",
+              "IrNothing",
+              "IrUnit"
+            ]
+          }
+        },
+        "required": [
+          "@type",
+          "@name"
+        ],
+        "additionalProperties": false
+      },
+      "IrNullableType": {
+        "type": "object",
+        "properties": {
+          "innerType": {
+            "$ref": "#/definitions/types/IrType"
+          }
+        },
+        "required": [
+          "innerType"
+        ],
+        "additionalProperties": false
+      },
+      "IrParameterizedClassifier": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "IrParameterizedClassifier"
+          },
+          "classDecl": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "@type",
+          "classDecl",
+          "arguments"
+        ],
+        "additionalProperties": false
+      },
+      "IrSimpleClassifier": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "IrSimpleClassifier"
+          },
+          "classDecl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "@type",
+          "classDecl"
+        ],
+        "additionalProperties": false
+      },
+      "IrTypeParameter": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "IrTypeParameter"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "@type",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "$ref": "#/definitions/IrProgram"
 }
