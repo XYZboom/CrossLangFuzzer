@@ -87,7 +87,7 @@
           "superType": {
             "$ref": "#/definitions/types/IrType"
           },
-          "allSuperArguments": {
+          "allSuperTypeArguments": {
             "$ref": "#/definitions/typeArgs"
           },
           "implementedTypes": {
