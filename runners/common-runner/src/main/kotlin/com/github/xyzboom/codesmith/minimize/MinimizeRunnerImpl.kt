@@ -846,7 +846,7 @@ class MinimizeRunnerImpl(
         )
         var resultPair = firstStage(initProg, initCompileResult, compilers)
         for (stage in stages) {
-            resultPair = stage(initProg, initCompileResult, compilers)
+            resultPair = stage(resultPair.first, resultPair.second, compilers)
         }
         return resultPair
     }
