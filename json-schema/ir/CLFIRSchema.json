@@ -101,6 +101,11 @@
       },
       "IrFunctionDeclaration": {
         "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/definitions/containers/IrTypeParameterContainer"
+          }
+        ],
         "properties": {
           "name": {
             "type": "string"
