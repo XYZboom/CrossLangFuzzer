@@ -502,29 +502,28 @@ class MinimizeRunnerImpl(
                             if (override.size == 1 && override.single().containingClassName == className) {
                                 yield(Triple(c, f, RemoveCurrent()))
                                 continue@outer
-                            } else {
-                                var anyInReplacedClass = false
-                                var allNotInReplacedClass = true
-                                // except the one in the replaced class, others are all handled
-                                var otherAllHandled = true
-                                var allHandled = true
-                                for (o in f.override) {
-                                    val handled = "${o.containingClassName}::${o.name}" in handledFunctions
-                                    if (!handled) {
-                                        allHandled = false
-                                    }
-                                    if (o.containingClassName == className) {
-                                        anyInReplacedClass = true
-                                        allNotInReplacedClass = false
-                                    } else if (!handled) {
-                                        otherAllHandled = false
-                                    }
+                            }
+                            var anyInReplacedClass = false
+                            var allNotInReplacedClass = true
+                            // except the one in the replaced class, others are all handled
+                            var otherAllHandled = true
+                            var allHandled = true
+                            for (o in f.override) {
+                                val handled = "${o.containingClassName}::${o.name}" in handledFunctions
+                                if (!handled) {
+                                    allHandled = false
+                                }
+                                if (o.containingClassName == className) {
+                                    anyInReplacedClass = true
+                                    allNotInReplacedClass = false
+                                } else if (!handled) {
+                                    otherAllHandled = false
+                                }
 
-                                }
-                                if ((anyInReplacedClass && otherAllHandled) || (allNotInReplacedClass && allHandled)) {
-                                    yield(Triple(c, f, RemoveCurrent()))
-                                    continue@outer
-                                }
+                            }
+                            if ((anyInReplacedClass && otherAllHandled) || (allNotInReplacedClass && allHandled)) {
+                                yield(Triple(c, f, RemoveCurrent()))
+                                continue@outer
                             }
                         }
                     }
