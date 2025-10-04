@@ -194,6 +194,11 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
+    override val availableCompilers: Map<String, ICompiler>
+        get() = TODO("Not yet implemented")
+    override val defaultCompilers: Map<String, ICompiler>
+        get() = TODO("Not yet implemented")
+
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
     override fun runnerMain() {
         logger.info { "start kotlin runner" }
