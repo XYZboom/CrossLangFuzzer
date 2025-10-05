@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.output.MordantHelpFormatter
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.boolean
@@ -12,6 +13,7 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.xyzboom.codesmith.RunMode.NormalTest
 import com.github.xyzboom.codesmith.RunMode.DifferentialTest
 import com.github.xyzboom.codesmith.RunMode.GenerateIROnly
+import com.github.xyzboom.codesmith.RunMode.ReduceOnly
 import com.github.xyzboom.codesmith.config.RunConfig
 import com.github.xyzboom.codesmith.serde.configGson
 import java.io.File
@@ -30,6 +32,7 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
                 NormalTest -> "normal"
                 DifferentialTest -> "diff"
                 GenerateIROnly -> "ironly"
+                ReduceOnly -> "reduce"
             }
         }
         .default(DifferentialTest, "diff")
@@ -40,18 +43,28 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
                     NormalTest -> "[normal]: Generate IR automatically. Test compiler(s) normally (not differentially).\u0085"
                     DifferentialTest -> "[diff]: Generate IR automatically. Test compiler(s) differentially.\u0085"
                     GenerateIROnly -> "[ironly]: Generate and save IR automatically only. Do no tests.\u0085"
+                    ReduceOnly -> "[reduce]: Reduce the input IR only.\u0085"
                 }
                 sb.append(modeHelpString)
             }
             sb.toString()
         }
-    protected val inputIR by option("-i", "--input")
+    private val inputIR by option("-i", "--input")
         .file(
             mustExist = true,
             canBeFile = true,
-            canBeDir = false,
+            canBeDir = true,
             mustBeReadable = true
-        ).help("Use input IR file instead of generated. Only run one time.")
+        ).help(
+            "Use input IR file instead of generated. If input is a directory, " +
+                    "all the json files in it will be used as input IR files."
+        )
+    private val recursivelyInput by option("--recursively-input", "-ri")
+        .flag()
+        .help("Recursively search for JSON files within the input folder")
+    protected val useCache by option("--use-cache", "-u")
+        .flag()
+        .help("Use cached reduced IR file for reduce only mode if exists. Save cache also.")
     protected val stopOnErrors by option("-s", "--stop-on-errors").boolean().default(false)
     private val configFile by option("--config-file").file(
         mustExist = true,
@@ -73,6 +86,19 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
         canBeDir = true,
         mustBeReadable = true
     ).default(File("out/ir"))
+
+    protected val inputIRFiles: Sequence<File>?
+        get() {
+            val inputIR = inputIR ?: return null
+            if (inputIR.isFile) {
+                return sequenceOf(inputIR)
+            }
+            return if (recursivelyInput) {
+                inputIR.walk()
+            } else {
+                inputIR.walk().maxDepth(1)
+            }.filter { it.isFile && it.extension.lowercase() == "json" }
+        }
 
     abstract val availableCompilers: Map<String, ICompiler>
 

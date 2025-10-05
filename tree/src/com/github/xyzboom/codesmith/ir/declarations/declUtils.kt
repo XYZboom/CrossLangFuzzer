@@ -118,3 +118,20 @@ fun IrClassDeclaration.traverseSuper(visitor: (IrType) -> Boolean) {
         }
     }
 }
+
+val IrClassDeclaration.inheritanceDepth: Int
+    get() {
+        val superType = superType
+        var result = if (superType is IrClassifier) {
+            superType.classDecl.inheritanceDepth + 1
+        } else 1
+        for (intf in implementedTypes) {
+            if (intf is IrClassifier) {
+                val intfDepth = intf.classDecl.inheritanceDepth + 1
+                if (intfDepth > result) {
+                    result = intfDepth
+                }
+            }
+        }
+        return result
+    }
