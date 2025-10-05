@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.RunMode
+import com.github.xyzboom.codesmith.data.DataRecorder
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
@@ -29,6 +30,7 @@ import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.measureTime
 
 val testInfo = run {
@@ -132,6 +134,8 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
     override fun compile(program: IrProgram, compilers: List<ICompiler>): List<CompileResult> {
         return when (runMode) {
             RunMode.DifferentialTest -> doDifferentialCompile(program)
+            // todo: clean this after we allow user specified runners
+            RunMode.ReduceOnly -> doDifferentialCompile(program)
             RunMode.NormalTest -> listOf(doNormalCompile(program))
             RunMode.GenerateIROnly ->
                 throw IllegalStateException("The runner does not call compiler in GenerateIROnly mode.")
@@ -199,27 +203,82 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
     override val defaultCompilers: Map<String, ICompiler>
         get() = TODO("Not yet implemented")
 
-    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
-    override fun runnerMain() {
-        logger.info { "start kotlin runner" }
-        val i = AtomicInteger(0)
-        val parallelSize = 1
-        val inputIR = inputIR
-        if (inputIR != null) {
+    private val recorder = DataRecorder()
+
+    private fun doReduce(program: IrProgram): IrProgram? {
+        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
+        val testResults = testers.map { it.testProgram(fileContent) }
+        recorder.addProgram("ori", program)
+        val reduced: IrProgram
+        val reduceTime = measureTime {
+            val (result, _) = try {
+                minimizeRunner.minimize(program, testResults, testers)
+            } catch (_: Throwable) {
+                return null
+            }
+            reduced = result
+        }
+        recorder.addProgram("reduced", reduced)
+        val recordDur = recorder.getData<Duration>("reduceTime")
+        if (recordDur != null) {
+            recorder.addData("reduceTime", recordDur + reduceTime)
+        } else {
+            recorder.addData("reduceTime", reduceTime)
+        }
+        return reduced
+    }
+
+    private fun runOnInputIRFiles() {
+        val inputIRFiles = inputIRFiles!!
+        for (file in inputIRFiles) {
+            val prog = file.reader().use { gson.fromJson(it, IrProgram::class.java) }
+            val reducedFile = File(file.parentFile, file.name + ".reduced")
+            val reducedCache = if (reducedFile.exists()) {
+                reducedFile.reader().use { gson.fromJson(it, IrProgram::class.java) }
+            } else null
             when (runMode) {
                 RunMode.DifferentialTest -> {
-                    val prog = gson.fromJson(inputIR.reader(), IrProgram::class.java)
                     doOneRoundDifferentialAndRecord(prog, false)
                 }
 
                 RunMode.NormalTest -> {
-                    val prog = gson.fromJson(inputIR.reader(), IrProgram::class.java)
                     doOneRoundAndRecord(prog, false)
+                }
+
+                RunMode.ReduceOnly -> {
+                    if (reducedCache != null && useCache) {
+                        recorder.addProgram("ori", prog)
+                        recorder.addProgram("reduced", reducedCache)
+                    } else {
+                        val reduced = doReduce(prog)
+                        if (useCache && reduced != null) {
+                            reducedFile.writer().use {
+                                gson.toJson(reduced, it)
+                            }
+                        }
+                    }
                 }
 
                 RunMode.GenerateIROnly ->
                     throw IllegalStateException("Using input IR file, cannot run GenerateIROnly mode.")
             }
+            logger.info { gson.toJson(recorder.programCount) }
+            logger.info { gson.toJson(recorder.programData) }
+            logger.info { recorder.getData<Duration>("reduceTime").toString() }
+        }
+        logger.info { gson.toJson(recorder.programCount) }
+        logger.info { gson.toJson(recorder.programData) }
+        logger.info { recorder.getData<Duration>("reduceTime").toString() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
+    override fun runnerMain() {
+        logger.info { "start kotlin runner" }
+        val i = AtomicInteger(0)
+        val parallelSize = 1
+        val inputIRFiles = inputIRFiles
+        if (inputIRFiles != null) {
+            runOnInputIRFiles()
             return
         }
         when (runMode) {
@@ -246,7 +305,12 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                                     if (mutator.mutate(copiedProg)) {
                                         repeat(runConfig.langShuffleTimesAfterMutate) {
                                             val dur =
-                                                measureTime { doOneRoundDifferentialAndRecord(copiedProg, stopOnErrors) }
+                                                measureTime {
+                                                    doOneRoundDifferentialAndRecord(
+                                                        copiedProg,
+                                                        stopOnErrors
+                                                    )
+                                                }
                                             println("$threadName ${i.incrementAndGet()}:${dur}\t\t")
                                             generator.shuffleLanguage(copiedProg)
                                         }
@@ -259,6 +323,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                     jobs.joinAll()
                 }
             }
+
             RunMode.NormalTest -> {
                 while (true) {
                     val generator = IrDeclGenerator(runConfig.generatorConfig)
@@ -267,6 +332,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                     println("${i.incrementAndGet()}:${dur}\t\t")
                 }
             }
+
             RunMode.GenerateIROnly -> {
                 while (true) {
                     val generator = IrDeclGenerator(runConfig.generatorConfig)
@@ -277,6 +343,10 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                         gson.toJson(prog, it)
                     }
                 }
+            }
+
+            RunMode.ReduceOnly -> {
+                throw IllegalStateException("No input IR file, cannot run ReduceOnly mode.")
             }
         }
     }
