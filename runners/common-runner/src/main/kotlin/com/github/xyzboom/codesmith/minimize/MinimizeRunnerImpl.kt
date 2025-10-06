@@ -86,6 +86,15 @@ class MinimizeRunnerImpl(
         val classReplaceWith: MutableMap<String, IrType> = DelegateMutableMap(mutableMapOf())
         val typeParameterReplaceWith = HashMap<IrTypeParameterName, IrType>()
 
+        fun backup(): ProgramWithRemovedDecl {
+            return ProgramWithRemovedDecl(prog.deepCopy()).also {
+                it.removedClasses.addAll(removedClasses)
+                it.usedClassReplaceWith.addAll(usedClassReplaceWith)
+                it.classReplaceWith.putAll(classReplaceWith)
+                it.typeParameterReplaceWith.putAll(typeParameterReplaceWith)
+            }
+        }
+
         fun replaceTypeArgsForClass(oriTypeArgs: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>)
                 : HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>> {
             val newTypeArgs = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>()
@@ -351,6 +360,10 @@ class MinimizeRunnerImpl(
                     if (f.override.isNotEmpty()) {
                         val overrideCopy = ArrayList(f.override)
                         f.postorderTraverseOverride { overrideF, iter ->
+                            if (overrideF in funcToBeRemoveFromOverride) {
+                                iter.remove()
+                                return@postorderTraverseOverride
+                            }
                             if (overrideF.containingClassName in classReplaceWith) {
                                 funcToBeRemoveFromOverride.add(overrideF)
                                 iter.remove()
@@ -653,10 +666,10 @@ class MinimizeRunnerImpl(
     }
 
     fun removeUnrelatedFunctions(
-        initProg: IrProgram,
+        initProg: ProgramWithRemovedDecl,
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>,
-    ): Pair<IrProgram, List<CompileResult>> {
+    ): Pair<ProgramWithRemovedDecl, List<CompileResult>> {
         val suspicious = mutableSetOf<String>()
         val normal = mutableSetOf<String>()
         classes@ for (clazz in initProg.classes) {
@@ -668,8 +681,7 @@ class MinimizeRunnerImpl(
                 }
             }
         }
-        val progNew = initProg.deepCopy()
-        var result = ProgramWithRemovedDecl(progNew)
+        var result = initProg.backup()
         var newCompileResult: List<CompileResult> = initCompileResult
         run tryRemoveAllNormal@{
             for (funcName in normal) {
@@ -679,7 +691,7 @@ class MinimizeRunnerImpl(
             if (newCompileResult != initCompileResult) {
                 logger.trace { "remove all normal functions cause the bug disappear, rollback" }
                 // rollback
-                result = ProgramWithRemovedDecl(initProg.deepCopy())
+                result = initProg.backup()
                 newCompileResult = initCompileResult
             } else {
                 logger.trace { "remove all normal functions success" }
@@ -690,39 +702,38 @@ class MinimizeRunnerImpl(
         var lastCompileResult = newCompileResult
         while (allIter.hasNext()) {
             val next = allIter.next()
-            val backup = result.prog.deepCopy()
+            val backup = result.backup()
             logger.trace { "remove function $next" }
             result.removeFunction(next)
             newCompileResult = compile(result, compilers)
             if (newCompileResult != initCompileResult) {
-                result = ProgramWithRemovedDecl(backup)
+                result = backup
                 newCompileResult = lastCompileResult
             }
             lastCompileResult = newCompileResult
         }
 
-        return result.prog to newCompileResult
+        return result to newCompileResult
     }
 
     fun removeUnrelatedClass(
-        initProg: IrProgram,
+        initProg: ProgramWithRemovedDecl,
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>,
-    ): Pair<IrProgram, List<CompileResult>> {
-        val progNew = initProg.deepCopy()
-        var result = ProgramWithRemovedDecl(progNew)
+    ): Pair<ProgramWithRemovedDecl, List<CompileResult>> {
+        var result = initProg.backup()
         var anyClassRemoved = false
         var newCompileResult: List<CompileResult> = initCompileResult
         var lastCompileResult = newCompileResult
         while (true) {
             val classNames = result.classes.map { it.name }
             for (className in classNames) {
-                val backup = result.prog.deepCopy()
+                val backup = result.backup()
                 result.replaceClassWithIrAnyDeeply(className)
                 newCompileResult = compile(result, compilers)
                 if (newCompileResult != initCompileResult) {
                     // bug disappear, rollback
-                    result = ProgramWithRemovedDecl(backup)
+                    result = backup
                     newCompileResult = lastCompileResult
                 } else {
                     anyClassRemoved = true
@@ -732,28 +743,27 @@ class MinimizeRunnerImpl(
             if (!anyClassRemoved) break
             anyClassRemoved = false
         }
-        return result.prog to lastCompileResult
+        return result to lastCompileResult
     }
 
     fun removeUnrelatedTypeParameters(
-        initProg: IrProgram,
+        initProg: ProgramWithRemovedDecl,
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>,
-    ): Pair<IrProgram, List<CompileResult>> {
-        val progNew = initProg.deepCopy()
-        var result = ProgramWithRemovedDecl(progNew)
+    ): Pair<ProgramWithRemovedDecl, List<CompileResult>> {
+        var result = initProg.backup()
         var anyClassRemoved = false
         var newCompileResult: List<CompileResult> = initCompileResult
         var lastCompileResult = newCompileResult
         while (true) {
             val allTypeParameters = result.collectAllTypeParameters()
             for (typeParameterName in allTypeParameters) {
-                val backup = result.prog.deepCopy()
+                val backup = result.backup()
                 result.replaceTypeParameterWithIrAny(typeParameterName)
                 newCompileResult = compile(result, compilers)
                 if (newCompileResult != initCompileResult) {
                     // bug disappear, rollback
-                    result = ProgramWithRemovedDecl(backup)
+                    result = backup
                     newCompileResult = lastCompileResult
                 } else {
                     anyClassRemoved = true
@@ -763,28 +773,27 @@ class MinimizeRunnerImpl(
             if (!anyClassRemoved) break
             anyClassRemoved = false
         }
-        return result.prog to lastCompileResult
+        return result to lastCompileResult
     }
 
     fun removeUnrelatedParameters(
-        initProg: IrProgram,
+        initProg: ProgramWithRemovedDecl,
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>,
-    ): Pair<IrProgram, List<CompileResult>> {
-        val progNew = initProg.deepCopy()
-        var result = ProgramWithRemovedDecl(progNew)
+    ): Pair<ProgramWithRemovedDecl, List<CompileResult>> {
+        var result = initProg.backup()
         var anyClassRemoved = false
         var newCompileResult: List<CompileResult> = initCompileResult
         var lastCompileResult = newCompileResult
         while (true) {
             val allParameters = result.collectAllParameters()
             for (parameterName in allParameters) {
-                val backup = result.prog.deepCopy()
+                val backup = result.backup()
                 result.removeParameter(parameterName)
                 newCompileResult = compile(result, compilers)
                 if (newCompileResult != initCompileResult) {
                     // bug disappear, rollback
-                    result = ProgramWithRemovedDecl(backup)
+                    result = backup
                     newCompileResult = lastCompileResult
                 } else {
                     anyClassRemoved = true
@@ -794,16 +803,15 @@ class MinimizeRunnerImpl(
             if (!anyClassRemoved) break
             anyClassRemoved = false
         }
-        return result.prog to lastCompileResult
+        return result to lastCompileResult
     }
 
     fun reduceInheritanceHierarchy(
-        initProg: IrProgram,
+        initProg: ProgramWithRemovedDecl,
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>,
-    ): Pair<IrProgram, List<CompileResult>> {
-        val progNew = initProg.deepCopy()
-        var result = ProgramWithRemovedDecl(progNew)
+    ): Pair<ProgramWithRemovedDecl, List<CompileResult>> {
+        var result = initProg.backup()
         var anyClassRemoved = false
         var newCompileResult: List<CompileResult> = initCompileResult
         var lastCompileResult = newCompileResult
@@ -813,12 +821,12 @@ class MinimizeRunnerImpl(
             }
             val classNames = result.classes.map { it.name }
             for (className in classNames) {
-                val backup = result.prog.deepCopy()
+                val backup = result.backup()
                 result.replaceClassWithIrAnyShallowly(className)
                 newCompileResult = compile(result, compilers)
                 if (newCompileResult != initCompileResult) {
                     // bug disappear, rollback
-                    result = ProgramWithRemovedDecl(backup)
+                    result = backup
                     newCompileResult = lastCompileResult
                 } else {
                     anyClassRemoved = true
@@ -828,7 +836,7 @@ class MinimizeRunnerImpl(
             if (!anyClassRemoved) break
             anyClassRemoved = false
         }
-        return result.prog to lastCompileResult
+        return result to lastCompileResult
     }
 
     override fun minimize(
@@ -843,10 +851,10 @@ class MinimizeRunnerImpl(
             ::removeUnrelatedTypeParameters,
             ::reduceInheritanceHierarchy
         )
-        var resultPair = firstStage(initProg, initCompileResult, compilers)
+        var resultPair = firstStage(ProgramWithRemovedDecl(initProg), initCompileResult, compilers)
         for (stage in stages) {
             resultPair = stage(resultPair.first, resultPair.second, compilers)
         }
-        return resultPair
+        return resultPair.first.prog to resultPair.second
     }
 }
