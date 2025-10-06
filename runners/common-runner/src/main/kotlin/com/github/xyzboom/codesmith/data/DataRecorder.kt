@@ -7,31 +7,38 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.inheritanceDepth
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter.Companion.extraSourceFileNames
+import io.github.oshai.kotlinlogging.KotlinLogging
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.set
 import kotlin.math.max
 
 open class DataRecorder {
     companion object {
         private const val COMPILE_TIMES_KEY = "_compile_times"
+        private val logger = KotlinLogging.logger {}
     }
 
-    private val programCountMap = mutableMapOf<String, Int>()
-    private val allProgramDataMap = mutableMapOf<String, ProgramData>()
-    private val otherDataMap = mutableMapOf<String, Any>()
+    private val programCountMap = ConcurrentHashMap<String, Int>()
+    private val allProgramDataMap = ConcurrentHashMap<String, ProgramData>()
+    private val otherDataMap = ConcurrentHashMap<String, Any>()
     val programCount: Map<String, Int> get() = programCountMap
     val programData: Map<String, ProgramData> get() = allProgramDataMap
     fun addProgram(key: String, program: IrProgram) {
-        programCountMap[key] = programCountMap[key]?.plus(1) ?: 1
+        programCountMap.merge(key, 1, Int::plus)
         val data = processProgram(program)
-        if (allProgramDataMap.containsKey(key)) {
-            allProgramDataMap[key]!! += data
-        } else {
-            allProgramDataMap[key] = data
+        allProgramDataMap.merge(key, data) { old, new ->
+            old + new
         }
     }
 
     fun <T : Any> addData(key: String, data: T) {
         otherDataMap[key] = data
+    }
+
+    fun <T : Any> mergeData(key: String, data: T, mergeFunc: (T, T) -> T) {
+        @Suppress("UNCHECKED_CAST")
+        otherDataMap.merge(key, data, mergeFunc as (Any, Any) -> Any?)
     }
 
     fun <T : Any> getData(key: String): T? {
@@ -42,7 +49,9 @@ open class DataRecorder {
     fun recordCompiler(compiler: ICompiler): ICompiler {
         return object : ICompiler {
             override fun compile(program: IrProgram): CompileResult {
-                addData(COMPILE_TIMES_KEY, getCompileTimes() + 1)
+                otherDataMap.merge(COMPILE_TIMES_KEY, 1) { old, new ->
+                    old as Int + new as Int
+                }
                 return compiler.compile(program)
             }
         }
@@ -73,7 +82,10 @@ open class DataRecorder {
     protected fun processProgram(program: IrProgram): ProgramData {
         val data = ProgramData()
         program.accept(ProgramDataVisitor(), data)
-        data.lineOfCode = IrProgramPrinter(printStub = false).print(program).values.sumOf { it.lines().count() }
+        data.lineOfCode = IrProgramPrinter(printStub = false).print(program).values
+            .filter {
+                it !in extraSourceFileNames
+            }.sumOf { it.lines().count() }
         return data
     }
 }

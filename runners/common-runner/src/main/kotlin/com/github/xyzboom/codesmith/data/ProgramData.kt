@@ -20,7 +20,7 @@ data class ProgramData(
             avgInheritanceDepth = (avgInheritanceDepth * classCount
                     + other.avgInheritanceDepth * other.classCount) / (classCount + other.classCount),
             avgInheritanceWidth = (avgInheritanceWidth * classCount
-                    + other.avgInheritanceWidth* other.classCount) / (classCount + other.classCount),
+                    + other.avgInheritanceWidth * other.classCount) / (classCount + other.classCount),
             lineOfCode = lineOfCode + other.lineOfCode
         )
     }
@@ -33,7 +33,7 @@ data class ProgramData(
         avgInheritanceDepth = (avgInheritanceDepth * classCount
                 + other.avgInheritanceDepth * other.classCount) / (classCount + other.classCount)
         avgInheritanceWidth = (avgInheritanceWidth * classCount
-                + other.avgInheritanceWidth* other.classCount) / (classCount + other.classCount)
+                + other.avgInheritanceWidth * other.classCount) / (classCount + other.classCount)
         lineOfCode += other.lineOfCode
     }
 }

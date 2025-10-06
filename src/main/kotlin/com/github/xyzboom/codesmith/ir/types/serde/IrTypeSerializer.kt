@@ -1,7 +1,9 @@
 package com.github.xyzboom.codesmith.ir.types.serde
 
+import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
@@ -25,6 +27,8 @@ object IrTypeSerializer : JsonSerializer<IrType> {
             is IrNullableType -> context?.serialize(src, IrNullableType::class.java)
             is IrBuiltInType -> context?.serialize(src, IrBuiltInType::class.java)
             is IrTypeParameter -> context?.serialize(src, IrTypeParameter::class.java)
+            is IrPlatformType -> context?.serialize(src, IrPlatformType::class.java)
+            is IrDefinitelyNotNullType -> context?.serialize(src, IrDefinitelyNotNullType::class.java)
             else -> throw NoWhenBranchMatchedException("src has unexpected type: ${src::class.simpleName}")
         }
     }

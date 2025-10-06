@@ -125,8 +125,8 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
     }
 
     private val testers = listOf<IKotlinCompiler>(
-        /*K1Jdk8Test,*/ K1Jdk17Compiler,
-        /*K2Jdk8Test,*/ K2Jdk17Compiler,
+        K1Jdk8Compiler, /*K1Jdk17Compiler,*/
+        /*K2Jdk8Compiler*/ K2Jdk17Compiler,
     )
 
     private val minimizeRunner = MinimizeRunnerImpl(this)
@@ -208,54 +208,54 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
             reduced = result
         }
         recorder.addProgram("reduced", reduced)
-        val recordDur = recorder.getData<Duration>("reduceTime")
-        if (recordDur != null) {
-            recorder.addData("reduceTime", recordDur + reduceTime)
-        } else {
-            recorder.addData("reduceTime", reduceTime)
-        }
+        recorder.mergeData("reduceTime", reduceTime, Duration::plus)
         return reduced
     }
 
-    private fun runOnInputIRFiles() {
+    private suspend fun CoroutineScope.runOnInputIRFiles() {
         val inputIRFiles = inputIRFiles!!
+        val jobs = mutableListOf<Job>()
         for (file in inputIRFiles) {
-            val prog = file.reader().use { gson.fromJson(it, IrProgram::class.java) }
-            val reducedFile = File(file.parentFile, file.name + ".reduced")
-            val reducedCache = if (reducedFile.exists()) {
-                reducedFile.reader().use { gson.fromJson(it, IrProgram::class.java) }
-            } else null
-            when (runMode) {
-                RunMode.DifferentialTest -> {
-                    doOneRoundDifferentialAndRecord(prog, false)
-                }
+            val job = launch {
+                val prog = file.reader().use { gson.fromJson(it, IrProgram::class.java) }
+                val reducedFile = File(file.parentFile, file.name + ".reduced")
+                val reducedCache = if (reducedFile.exists()) {
+                    reducedFile.reader().use { gson.fromJson(it, IrProgram::class.java) }
+                } else null
+                when (runMode) {
+                    RunMode.DifferentialTest -> {
+                        doOneRoundDifferentialAndRecord(prog, false)
+                    }
 
-                RunMode.NormalTest -> {
-                    doOneRoundAndRecord(prog, false)
-                }
+                    RunMode.NormalTest -> {
+                        doOneRoundAndRecord(prog, false)
+                    }
 
-                RunMode.ReduceOnly -> {
-                    if (reducedCache != null && useCache) {
-                        recorder.addProgram("ori", prog)
-                        recorder.addProgram("reduced", reducedCache)
-                    } else {
-                        val reduced = doReduce(prog)
-                        if (useCache && reduced != null) {
-                            reducedFile.writer().use {
-                                gson.toJson(reduced, it)
+                    RunMode.ReduceOnly -> {
+                        if (reducedCache != null && useCache) {
+                            recorder.addProgram("ori", prog)
+                            recorder.addProgram("reduced", reducedCache)
+                        } else {
+                            val reduced = doReduce(prog)
+                            if (useCache && reduced != null) {
+                                reducedFile.writer().use {
+                                    gson.toJson(reduced, it)
+                                }
                             }
                         }
                     }
-                }
 
-                RunMode.GenerateIROnly ->
-                    throw IllegalStateException("Using input IR file, cannot run GenerateIROnly mode.")
+                    RunMode.GenerateIROnly ->
+                        throw IllegalStateException("Using input IR file, cannot run GenerateIROnly mode.")
+                }
+                logger.info { gson.toJson(recorder.programCount) }
+                logger.info { gson.toJson(recorder.programData) }
+                logger.info { recorder.getData<Duration>("reduceTime").toString() }
+                logger.info { "compile times: ${recorder.getCompileTimes()}" }
             }
-            logger.info { gson.toJson(recorder.programCount) }
-            logger.info { gson.toJson(recorder.programData) }
-            logger.info { recorder.getData<Duration>("reduceTime").toString() }
-            logger.info { "compile times: ${recorder.getCompileTimes()}" }
+            jobs.add(job)
         }
+        jobs.joinAll()
         logger.info { gson.toJson(recorder.programCount) }
         logger.info { gson.toJson(recorder.programData) }
         logger.info { recorder.getData<Duration>("reduceTime").toString() }
@@ -269,7 +269,9 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         val parallelSize = 1
         val inputIRFiles = inputIRFiles
         if (inputIRFiles != null) {
-            runOnInputIRFiles()
+            runBlocking(Dispatchers.IO.limitedParallelism(64)) {
+                runOnInputIRFiles()
+            }
             return
         }
         when (runMode) {

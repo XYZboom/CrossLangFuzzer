@@ -26,6 +26,10 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildParameter
+import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
+import com.github.xyzboom.codesmith.ir.types.IrPlatformType
+import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
+import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.google.gson.JsonArray
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
@@ -108,6 +112,26 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
             return typeParam
         }
 
+        fun deserializePlatformType(
+            typeObj: JsonObject,
+            context: JsonDeserializationContext
+        ): IrPlatformType {
+            require(typeObj.get(SERDE_TYPE_NAME).asString == IrPlatformType::class.simpleName)
+            return buildPlatformType {
+                innerType = deserializeType(typeObj.get(IrPlatformType::innerType.name).asJsonObject, context)
+            }
+        }
+
+        fun deserializeDNN(
+            typeObj: JsonObject,
+            context: JsonDeserializationContext
+        ): IrDefinitelyNotNullType {
+            require(typeObj.get(SERDE_TYPE_NAME).asString == IrDefinitelyNotNullType::class.simpleName)
+            return buildDefinitelyNotNullType {
+                innerType = deserializeTypeParameter(typeObj.get(IrDefinitelyNotNullType::innerType.name).asJsonObject, context)
+            }
+        }
+
         fun deserializeType(
             typeObj: JsonObject,
             context: JsonDeserializationContext
@@ -119,6 +143,8 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                 IrNullableType::class.simpleName -> deserializeNullableType(typeObj, context)
                 IrBuiltInType::class.simpleName -> deserializeBuiltinType(typeObj)
                 IrTypeParameter::class.simpleName -> deserializeTypeParameter(typeObj, context)
+                IrPlatformType::class.simpleName -> deserializePlatformType(typeObj, context)
+                IrDefinitelyNotNullType::class.simpleName -> deserializeDNN(typeObj, context)
                 else -> throw NoWhenBranchMatchedException("No such type: $typeName")
             }
         }

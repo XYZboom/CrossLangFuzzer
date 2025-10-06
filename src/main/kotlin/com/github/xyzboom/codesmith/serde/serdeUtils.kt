@@ -20,15 +20,19 @@ import com.github.xyzboom.codesmith.ir.declarations.serde.IrParameterSerializer
 import com.github.xyzboom.codesmith.ir.impl.IrProgramImpl
 import com.github.xyzboom.codesmith.ir.serde.IrProgramDeserializer
 import com.github.xyzboom.codesmith.ir.serde.IrProgramSerializer
+import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.serde.IrBuiltInTypeSerializer
+import com.github.xyzboom.codesmith.ir.types.serde.IrDefinitelyNotNullTypeSerializer
 import com.github.xyzboom.codesmith.ir.types.serde.IrNullableTypeSerializer
 import com.github.xyzboom.codesmith.ir.types.serde.IrParameterizedClassifierSerializer
+import com.github.xyzboom.codesmith.ir.types.serde.IrPlatformTypeSerializer
 import com.github.xyzboom.codesmith.ir.types.serde.IrSimpleClassifierSerializer
 import com.github.xyzboom.codesmith.ir.types.serde.IrTypeParameterSerializer
 import com.github.xyzboom.codesmith.ir.types.serde.IrTypeSerializer
@@ -69,6 +73,8 @@ val gson: Gson = GsonBuilder()
     .registerTypeAdapter(IrNullableType::class.java, IrNullableTypeSerializer)
     .registerTypeAdapter(IrBuiltInType::class.java, IrBuiltInTypeSerializer)
     .registerTypeAdapter(IrTypeParameter::class.java, IrTypeParameterSerializer)
+    .registerTypeAdapter(IrDefinitelyNotNullType::class.java, IrDefinitelyNotNullTypeSerializer)
+    .registerTypeAdapter(IrPlatformType::class.java, IrPlatformTypeSerializer)
     .create()
 
 val configGson: Gson = GsonBuilder()
