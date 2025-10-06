@@ -21,8 +21,9 @@ import com.github.xyzboom.codesmith.printer.TypeContext.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class JavaIrClassPrinter(
-    private val majorLanguage: Language = KOTLIN
-) : AbstractIrClassPrinter() {
+    private val majorLanguage: Language = KOTLIN,
+    printStub: Boolean = true
+) : AbstractIrClassPrinter(printStub = printStub) {
     private val builtInNamesInTypeArgument = buildMap {
         put(IrAny, "Object")
         put(IrNothing, "Void")
@@ -263,6 +264,9 @@ class JavaIrClassPrinter(
     }
 
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+        if (function.isOverrideStub && !printStub) {
+            return
+        }
         val functionContainer: IrElement = elementStack.peek()
         elementStack.push(function)
         /**
