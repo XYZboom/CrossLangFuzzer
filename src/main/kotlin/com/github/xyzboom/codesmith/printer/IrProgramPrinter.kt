@@ -52,6 +52,10 @@ class IrProgramPrinter(
                         "}"
             )
         }
+        const val MAIN_KT_NAME = "main.kt"
+        val extraSourceFileNames = listOf(
+            MAIN_KT_NAME, *extraJavaFile.keys.toTypedArray()
+        )
     }
 
     override fun print(element: IrProgram): Map<String, String> {
@@ -73,7 +77,7 @@ class IrProgramPrinter(
         val ktTopLevelContent = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
         result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
         if (majorLanguage == Language.KOTLIN) {
-            result["main.kt"] = "${ktTopLevelContent}\n" +
+            result[MAIN_KT_NAME] = "${ktTopLevelContent}\n" +
                     "fun box(): String {\n" +
                     "\treturn \"OK\"\n" +
                     "}\n" +
