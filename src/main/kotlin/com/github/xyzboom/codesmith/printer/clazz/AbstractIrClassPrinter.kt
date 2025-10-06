@@ -14,7 +14,8 @@ import com.github.xyzboom.codesmith.printer.TypeContext.*
 import java.util.*
 
 abstract class AbstractIrClassPrinter(
-    var indentCount: Int = 0
+    var indentCount: Int = 0,
+    protected val printStub: Boolean = true
 ) : IrPrinter<IrClassDeclaration, String>, IrTopDownVisitor<StringBuilder>() {
     val elementStack = Stack<IrElement>()
     open val spaceCountInIndent = 4

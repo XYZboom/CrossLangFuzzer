@@ -15,7 +15,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
 import com.github.xyzboom.codesmith.printer.TypeContext.TypeParameterDeclaration
 
-class ScalaIrClassPrinter : AbstractIrClassPrinter() {
+class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(printStub = printStub) {
     override val spaceCountInIndent: Int = 2
 
     companion object {
@@ -140,6 +140,9 @@ class ScalaIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+        if (function.isOverrideStub && !printStub) {
+            return
+        }
         elementStack.push(function)
         /**
          * Some version of Java's lexical analyzer is not greedy for matching multi line comments,

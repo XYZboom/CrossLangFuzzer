@@ -50,7 +50,7 @@ open class DataRecorder {
     protected fun processProgram(program: IrProgram): ProgramData {
         val data = ProgramData()
         program.accept(ProgramDataVisitor(), data)
-        data.lineOfCode = IrProgramPrinter().print(program).values.sumOf { it.lines().count() }
+        data.lineOfCode = IrProgramPrinter(printStub = false).print(program).values.sumOf { it.lines().count() }
         return data
     }
 }

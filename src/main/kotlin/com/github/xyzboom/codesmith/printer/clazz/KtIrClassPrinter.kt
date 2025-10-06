@@ -16,7 +16,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
 import com.github.xyzboom.codesmith.printer.TypeContext.TypeParameterDeclaration
 
-class KtIrClassPrinter : AbstractIrClassPrinter() {
+class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(printStub = printStub) {
 
     companion object {
         private val builtInNames = buildMap {
@@ -176,6 +176,9 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
     }
 
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
+        if (function.isOverrideStub && !printStub) {
+            return
+        }
         elementStack.push(function)
         if (function.isOverrideStub) {
             data.append(indent)
@@ -199,10 +202,12 @@ class KtIrClassPrinter : AbstractIrClassPrinter() {
             for ((index, typeParam) in function.typeParameters.withIndex()) {
                 data.append(typeParam.name)
                 data.append(": ")
-                data.append(printType(
-                    typeParam.upperbound,
-                    TypeContext.FunctionTypeParameterUpperBound
-                ))
+                data.append(
+                    printType(
+                        typeParam.upperbound,
+                        TypeContext.FunctionTypeParameterUpperBound
+                    )
+                )
                 if (index != function.typeParameters.lastIndex) {
                     data.append(", ")
                 }

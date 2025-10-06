@@ -14,11 +14,12 @@ import java.io.File
  */
 @Suppress("unused")
 class IrProgramPrinter(
-    private val majorLanguage: Language = Language.KOTLIN
+    private val majorLanguage: Language = Language.KOTLIN,
+    private val printStub: Boolean = true,
 ) : IrPrinter<IrProgram, Map<String, String>> {
     private lateinit var javaClassPrinter: JavaIrClassPrinter
-    private val ktClassPrinter = KtIrClassPrinter()
-    private val scalaClassPrinter = ScalaIrClassPrinter()
+    private val ktClassPrinter = KtIrClassPrinter(printStub = printStub)
+    private val scalaClassPrinter = ScalaIrClassPrinter(printStub = printStub)
 
     companion object {
         private val extraJavaFile = buildMap {
@@ -55,7 +56,7 @@ class IrProgramPrinter(
 
     override fun print(element: IrProgram): Map<String, String> {
         val result = mutableMapOf<String, String>()
-        javaClassPrinter = JavaIrClassPrinter(majorLanguage)
+        javaClassPrinter = JavaIrClassPrinter(majorLanguage, printStub = printStub)
         for (clazz in element.classes) {
             // todo
 //            clazz.changeLanguageIfNotSuitable()
