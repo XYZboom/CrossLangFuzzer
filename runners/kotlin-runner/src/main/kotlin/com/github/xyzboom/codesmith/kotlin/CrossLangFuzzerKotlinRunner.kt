@@ -131,17 +131,6 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 
     private val minimizeRunner = MinimizeRunnerImpl(this)
 
-    override fun compile(program: IrProgram, compilers: List<ICompiler>): List<CompileResult> {
-        return when (runMode) {
-            RunMode.DifferentialTest -> doDifferentialCompile(program)
-            // todo: clean this after we allow user specified runners
-            RunMode.ReduceOnly -> doDifferentialCompile(program)
-            RunMode.NormalTest -> listOf(doNormalCompile(program))
-            RunMode.GenerateIROnly ->
-                throw IllegalStateException("The runner does not call compiler in GenerateIROnly mode.")
-        }
-    }
-
     fun doDifferentialCompile(program: IrProgram): List<CompileResult> {
         val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
         return testers.map { it.testProgram(fileContent) }
@@ -212,7 +201,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         val reduced: IrProgram
         val reduceTime = measureTime {
             val (result, _) = try {
-                minimizeRunner.minimize(program, testResults, testers)
+                minimizeRunner.minimize(program, testResults, recorder.recordCompilers(testers))
             } catch (_: Throwable) {
                 return null
             }
@@ -265,10 +254,12 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
             logger.info { gson.toJson(recorder.programCount) }
             logger.info { gson.toJson(recorder.programData) }
             logger.info { recorder.getData<Duration>("reduceTime").toString() }
+            logger.info { "compile times: ${recorder.getCompileTimes()}" }
         }
         logger.info { gson.toJson(recorder.programCount) }
         logger.info { gson.toJson(recorder.programData) }
         logger.info { recorder.getData<Duration>("reduceTime").toString() }
+        logger.info { "compile times: ${recorder.getCompileTimes()}" }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)

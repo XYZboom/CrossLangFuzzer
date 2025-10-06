@@ -1,5 +1,7 @@
 package com.github.xyzboom.codesmith.data
 
+import com.github.xyzboom.codesmith.CompileResult
+import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.ir.visitors.IrTopDownVisitor
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -9,6 +11,10 @@ import kotlin.collections.set
 import kotlin.math.max
 
 open class DataRecorder {
+    companion object {
+        private const val COMPILE_TIMES_KEY = "_compile_times"
+    }
+
     private val programCountMap = mutableMapOf<String, Int>()
     private val allProgramDataMap = mutableMapOf<String, ProgramData>()
     private val otherDataMap = mutableMapOf<String, Any>()
@@ -31,6 +37,23 @@ open class DataRecorder {
     fun <T : Any> getData(key: String): T? {
         @Suppress("UNCHECKED_CAST")
         return otherDataMap[key] as? T?
+    }
+
+    fun recordCompiler(compiler: ICompiler): ICompiler {
+        return object : ICompiler {
+            override fun compile(program: IrProgram): CompileResult {
+                addData(COMPILE_TIMES_KEY, getCompileTimes() + 1)
+                return compiler.compile(program)
+            }
+        }
+    }
+
+    fun recordCompilers(compilers: List<ICompiler>): List<ICompiler> {
+        return compilers.map { recordCompiler(it) }
+    }
+
+    fun getCompileTimes(): Int {
+        return getData(COMPILE_TIMES_KEY) ?: 0
     }
 
     class ProgramDataVisitor : IrTopDownVisitor<ProgramData>() {
