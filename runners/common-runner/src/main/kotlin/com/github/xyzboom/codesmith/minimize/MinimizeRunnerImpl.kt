@@ -19,8 +19,10 @@ import com.github.xyzboom.codesmith.ir.declarations.traceFunc
 import com.github.xyzboom.codesmith.ir.deepCopy
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
+import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
@@ -28,6 +30,7 @@ import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.copy
+import com.github.xyzboom.codesmith.ir.types.notNullType
 import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.validator.collectFunctionSignatureMap
 import com.github.xyzboom.codesmith.validator.getOverrideCandidates
@@ -157,6 +160,24 @@ class MinimizeRunnerImpl(
                     val innerType = type.innerType
                     type.innerType = replaceType(innerType)
                     type
+                }
+
+                type is IrPlatformType -> {
+                    val innerType = type.innerType
+                    type.innerType = replaceType(innerType)
+                    type
+                }
+
+                type is IrDefinitelyNotNullType -> {
+                    val innerType = type.innerType
+                    val replaceWith = replaceType(innerType)
+                    // if innerType was replaced with a non-type-parameter, DNN will be not-null type
+                    if (replaceWith is IrTypeParameter) {
+                        type.innerType = replaceWith
+                        type
+                    } else {
+                        replaceWith.notNullType
+                    }
                 }
 
                 type is IrTypeParameter -> {
@@ -844,9 +865,9 @@ class MinimizeRunnerImpl(
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>,
     ): Pair<IrProgram, List<CompileResult>> {
-        val firstStage = ::removeUnrelatedFunctions
+        val firstStage = ::removeUnrelatedClass
         val stages = listOf(
-            ::removeUnrelatedClass,
+            ::removeUnrelatedFunctions,
             ::removeUnrelatedParameters,
             ::removeUnrelatedTypeParameters,
             ::reduceInheritanceHierarchy
