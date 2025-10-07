@@ -269,7 +269,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         val parallelSize = 1
         val inputIRFiles = inputIRFiles
         if (inputIRFiles != null) {
-            runBlocking(Dispatchers.IO.limitedParallelism(64)) {
+            runBlocking(Dispatchers.IO.limitedParallelism(32)) {
                 runOnInputIRFiles()
             }
             return
