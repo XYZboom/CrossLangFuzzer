@@ -49,9 +49,9 @@ open class DataRecorder {
     fun recordCompiler(compiler: ICompiler): ICompiler {
         return object : ICompiler {
             override fun compile(program: IrProgram): CompileResult {
-                otherDataMap.merge(COMPILE_TIMES_KEY, 1) { old, new ->
-                    old as Int + new as Int
-                }
+                val plus: (Int, Int) -> Int = Int::plus
+                @Suppress("UNCHECKED_CAST")
+                otherDataMap.merge(COMPILE_TIMES_KEY, 1, plus as (Any, Any) -> Any?)
                 return compiler.compile(program)
             }
         }
