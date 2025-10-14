@@ -14,3 +14,7 @@ findProject(":runners:kotlin-runner")?.name = "kotlin-runner"
 include("tree")
 include("tree:tree-generator")
 include("ged")
+include("translators:common-translator")
+findProject(":translators:common-translator")?.name = "common-translator"
+include("translators:kotlin-translator")
+findProject(":translators:kotlin-translator")?.name = "kotlin-translator"
