@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.minimize
 import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.ICompilerRunner
+import com.github.xyzboom.codesmith.algorithm.DDMin
 import com.github.xyzboom.codesmith.ir.IrProgram
 import io.github.oshai.kotlinlogging.KotlinLogging
 
@@ -78,22 +79,22 @@ class MinimizeRunnerImpl(
                 normal.clear()
             }
         }
-        val allIter = (normal.asSequence() + suspicious.asSequence()).iterator()
+        val allRemain = normal + suspicious
         var lastCompileResult = newCompileResult
-        while (allIter.hasNext()) {
-            val next = allIter.next()
-            val backup = result.backup()
-            logger.trace { "remove function $next" }
-            result.removeFunction(next)
-            newCompileResult = compile(result, compilers)
-            if (newCompileResult != initCompileResult) {
-                result = backup
-                newCompileResult = lastCompileResult
+        val ddmin = DDMin {
+            val prog = result.backup()
+            for (funcName in allRemain - it.toSet()) {
+                result.removeFunction(funcName)
             }
-            lastCompileResult = newCompileResult
+            logger.info { "run test in ddmin" }
+            lastCompileResult = compile(prog, compilers)
+            lastCompileResult == initCompileResult
         }
-
-        return result to newCompileResult
+        val ddminRemain = ddmin.execute(allRemain.toList())
+        for (funcName in ddminRemain) {
+            result.removeFunction(funcName)
+        }
+        return result to lastCompileResult
     }
 
     fun removeUnrelatedClass(
