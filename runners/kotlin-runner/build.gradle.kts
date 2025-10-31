@@ -1,4 +1,5 @@
 plugins {
+    id("com.gradleup.shadow") version "8.3.0"
     kotlin("jvm")
     application
 }
@@ -46,8 +47,8 @@ tasks.register<JavaExec>("minimize") {
     mainClass.set("com.github.xyzboom.codesmith.kotlin.MinimizeMain")
 }
 
-tasks.named<JavaExec>("run") {
-    mainClass.set("com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunnerKt")
+application {
+    mainClass = "com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunnerKt"
 }
 
 tasks.withType<JavaExec> {
@@ -87,4 +88,10 @@ fun JavaExec.setLibraryProperty(propName: String, jarName: String) {
         ?.absolutePath
         ?: return
     systemProperty(propName, path)
+}
+
+tasks.shadowJar {
+    manifest {
+        attributes["Main-Class"] = "com.github.xyzboom.codesmith.kotlin.CrossLangFuzzerKotlinRunnerKt"
+    }
 }

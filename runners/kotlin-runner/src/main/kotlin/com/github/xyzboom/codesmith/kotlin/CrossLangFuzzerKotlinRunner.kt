@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.system.exitProcess
 import kotlin.time.Duration
 import kotlin.time.measureTime
 
@@ -153,7 +154,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
             } catch (_: Throwable) {
                 null to null
             }
-            val anySimilar = if (minimize != null) {
+            val anySimilar = if (enableGED && minimize != null) {
                 with(BugData) {
                     gedEnv.similarToAnyExistedBug(minimize)
                 }
@@ -166,7 +167,8 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                 )
             }
             if (throwException) {
-                throw RuntimeException()
+                println("Find a compiler bug with -s, stop the runner")
+                exitProcess(0)
             }
         }
     }

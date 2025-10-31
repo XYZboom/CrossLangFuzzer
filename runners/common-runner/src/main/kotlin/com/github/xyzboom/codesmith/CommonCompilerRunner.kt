@@ -7,7 +7,6 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.xyzboom.codesmith.RunMode.NormalTest
@@ -65,7 +64,9 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
     protected val useCache by option("--use-cache", "-u")
         .flag()
         .help("Use cached reduced IR file for reduce only mode if exists. Save cache also.")
-    protected val stopOnErrors by option("-s", "--stop-on-errors").boolean().default(false)
+    protected val stopOnErrors by option("-s", "--stop-on-errors")
+        .flag()
+        .help("Stop the runner when find a compiler bug.")
     private val configFile by option("--config-file").file(
         mustExist = true,
         canBeFile = true,
@@ -87,6 +88,10 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
         mustBeReadable = true
     ).default(File("out/ir"))
 
+    protected val enableGED by option("--enable-ged")
+        .flag()
+        .help("Enable gedlib for program similarity compare. DEVELOP ONLY!")
+
     protected val inputIRFiles: Sequence<File>?
         get() {
             val inputIR = inputIR ?: return null
@@ -107,8 +112,12 @@ abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
     abstract fun runnerMain()
 
     final override fun run() {
-        runConfig = configFile.reader().use {
-            configGson.fromJson(it, RunConfig::class.java)
+        runConfig = if (!configFile.exists()) {
+            RunConfig()
+        } else {
+            configFile.reader().use {
+                configGson.fromJson(it, RunConfig::class.java)
+            }
         }
         runnerMain()
     }
