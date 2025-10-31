@@ -17,8 +17,6 @@ import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.github.xyzboom.clf.BugData
-import io.github.xyzboom.gedlib.GEDEnv
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
@@ -42,8 +40,6 @@ val testInfo = run {
 }
 
 class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
-
-    private val gedEnv = GEDEnv()
 
     companion object {
         private val logger = KotlinLogging.logger {}
@@ -155,9 +151,10 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                 null to null
             }
             val anySimilar = if (enableGED && minimize != null) {
-                with(BugData) {
-                    gedEnv.similarToAnyExistedBug(minimize)
-                }
+//                with(BugData) {
+//                    gedEnv.similarToAnyExistedBug(minimize)
+//                }
+                false
             } else false
             if (anySimilar) {
                 recordCompileResult(Language.KOTLIN, program, testResults, minimize, minResult)

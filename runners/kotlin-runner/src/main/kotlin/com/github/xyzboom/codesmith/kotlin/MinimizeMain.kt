@@ -5,12 +5,6 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.serde.gson
-import io.github.xyzboom.clf.BugData
-import io.github.xyzboom.clf.lowerBoundOf
-import io.github.xyzboom.clf.toGEDGraph
-import io.github.xyzboom.clf.upperBoundOf
-import io.github.xyzboom.gedlib.GEDEnv
-import io.github.xyzboom.gedlib.GEDGraph
 import java.io.File
 
 object MinimizeMain {
