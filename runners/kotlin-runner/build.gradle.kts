@@ -18,7 +18,6 @@ val kotlinVersion = "2.1.20-Beta1"
 dependencies {
     implementation(project.rootProject)
     implementation(project(":runners:common-runner"))
-    implementation(project(":ged"))
     implementation(kotlin("compiler-internal-test-framework", kotlinVersion))
     implementation(kotlin("compiler", kotlinVersion))
     runtimeOnly(kotlin("test-junit5"))
