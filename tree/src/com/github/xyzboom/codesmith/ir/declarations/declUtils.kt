@@ -86,7 +86,7 @@ fun IrFunctionDeclaration.postorderTraverseOverride(
     while (it.hasNext()) {
         val f = it.next()
         f.postorderTraverseOverride(visitor)
-        visitor(f, object: RemoveOnlyIterator {
+        visitor(f, object : RemoveOnlyIterator {
             override fun remove() {
                 it.remove()
             }
@@ -105,16 +105,24 @@ val IrFunctionDeclaration.signature: Signature
 /**
  * @param [visitor] return false in [visitor] if want stop
  */
-fun IrClassDeclaration.traverseSuper(visitor: (IrType) -> Boolean) {
+fun IrClassDeclaration.traverseSuper(
+    enter: (IrType) -> Unit = {},
+    exit: (IrType) -> Unit = {},
+    visitor: (IrType) -> Boolean = { true },
+) {
     val superType = superType
     if (superType is IrClassifier) {
         if (!visitor(superType)) return
-        superType.classDecl.traverseSuper(visitor)
+        enter(superType)
+        superType.classDecl.traverseSuper(enter, exit, visitor)
+        exit(superType)
     }
     for (intf in implementedTypes) {
         if (intf is IrClassifier) {
             if (!visitor(intf)) return
-            intf.classDecl.traverseSuper(visitor)
+            enter(intf)
+            intf.classDecl.traverseSuper(enter, exit, visitor)
+            exit(intf)
         }
     }
 }
