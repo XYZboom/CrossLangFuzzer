@@ -3,11 +3,15 @@ package com.github.xyzboom.codesmith.minimize
 import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.ICompilerRunner
+import com.github.xyzboom.codesmith.algorithm.DDMin
+import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.traverseSuper
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
@@ -16,11 +20,13 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeContainer
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class MinimizeRunner2(
     compilerRunner: ICompilerRunner
 ) : IMinimizeRunner, ICompilerRunner by compilerRunner {
     companion object {
+        private val logger = KotlinLogging.logger {}
         fun IrProgram.buildClosure(elements: Set<IrElement>): Closure {
             return Closure(this, elements)
         }
@@ -125,6 +131,89 @@ class MinimizeRunner2(
             }
             return result
         }
+
+        fun newClassFromClosure(
+            oriClass: IrClassDeclaration, prog: IrProgram, elements: Set<IrElement>
+        ): IrClassDeclaration {
+            val oriSuper = oriClass.superType
+            var newSuper: IrType? = null
+            val intfs = mutableSetOf<IrType>()
+
+            //<editor-fold desc="HandleSuper">
+            if (oriSuper !is IrClassifier) {
+                newSuper = oriSuper
+            } else {
+                val superClass = oriSuper.classDecl
+                val superTypeOf = superTypeOf(oriClass, superClass)
+                if (superTypeOf in elements) {
+                    newSuper = oriSuper
+                } else {
+                    superClass.traverseSuper {
+                        if (it !is IrClassifier) {
+                            return@traverseSuper true
+                        }
+                        val superSuperClass = it.classDecl
+                        val superTypeOf = superTypeOf(oriClass, superSuperClass)
+                        if (superTypeOf in elements) {
+                            if (newSuper == null && superSuperClass.classKind != ClassKind.INTERFACE) {
+                                newSuper = it
+                            }
+                            if (superSuperClass.classKind == ClassKind.INTERFACE) {
+                                intfs.add(it)
+                            }
+                        }
+                        true
+                    }
+                }
+            }
+            //</editor-fold>
+
+            for (intf in oriClass.implementedTypes) {
+                if (intf !is IrClassifier) {
+                    continue
+                }
+                val superClass = intf.classDecl
+                val superTypeOf = superTypeOf(oriClass, superClass)
+                if (superTypeOf in elements) {
+                    intfs.add(intf)
+                } else {
+                    superClass.traverseSuper {
+                        if (it.classKind == ClassKind.INTERFACE) {
+                            intfs.add(it)
+                        }
+                        true
+                    }
+                }
+            }
+
+            return buildClassDeclaration {
+                name = oriClass.name
+                language = oriClass.language
+                for (f in oriClass.functions) {
+                    if (f in elements) {
+                        functions.add(f)
+                    }
+                }
+                typeParameters.addAll(oriClass.typeParameters)
+                classKind = oriClass.classKind
+                superType = newSuper
+                // todo handle super argument
+                allSuperTypeArguments = oriClass.allSuperTypeArguments.toMutableMap() // copy it
+                implementedTypes.addAll(intfs)
+            }
+        }
+
+        fun newProg(prog: IrProgram, elements: Set<IrElement>): IrProgram {
+            return buildProgram {
+                for (clazz in prog.classes) {
+                    if (clazz !in elements) {
+                        continue
+                    }
+                    val newClass = newClassFromClosure(clazz, prog, elements)
+                    classes.add(newClass)
+                }
+            }
+        }
     }
 
     interface IEmptyElement : IrElement {
@@ -164,6 +253,11 @@ class MinimizeRunner2(
         override fun toString(): String {
             return "Closure(elements=$elements)"
         }
+
+        operator fun plus(other: Closure): Closure {
+            require(other.containingProg === this.containingProg)
+            return Closure(containingProg, elements + other.elements)
+        }
     }
 
     override fun minimize(
@@ -171,6 +265,27 @@ class MinimizeRunner2(
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>
     ): Pair<IrProgram, List<CompileResult>> {
-        TODO()
+        val closures = initProg.buildClosures()
+        var lastResult = initCompileResult
+        val resultCache = mutableMapOf<Set<IrElement>, Boolean>()
+        var compileTimes = 0
+        val ddmin = DDMin<Closure> {
+            val combine = it.reduce { a, b -> a + b }.elements
+            val cacheResult = resultCache[combine]
+            if (cacheResult != null) {
+                return@DDMin cacheResult
+            }
+            val newProg = newProg(initProg, combine)
+            lastResult = compile(newProg, compilers)
+            compileTimes++
+            // todo:
+            // 1. 类的引用解析
+            // 2. 函数重写
+            (lastResult == initCompileResult).also { result -> resultCache[combine] = result }
+        }
+        val resultClosure = ddmin.execute(closures.toList())
+        val resultElements = resultClosure.reduce { a, b -> a + b }.elements
+        logger.info { "ddmin compile times $compileTimes" }
+        return newProg(initProg, resultElements) to lastResult
     }
 }
