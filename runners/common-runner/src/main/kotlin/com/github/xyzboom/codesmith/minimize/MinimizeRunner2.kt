@@ -41,19 +41,13 @@ class MinimizeRunner2(
             for (clazz in classes) {
                 val classClosure = clazz.closureOf(cache = result)
                 result[clazz] = buildClosure(classClosure)
-                val deque = ArrayDeque<Set<IrElement>>()
                 clazz.traverseSuper(
                     enter = { superType ->
                         if (superType is IrClassifier) {
                             val superTypeOf = superTypeOf(clazz, superType.classDecl)
                             val closure = superTypeOf.closureOf(cache = result)
-                            val topClosure = deque.firstOrNull() ?: emptySet()
-                            val combine = topClosure + closure
-                            deque.addFirst(combine)
-                            result[superTypeOf] = buildClosure(combine)
+                            result[superTypeOf] = buildClosure(closure)
                         }
-                    }, exit = {
-                        deque.removeFirst()
                     }
                 )
                 for (function in clazz.functions) {
@@ -71,7 +65,6 @@ class MinimizeRunner2(
         ): MutableSet<IrElement> {
             result.add(this)
             result.addAll(clazz.closureOf(result, cache))
-            result.addAll(superClass.closureOf(result, cache))
             return result
         }
 
@@ -177,7 +170,7 @@ class MinimizeRunner2(
                 }
                 val superClass = intf.classDecl
                 val superTypeOf = superTypeOf(oriClass, superClass)
-                if (superTypeOf in elements) {
+                if (superTypeOf in elements && superClass in elements) {
                     intfs[superClass] = intf
                 } else {
                     superClass.traverseSuper {
@@ -272,21 +265,30 @@ class MinimizeRunner2(
     ): Pair<IrProgram, List<CompileResult>> {
         val closures = initProg.buildClosures().toList().sortedBy { it.elements.size }
         var lastResult = initCompileResult
-        val resultCache = mutableMapOf<Set<IrElement>, Boolean>()
+        val resultSetCache = mutableMapOf<Set<IrElement>, Boolean>()
+        val resultStringCache = mutableMapOf<String, Boolean>()
         var compileTimes = 0
         val ddmin = DDMin<Closure> {
             val combine = it.reduce { a, b -> a + b }.elements
-            val cacheResult = resultCache[combine]
+            val cacheResult = resultSetCache[combine]
             if (cacheResult != null) {
                 return@DDMin cacheResult
             }
             val newProg = newProg(initProg, combine)
+            val fileContent = IrProgramPrinter().printToSingle(newProg)
+            val stringCacheResult = resultStringCache[fileContent]
+            if (stringCacheResult != null) {
+                return@DDMin stringCacheResult
+            }
             lastResult = compile(newProg, compilers)
             compileTimes++
             // todo:
             // 1. 类的引用解析
             // 2. 函数重写
-            (lastResult == initCompileResult).also { result -> resultCache[combine] = result }
+            (lastResult == initCompileResult).also { result ->
+                resultSetCache[combine] = result
+                resultStringCache[fileContent] = result
+            }
         }
         val resultClosure = ddmin.execute(closures)
         val resultElements = resultClosure.reduce { a, b -> a + b }.elements

@@ -27,13 +27,6 @@ class DDMin<T>(private val testFunc: (List<T>) -> Boolean) {
             }
         }
 
-        for (i in parts.indices) {
-            if (testFunc(parts[i])) {
-                // if this part can pass test, run on this part
-                return executeRecursive(parts[i], 2)
-            }
-        }
-
         // if we can split further, do it. Otherwise, return the result.
         return if (n < input.size) {
             executeRecursive(input, minOf(n * 2, input.size))
