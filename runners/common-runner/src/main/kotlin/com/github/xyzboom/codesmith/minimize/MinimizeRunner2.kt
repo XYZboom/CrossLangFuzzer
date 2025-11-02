@@ -20,6 +20,7 @@ import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeContainer
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
+import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class MinimizeRunner2(
@@ -137,7 +138,7 @@ class MinimizeRunner2(
         ): IrClassDeclaration {
             val oriSuper = oriClass.superType
             var newSuper: IrType? = null
-            val intfs = mutableSetOf<IrType>()
+            val intfs = mutableMapOf<IrClassDeclaration, IrType>()
 
             //<editor-fold desc="HandleSuper">
             if (oriSuper !is IrClassifier) {
@@ -149,7 +150,7 @@ class MinimizeRunner2(
                     newSuper = oriSuper
                 } else {
                     superClass.traverseSuper {
-                        if (it !is IrClassifier) {
+                        if (it !is IrClassifier || it.classDecl !in elements) {
                             return@traverseSuper true
                         }
                         val superSuperClass = it.classDecl
@@ -158,8 +159,10 @@ class MinimizeRunner2(
                             if (newSuper == null && superSuperClass.classKind != ClassKind.INTERFACE) {
                                 newSuper = it
                             }
-                            if (superSuperClass.classKind == ClassKind.INTERFACE) {
-                                intfs.add(it)
+                            if (superSuperClass.classKind == ClassKind.INTERFACE
+                                && intfs[superSuperClass] == null
+                            ) {
+                                intfs[superSuperClass] = it
                             }
                         }
                         true
@@ -169,17 +172,19 @@ class MinimizeRunner2(
             //</editor-fold>
 
             for (intf in oriClass.implementedTypes) {
-                if (intf !is IrClassifier) {
+                if (intf !is IrClassifier || intf.classDecl !in elements) {
                     continue
                 }
                 val superClass = intf.classDecl
                 val superTypeOf = superTypeOf(oriClass, superClass)
                 if (superTypeOf in elements) {
-                    intfs.add(intf)
+                    intfs[superClass] = intf
                 } else {
                     superClass.traverseSuper {
-                        if (it.classKind == ClassKind.INTERFACE) {
-                            intfs.add(it)
+                        if (it.classKind == ClassKind.INTERFACE && it is IrClassifier
+                            && intfs[it.classDecl] == null && it.classDecl in elements
+                        ) {
+                            intfs[it.classDecl] = it
                         }
                         true
                     }
@@ -199,7 +204,7 @@ class MinimizeRunner2(
                 superType = newSuper
                 // todo handle super argument
                 allSuperTypeArguments = oriClass.allSuperTypeArguments.toMutableMap() // copy it
-                implementedTypes.addAll(intfs)
+                implementedTypes.addAll(intfs.values)
             }
         }
 
@@ -265,7 +270,7 @@ class MinimizeRunner2(
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>
     ): Pair<IrProgram, List<CompileResult>> {
-        val closures = initProg.buildClosures()
+        val closures = initProg.buildClosures().toList().sortedBy { it.elements.size }
         var lastResult = initCompileResult
         val resultCache = mutableMapOf<Set<IrElement>, Boolean>()
         var compileTimes = 0
@@ -283,7 +288,7 @@ class MinimizeRunner2(
             // 2. 函数重写
             (lastResult == initCompileResult).also { result -> resultCache[combine] = result }
         }
-        val resultClosure = ddmin.execute(closures.toList())
+        val resultClosure = ddmin.execute(closures)
         val resultElements = resultClosure.reduce { a, b -> a + b }.elements
         logger.info { "ddmin compile times $compileTimes" }
         return newProg(initProg, resultElements) to lastResult
