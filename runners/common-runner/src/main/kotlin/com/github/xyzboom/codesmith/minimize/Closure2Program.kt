@@ -118,14 +118,18 @@ class Closure2Program(
                 if (oriType is IrParameterizedClassifier) {
                     for ((typeParamName, pair) in oriType.arguments) {
                         if (newType is IrParameterizedClassifier) {
-                            val typeParam = pair.first
-                            val typeArg = pair.second
+                            val (typeParam, typeArg) = pair
+                            val (newTypeParam, oriTPExists) = newTypeFromClosure(typeParam, elements)
+                            if (!oriTPExists || newTypeParam !is IrTypeParameter) continue
                             val newTypeArg = if (typeArg != null) {
-                                // todo type arg may not in elements
-                                newTypeFromClosure(typeArg, elements).first
+                                val (newTypeArg, oriTAExists) = newTypeFromClosure(typeArg, elements)
+                                if (oriTAExists) {
+                                    newTypeArg
+                                } else {
+                                    newTypeParam.upperbound
+                                }
                             } else null
-                            // todo type parameter may not in elements
-                            newType.arguments[typeParamName] = typeParam to newTypeArg
+                            newType.arguments[typeParamName] = newTypeParam to newTypeArg
                         }
                     }
                 }
@@ -138,7 +142,7 @@ class Closure2Program(
                     val (newUpperbound, _) = newTypeFromClosure(oriType.upperbound, elements)
                     upperbound = newUpperbound
                 }
-                oriType to true
+                newType to true
             }
 
             else -> throw IllegalArgumentException("No such IrType ${this::class.simpleName}")
@@ -231,10 +235,27 @@ class Closure2Program(
         }
 
         newClass.apply {
-            typeParameters.addAll(oriClass.typeParameters)
+            for (typeParam in oriClass.typeParameters) {
+                val (newTypeParam, oriExists) = typeParam.toNew()
+                if (oriExists && newTypeParam is IrTypeParameter) {
+                    typeParameters.add(newTypeParam)
+                }
+            }
             superType = newSuper
-            // todo handle super argument
-            allSuperTypeArguments = oriClass.allSuperTypeArguments.toMutableMap() // copy it
+            for ((typeParamName, pair) in oriClass.allSuperTypeArguments) {
+                val (typeParam, typeArg) = pair
+                val (newTypeParam, oriTypeParamExists) = typeParam.toNew()
+                if (!oriTypeParamExists || newTypeParam !is IrTypeParameter) {
+                    continue
+                }
+                val (newArg, oriExists) = typeArg.toNew()
+                val finalNewArg = if (oriExists) {
+                    newArg
+                } else {
+                    newTypeParam.upperbound
+                }
+                allSuperTypeArguments[typeParamName] = newTypeParam to finalNewArg
+            }
             implementedTypes.addAll(intfs.values)
             for (f in oriClass.functions.asSequence().filter { it in elements }) {
                 if (f in elements) {
@@ -261,7 +282,20 @@ class Closure2Program(
             } else intfF
             val fName = allSuperF.first().name
             val funcInNew = newClass.functions.firstOrNull { it.name == fName }
-            funcInNew?.apply {
+                ?: run {
+                    val oldF = program.classes
+                        .first { it.name == newClass.name }
+                        .functions.first { it.name == fName }
+                    newFunctionFromClosure(
+                        oldF,
+                        elements
+                    ).apply {
+                        newClass.functions.add(this)
+                        new2OldFunctions[this] = oldF
+                        old2NewFunctions[oldF] = this
+                    }
+                }
+            funcInNew.apply {
                 isOverride = true
                 override.addAll(allSuperF)
                 if (isStub != null) {
@@ -282,9 +316,6 @@ class Closure2Program(
         for (funcs in stub) {
             funcs.handleNewF(true)
         }
-//        for (f in oriClass.functions.asSequence().filter { it in elements }) {
-//
-//        }
     }
 
     fun newClassSkeleton(oriClass: IrClassDeclaration): IrClassDeclaration {
