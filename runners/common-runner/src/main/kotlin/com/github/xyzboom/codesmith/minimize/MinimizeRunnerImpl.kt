@@ -84,14 +84,17 @@ class MinimizeRunnerImpl(
         val ddmin = DDMin {
             val prog = result.backup()
             for (funcName in allRemain - it.toSet()) {
-                result.removeFunction(funcName)
+                prog.removeFunction(funcName)
             }
-            logger.info { "run test in ddmin" }
-            lastCompileResult = compile(prog, compilers)
-            lastCompileResult == initCompileResult
+            val compileResult = compile(prog, compilers)
+            (compileResult == initCompileResult).also { result ->
+                if (result) {
+                    lastCompileResult = compileResult
+                }
+            }
         }
         val ddminRemain = ddmin.execute(allRemain.toList())
-        for (funcName in ddminRemain) {
+        for (funcName in allRemain - ddminRemain.toSet()) {
             result.removeFunction(funcName)
         }
         return result to lastCompileResult
