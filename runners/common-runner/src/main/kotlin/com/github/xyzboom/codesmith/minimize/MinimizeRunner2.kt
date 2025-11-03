@@ -280,14 +280,17 @@ class MinimizeRunner2(
             if (stringCacheResult != null) {
                 return@DDMin stringCacheResult
             }
-            lastResult = compile(newProg, compilers)
+            val compileResult = compile(newProg, compilers)
             compileTimes++
             // todo:
             // 1. 类的引用解析
             // 2. 函数重写
-            (lastResult == initCompileResult).also { result ->
+            (compileResult == initCompileResult).also { result ->
                 resultSetCache[combine] = result
                 resultStringCache[fileContent] = result
+                if (result) {
+                    lastResult = compileResult
+                }
             }
         }
         val resultClosure = ddmin.execute(closures)
