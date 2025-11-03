@@ -4,33 +4,16 @@ import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.ICompilerRunner
 import com.github.xyzboom.codesmith.algorithm.DDMin
-import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.traverseSuper
 import com.github.xyzboom.codesmith.ir.deepCopy
-import com.github.xyzboom.codesmith.ir.types.IrClassifier
-import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
-import com.github.xyzboom.codesmith.ir.types.IrNullableType
-import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
-import com.github.xyzboom.codesmith.ir.types.IrPlatformType
-import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
-import com.github.xyzboom.codesmith.ir.types.IrType
-import com.github.xyzboom.codesmith.ir.types.IrTypeContainer
-import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
-import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
-import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
-import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
-import com.github.xyzboom.codesmith.ir.types.type
+import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
-import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import io.github.oshai.kotlinlogging.KotlinLogging
 
@@ -136,177 +119,6 @@ class MinimizeRunner2(
             }
             return result
         }
-
-        fun newFunctionFromClosure(
-            oriFunc: IrFunctionDeclaration, prog: IrProgram, elements: Set<IrElement>
-        ) {
-
-        }
-
-        fun newTypeFromClosure(
-            oriType: IrType,
-            old2NewClasses: Map<IrClassDeclaration, IrClassDeclaration>,
-            elements: Set<IrElement>,
-        ): IrType {
-            return when (oriType) {
-                is IrBuiltInType -> oriType
-                is IrNullableType -> buildNullableType {
-                    innerType = newTypeFromClosure(oriType, old2NewClasses, elements)
-                }
-
-                is IrPlatformType -> buildPlatformType {
-                    innerType = newTypeFromClosure(oriType, old2NewClasses, elements)
-                }
-
-                is IrDefinitelyNotNullType -> {
-                    val newInnerType = newTypeFromClosure(oriType, old2NewClasses, elements)
-                    if (newInnerType is IrTypeParameter) {
-                        buildDefinitelyNotNullType { innerType = newInnerType }
-                    } else newInnerType
-                }
-
-                is IrClassifier -> {
-                    val oriClass = oriType.classDecl
-                    if (oriClass !in elements) {
-                        return IrAny // todo replace directly may cause new error
-                    }
-                    val newClass = old2NewClasses[oriClass]!!
-                    val newType = newClass.type
-                    if (oriType is IrParameterizedClassifier) {
-                        for ((typeParamName, pair) in oriType.arguments) {
-                            if (newType is IrParameterizedClassifier) {
-                                val typeParam = pair.first
-                                val typeArg = pair.second
-                                val newTypeArg = if (typeArg != null) {
-                                    newTypeFromClosure(typeArg, old2NewClasses, elements)
-                                } else null
-                                // todo type parameter may not in elements
-                                newType.arguments[typeParamName] = typeParam to newTypeArg
-                            }
-                        }
-                    }
-                    newType
-                }
-
-                is IrTypeParameter -> {
-                    oriType // todo type parameter may not in elements
-                }
-
-                else -> throw IllegalArgumentException("No such IrType ${this::class.simpleName}")
-            }
-        }
-
-        fun firstStageNewClassFromClosure(
-            oriClass: IrClassDeclaration,
-            newClass: IrClassDeclaration,
-            ori2NewMap: Map<IrClassDeclaration, IrClassDeclaration>,
-            elements: Set<IrElement>
-        ) {
-            val oriSuper = oriClass.superType
-            var newSuper: IrType? = null
-            val intfs = mutableMapOf<IrClassDeclaration, IrType>()
-
-            fun IrType.toNew(): IrType {
-                return newTypeFromClosure(
-                    this,
-                    ori2NewMap,
-                    elements
-                )
-            }
-
-            //<editor-fold desc="HandleSuper">
-            if (oriSuper !is IrClassifier) {
-                newSuper = oriSuper?.toNew()
-            } else {
-                val superClass = oriSuper.classDecl
-                val superTypeOf = superTypeOf(oriClass, superClass)
-                if (superTypeOf in elements) {
-                    newSuper = ori2NewMap[superClass]!!.type.toNew()
-                } else {
-                    superClass.traverseSuper {
-                        if (it !is IrClassifier || it.classDecl !in elements) {
-                            return@traverseSuper true
-                        }
-                        val superSuperClass = it.classDecl
-                        val superTypeOf = superTypeOf(oriClass, superSuperClass)
-                        if (superTypeOf in elements) {
-                            if (newSuper == null && superSuperClass.classKind != ClassKind.INTERFACE) {
-                                newSuper = it.toNew()
-                            }
-                            if (superSuperClass.classKind == ClassKind.INTERFACE
-                                && intfs[superSuperClass] == null
-                            ) {
-                                intfs[superSuperClass] = it.toNew()
-                            }
-                        }
-                        true
-                    }
-                }
-            }
-            //</editor-fold>
-
-            for (intf in oriClass.implementedTypes) {
-                if (intf !is IrClassifier || intf.classDecl !in elements) {
-                    continue
-                }
-                val superClass = intf.classDecl
-                val superTypeOf = superTypeOf(oriClass, superClass)
-                if (superTypeOf in elements && superClass in elements) {
-                    intfs[superClass] = intf.toNew()
-                } else {
-                    superClass.traverseSuper {
-                        if (it.classKind == ClassKind.INTERFACE && it is IrClassifier
-                            && intfs[it.classDecl] == null && it.classDecl in elements
-                        ) {
-                            intfs[it.classDecl] = it.toNew()
-                        }
-                        true
-                    }
-                }
-            }
-
-            newClass.apply {
-                typeParameters.addAll(oriClass.typeParameters)
-                superType = newSuper
-                // todo handle super argument
-                allSuperTypeArguments = oriClass.allSuperTypeArguments.toMutableMap() // copy it
-                implementedTypes.addAll(intfs.values)
-                for (f in oriClass.functions) {
-                    if (f in elements) {
-                        functions.add(f)
-                    }
-                }
-            }
-        }
-
-        fun newClassSkeleton(oriClass: IrClassDeclaration): IrClassDeclaration {
-            return buildClassDeclaration {
-                name = oriClass.name
-                language = oriClass.language
-                classKind = oriClass.classKind
-            }
-        }
-
-        fun newProg(prog: IrProgram, elements: Set<IrElement>): IrProgram {
-            return buildProgram().apply {
-                val classMap = mutableMapOf<IrClassDeclaration, IrClassDeclaration>()
-                for (clazz in prog.classes) {
-                    if (clazz !in elements) {
-                        continue
-                    }
-                    val newClass = newClassSkeleton(clazz)
-                    classes.add(newClass)
-                    classMap[clazz] = newClass
-                }
-                for (clazz in prog.classes) {
-                    if (clazz !in elements) {
-                        continue
-                    }
-                    val newClass = classMap[clazz]!!
-                    firstStageNewClassFromClosure(clazz, newClass, classMap, elements)
-                }
-            }
-        }
     }
 
     interface IEmptyElement : IrElement {
@@ -369,8 +181,8 @@ class MinimizeRunner2(
             if (cacheResult != null) {
                 return@DDMin cacheResult
             }
-            val newProg = newProg(initProg, combine)
-            newProg.deepCopy() // verify dependency
+            val newProg = Closure2Program(initProg).newProg(combine)
+//            newProg.deepCopy() // verify dependency
             val fileContent = IrProgramPrinter().printToSingle(newProg)
             val stringCacheResult = resultStringCache[fileContent]
             if (stringCacheResult != null) {
@@ -392,6 +204,6 @@ class MinimizeRunner2(
         val resultClosure = ddmin.execute(closures)
         val resultElements = resultClosure.reduce { a, b -> a + b }.elements
         logger.info { "ddmin compile times $compileTimes" }
-        return newProg(initProg, resultElements) to lastResult
+        return Closure2Program(initProg).newProg(resultElements) to lastResult
     }
 }
