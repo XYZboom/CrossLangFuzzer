@@ -165,6 +165,18 @@ class MinimizeRunner2(
         }
     }
 
+    private fun Set<IrElement>.minimize(): Set<IrElement> {
+        val result = LinkedHashSet(this)
+        for (ele in this) {
+            if (ele is SuperTypeOf) {
+                if (ele.clazz !in result || ele.superClass !in result) {
+                    result.remove(ele)
+                }
+            }
+        }
+        return result
+    }
+
     override fun minimize(
         initProg: IrProgram,
         initCompileResult: List<CompileResult>,
@@ -181,8 +193,13 @@ class MinimizeRunner2(
             if (cacheResult != null) {
                 return@DDMin cacheResult
             }
+            val minCombine = combine.minimize()
+            val cacheMinCombine = resultSetCache[minCombine]
+            if (cacheMinCombine != null) {
+                return@DDMin cacheMinCombine
+            }
             val newProg = Closure2Program(initProg).newProg(combine)
-//            newProg.deepCopy() // verify dependency
+            newProg.deepCopy() // verify dependency
             val fileContent = IrProgramPrinter().printToSingle(newProg)
             val stringCacheResult = resultStringCache[fileContent]
             if (stringCacheResult != null) {
@@ -190,9 +207,6 @@ class MinimizeRunner2(
             }
             val compileResult = compile(newProg, compilers)
             compileTimes++
-            // todo:
-            // 1. 类的引用解析
-            // 2. 函数重写
             (compileResult == initCompileResult).also { result ->
                 resultSetCache[combine] = result
                 resultStringCache[fileContent] = result
