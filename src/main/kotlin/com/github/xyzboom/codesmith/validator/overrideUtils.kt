@@ -74,8 +74,10 @@ fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
     return result
 }
 
-fun IrClassDeclaration.getOverrideCandidates(signatureMap: FunctionSignatureMap)
-        : Triple<MutableList<SuperAndIntfFunctions>, MutableList<SuperAndIntfFunctions>,
+fun IrClassDeclaration.getOverrideCandidates(
+    signatureMap: FunctionSignatureMap,
+    doNotEditLanguage: Boolean = false
+): Triple<MutableList<SuperAndIntfFunctions>, MutableList<SuperAndIntfFunctions>,
         MutableList<SuperAndIntfFunctions>> {
     val mustOverrides = mutableListOf<SuperAndIntfFunctions>()
     val canOverride = mutableListOf<SuperAndIntfFunctions>()
@@ -117,8 +119,12 @@ fun IrClassDeclaration.getOverrideCandidates(signatureMap: FunctionSignatureMap)
             }
         } else if (superFunction.isFinal) {
             if (nonAbstractCount > 0) {
-                logger.trace { "final conflict and could not override, change to Java" }
-                language = Language.JAVA
+                logger.trace {
+                    "final conflict and could not override, change to Java. doNotEditLanguage: $doNotEditLanguage"
+                }
+                if (!doNotEditLanguage) {
+                    language = Language.JAVA
+                }
             }
             stubOverride.add(pair)
             notMustOverride = false
