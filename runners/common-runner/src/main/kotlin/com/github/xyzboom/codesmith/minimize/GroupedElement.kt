@@ -252,7 +252,7 @@ data class GroupedElement(
             } else {
                 val superClass = oriSuper.classDecl
                 val superTypeOf = SuperTypeOf(oriClass, superClass)
-                if (superTypeOf in superTypeOfs) {
+                if (superTypeOf in superTypeOfs && superClass in this@GroupedElement.classes) {
                     val (newType, oriExists) = oriSuper.toNew()
                     if (oriExists) {
                         newSuper = newType
@@ -346,7 +346,7 @@ data class GroupedElement(
 
         fun secondStageNewClassFromClosure(newClass: IrClassDeclaration) {
             val signatureMap = newClass.collectFunctionSignatureMap()
-            val (must, can, stub) = newClass.getOverrideCandidates(signatureMap)
+            val (must, can, stub) = newClass.getOverrideCandidates(signatureMap, true)
             fun SuperAndIntfFunctions.handleNewF(isStub: Boolean?) {
                 val (superF, intfF) = this
                 val allSuperF = if (superF != null) {
@@ -398,7 +398,7 @@ data class GroupedElement(
                     val newClass = old2NewClasses[clazz]!!
                     firstStageNewClassFromClosure(clazz, newClass)
                 }
-                for (clazz in this.topologicalOrderedClasses) {
+                for (clazz in topologicalOrderedClasses) {
                     secondStageNewClassFromClosure(clazz)
                 }
             }
@@ -425,7 +425,12 @@ data class GroupedElement(
         }
     }
 
-    data class SuperTypeOf(val clazz: IrClassDeclaration, val superClass: IrClassDeclaration) : IEmptyElement
+    data class SuperTypeOf(val clazz: IrClassDeclaration, val superClass: IrClassDeclaration) : IEmptyElement {
+        override fun toString(): String {
+            return "${clazz.name} <: ${superClass.name}"
+        }
+    }
+
     data class FunctionGroup(override var name: String) : IEmptyNamedElement
     data class TypeParameter(override var name: String) : IEmptyNamedElement
     data class Parameter(override var name: String) : IEmptyNamedElement
