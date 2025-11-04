@@ -14,7 +14,6 @@ import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaratio
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildParameter
 import com.github.xyzboom.codesmith.ir.declarations.traverseSuper
-import com.github.xyzboom.codesmith.ir.deepCopy
 import com.github.xyzboom.codesmith.ir.topologicalOrderedClasses
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
@@ -80,14 +79,42 @@ data class GroupedElement(
         }
     }
 
-    fun makeSuperTypeOfValid(): GroupedElement {
+    fun makeValid(): GroupedElement {
         val newSuperTypeOfs = LinkedHashSet<SuperTypeOf>(superTypeOfs)
         for (superTypeOf in superTypeOfs) {
             if (superTypeOf.clazz !in classes || superTypeOf.superClass !in classes) {
                 newSuperTypeOfs.remove(superTypeOf)
             }
         }
-        return copy(superTypeOfs = newSuperTypeOfs)
+        val newFunctions = mutableSetOf<FunctionGroup>()
+        val newTypeParameters = LinkedHashSet<TypeParameter>()
+        val newParameters = LinkedHashSet<Parameter>()
+        for (clazz in classes) {
+            newTypeParameters.addAll(
+                clazz.typeParameters
+                    .map { TypeParameter(it.name) }
+                    .filter { it in this.typeParameters }
+            )
+            for (f in clazz.functions.filter { it in this.functions }) {
+                newFunctions.add(FunctionGroup(f.name))
+                newTypeParameters.addAll(
+                    f.typeParameters
+                        .map { TypeParameter(it.name) }
+                        .filter { it in this.typeParameters }
+                )
+                newParameters.addAll(
+                    f.parameterList.parameters
+                        .map { Parameter(it.name) }
+                        .filter { it in this.parameters }
+                )
+            }
+        }
+        return copy(
+            superTypeOfs = newSuperTypeOfs,
+            functions = newFunctions,
+            typeParameters = newTypeParameters,
+            parameters = newParameters,
+        )
     }
 
     fun toProgram(): IrProgram {
@@ -189,6 +216,9 @@ data class GroupedElement(
                 }
 
                 is IrTypeParameter -> {
+                    if (oriType !in typeParameters) {
+                        return IrAny to false
+                    }
                     val newType = buildTypeParameter {
                         name = oriType.name
                         val (newUpperbound, _) = newTypeFromClosure(oriType.upperbound)
