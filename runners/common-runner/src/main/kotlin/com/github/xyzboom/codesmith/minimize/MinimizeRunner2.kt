@@ -50,8 +50,8 @@ class MinimizeRunner2(
             if (groupCacheResult != null) {
                 return groupCacheResult
             }
-            val makeSuperValid = newGroup.makeSuperTypeOfValid()
-            val groupCacheResult2 = groupCache[makeSuperValid]
+            val makeValid = newGroup.makeValid()
+            val groupCacheResult2 = groupCache[makeValid]
             if (groupCacheResult2 != null) {
                 return groupCacheResult2
             }
@@ -72,62 +72,82 @@ class MinimizeRunner2(
         }
 
         fun reduceClasses(initGroup: GroupedElement): GroupedElement {
-            val classes = initGroup.classes.toList()
+            val validGroup = initGroup.makeValid()
+            val classes = validGroup.classes.toList()
             val ddmin = DDMin {
-                val newGroup = initGroup.copy(classes = it.toSet())
+                val newGroup = validGroup.copy(classes = it.toSet())
                 return@DDMin cacheOrCompile(newGroup)
             }
             val remainClasses = ddmin.execute(classes)
-            return initGroup.copy(classes = remainClasses.toSet())
+            return validGroup.copy(classes = remainClasses.toSet())
         }
 
         fun reduceInheritance(initGroup: GroupedElement): GroupedElement {
-            val elements = (initGroup.superTypeOfs + initGroup.classes).toList()
+            val validGroup = initGroup.makeValid()
+            val elements = (validGroup.superTypeOfs + validGroup.classes).toList()
             val ddmin = DDMin<IrElement> {
-                val newGroup = initGroup.copy(
+                val newGroup = validGroup.copy(
                     classes = it.filterIsInstance<IrClassDeclaration>().toSet(),
                     superTypeOfs = it.filterIsInstance<GroupedElement.SuperTypeOf>().toSet()
                 )
                 return@DDMin cacheOrCompile(newGroup)
             }
             val remainElements = ddmin.execute(elements)
-            return initGroup.copy(
+            return validGroup.copy(
                 classes = remainElements.filterIsInstance<IrClassDeclaration>().toSet(),
                 superTypeOfs = remainElements.filterIsInstance<GroupedElement.SuperTypeOf>().toSet()
             )
         }
 
         fun reduceFunctions(initGroup: GroupedElement): GroupedElement {
-            val functions = initGroup.functions.sortWithRelated(initCompileResult)
+            val validGroup = initGroup.makeValid()
+            val functions = validGroup.functions.sortWithRelated(initCompileResult)
             val ddmin = DDMin {
-                val newGroup = initGroup.copy(functions = it.toSet())
+                val newGroup = validGroup.copy(functions = it.toSet())
                 return@DDMin cacheOrCompile(newGroup)
             }
             val remainFunctions = ddmin.execute(functions)
-            return initGroup.copy(functions = remainFunctions.toSet())
+            return validGroup.copy(functions = remainFunctions.toSet())
         }
 
-        fun reduceTypeParametersAndParameters(initGroup: GroupedElement): GroupedElement {
-            val elements = (initGroup.typeParameters + initGroup.parameters).toList()
-            val ddmin = DDMin<IrElement> {
-                val newGroup = initGroup.copy(
-                    typeParameters = it.filterIsInstance<GroupedElement.TypeParameter>().toSet(),
-                    parameters = it.filterIsInstance<GroupedElement.Parameter>().toSet()
+        fun reduceTypeParameters(initGroup: GroupedElement): GroupedElement {
+            val validGroup = initGroup.makeValid()
+            val elements = validGroup.typeParameters.toList()
+            val ddmin = DDMin {
+                val newGroup = validGroup.copy(
+                    typeParameters = it.toSet()
                 )
                 return@DDMin cacheOrCompile(newGroup)
             }
             val remainElements = ddmin.execute(elements)
-            return initGroup.copy(
-                typeParameters = remainElements.filterIsInstance<GroupedElement.TypeParameter>().toSet(),
-                parameters = remainElements.filterIsInstance<GroupedElement.Parameter>().toSet()
+            return validGroup.copy(
+                typeParameters = remainElements.toSet()
             )
         }
+
+        fun reduceParameters(initGroup: GroupedElement): GroupedElement {
+            val validGroup = initGroup.makeValid()
+            val elements = validGroup.parameters.toList()
+            val ddmin = DDMin {
+                val newGroup = validGroup.copy(
+                    parameters = it.toSet()
+                )
+                return@DDMin cacheOrCompile(newGroup)
+            }
+            val remainElements = ddmin.execute(elements)
+            return validGroup.copy(
+                parameters = remainElements.toSet()
+            )
+        }
+
 
         val stages = listOf(
             ::reduceClasses,
             ::reduceInheritance,
             ::reduceFunctions,
-            ::reduceTypeParametersAndParameters
+            ::reduceParameters,
+            ::reduceTypeParameters
+//            ::reduceTypeParametersAndParameters
         )
         for (stage in stages) {
             group = stage(group)
