@@ -1,4 +1,4 @@
-package com.github.xyzboom.codesmith.kotlin
+package com.github.xyzboom.codesmith.scala
 
 import com.github.ajalt.clikt.core.main
 import com.github.xyzboom.codesmith.CommonCompilerRunner
@@ -17,137 +17,57 @@ import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.*
-import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
-import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
-import org.jetbrains.kotlin.test.runners.codegen.AbstractFirPsiBlackBoxCodegenTest
-import org.jetbrains.kotlin.test.runners.codegen.AbstractIrBlackBoxCodegenTest
-import org.jetbrains.kotlin.test.services.EnvironmentBasedStandardLibrariesPathProvider
-import org.jetbrains.kotlin.test.services.KotlinStandardLibrariesPathProvider
-import org.jetbrains.kotlin.test.services.KotlinTestInfo
-import org.jetbrains.kotlin.test.util.KtTestUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.exitProcess
 import kotlin.time.Duration
 import kotlin.time.measureTime
 
-val testInfo = run {
-    // make sure JDK HOME is set
-    KtTestUtil.getJdk8Home()
-    KtTestUtil.getJdk17Home()
-    KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
-}
-
-class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
-
+class CrossLangFuzzerScalaRunner : CommonCompilerRunner() {
     companion object {
         private val logger = KotlinLogging.logger {}
-        fun TestConfigurationBuilder.config() {
-            /*
-             * Containers of different directives, which can be used in tests:
-             * - ModuleStructureDirectives
-             * - LanguageSettingsDirectives
-             * - DiagnosticsDirectives
-             * - FirDiagnosticsDirectives
-             * - CodegenTestDirectives
-             * - JvmEnvironmentConfigurationDirectives
-             *
-             * All of them are located in `org.jetbrains.kotlin.test.directives` package
-             */
-            defaultDirectives {
-                +CodegenTestDirectives.IGNORE_DEXING // Avoids loading R8 from the classpath.
-            }
-        }
     }
 
-    object K2Jdk8Compiler : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompiler.IJDK8Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
-
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
-    object K2Jdk17Compiler : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompiler.IJDK17Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
-
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
-    object K1Jdk8Compiler : AbstractIrBlackBoxCodegenTest(), IKotlinCompiler.IJDK8Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
-
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
-    object K1Jdk17Compiler : AbstractIrBlackBoxCodegenTest(), IKotlinCompiler.IJDK17Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
-
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
-    private val testers = listOf<IKotlinCompiler>(
-        K1Jdk8Compiler, /*K1Jdk17Compiler,*/
-        /*K2Jdk8Compiler*/ K2Jdk17Compiler,
-    )
-
+    override val availableCompilers: Map<String, ICompiler>
+        get() = TODO("Not yet implemented")
+    override val defaultCompilers: Map<String, ICompiler>
+        get() = TODO("Not yet implemented")
     private val minimizeRunner = MinimizeRunner2(this)
 
-    fun doDifferentialCompile(program: IrProgram): List<CompileResult> {
-        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
-        return testers.map { it.testProgram(fileContent) }
+    object Scala2Compiler : ICompiler {
+        override fun compile(program: IrProgram): CompileResult {
+            val printer = IrProgramPrinter(Language.SCALA)
+            return compileScala2WithJava(printer, program)
+        }
     }
 
-    fun doNormalCompile(program: IrProgram): CompileResult {
-        val printer = IrProgramPrinter(Language.KOTLIN)
-        val testResult = K2Jdk8Compiler.testProgram(printer.printToSingle(program))
-        return testResult
+    object Scala3Compiler : ICompiler {
+        override fun compile(program: IrProgram): CompileResult {
+            val printer = IrProgramPrinter(Language.SCALA)
+            return compileScala3WithJava(printer, program)
+        }
     }
+
+    private val compilers = listOf(
+        Scala2Compiler, Scala3Compiler,
+    )
 
     @OptIn(ExperimentalStdlibApi::class)
     fun doOneRoundDifferentialAndRecord(program: IrProgram, throwException: Boolean) {
-        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
-        val testResults = testers.map { it.testProgram(fileContent) }
+        val testResults = compilers.map { it.compile(program) }
         val resultSet = testResults.toSet()
         if (resultSet.size != 1) {
             val (minimize, minResult) = try {
-                minimizeRunner.minimize(program, testResults, recorder.recordCompilers(testers))
-            } catch (_: Throwable) {
+                minimizeRunner.minimize(program, testResults, recorder.recordCompilers(compilers))
+            } catch (e: Throwable) {
+                if (true) throw e
                 null to null
             }
             val anySimilar = if (enableGED && minimize != null) {
@@ -157,10 +77,10 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                 false
             } else false
             if (anySimilar) {
-                recordCompileResult(Language.KOTLIN, program, testResults, minimize, minResult)
+                recordCompileResult(Language.SCALA, program, testResults, minimize, minResult)
             } else {
                 recordCompileResult(
-                    Language.KOTLIN, program, testResults, minimize, minResult, outDir = nonSimilarOutDir
+                    Language.SCALA, program, testResults, minimize, minResult, outDir = nonSimilarOutDir
                 )
             }
             if (throwException) {
@@ -170,37 +90,35 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
         }
     }
 
+    fun doNormalCompile(program: IrProgram): CompileResult {
+        return Scala3Compiler.compile(program)
+    }
+
     @OptIn(ExperimentalStdlibApi::class)
     fun doOneRoundAndRecord(program: IrProgram, throwException: Boolean) {
         val testResult = doNormalCompile(program)
         if (!testResult.success) {
             val (minimize, minResult) = try {
-                minimizeRunner.minimize(program, listOf(testResult), testers)
+                minimizeRunner.minimize(program, listOf(testResult), compilers)
             } catch (_: Throwable) {
                 null to null
             }
-            recordCompileResult(Language.KOTLIN, program, listOf(testResult), minimize, minResult)
+            recordCompileResult(Language.SCALA, program, listOf(testResult), minimize, minResult)
             if (throwException) {
                 throw RuntimeException()
             }
         }
     }
 
-    override val availableCompilers: Map<String, ICompiler>
-        get() = TODO("Not yet implemented")
-    override val defaultCompilers: Map<String, ICompiler>
-        get() = TODO("Not yet implemented")
-
     private val recorder = DataRecorder()
 
     private fun doReduce(program: IrProgram): IrProgram? {
-        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
-        val testResults = testers.map { it.testProgram(fileContent) }
+        val testResults = compilers.map { it.compile(program) }
         recorder.addProgram("ori", program)
         val reduced: IrProgram
         val reduceTime = measureTime {
             val (result, _) = try {
-                minimizeRunner.minimize(program, testResults, recorder.recordCompilers(testers))
+                minimizeRunner.minimize(program, testResults, recorder.recordCompilers(compilers))
             } catch (_: Throwable) {
                 return null
             }
@@ -263,7 +181,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
     override fun runnerMain() {
-        logger.info { "start kotlin runner" }
+        logger.info { "start scala runner" }
         val i = AtomicInteger(0)
         val parallelSize = 1
         val inputIRFiles = inputIRFiles
@@ -281,7 +199,10 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
                         val job = launch {
                             val threadName = Thread.currentThread().name
                             while (true) {
-                                val generator = IrDeclGenerator(runConfig.generatorConfig)
+                                val generator = IrDeclGenerator(
+                                    runConfig.generatorConfig,
+                                    majorLanguage = Language.SCALA
+                                )
                                 val prog = generator.genProgram()
                                 repeat(runConfig.langShuffleTimesBeforeMutate) {
                                     val dur = measureTime { doOneRoundDifferentialAndRecord(prog, stopOnErrors) }
@@ -345,11 +266,5 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
 }
 
 fun main(args: Array<String>) {
-    /*Thread {
-        println("start timer")
-        Thread.sleep(15 * 3600 * 1000)
-        println("timeout")
-        exitProcess(0)
-    }.start()*/
-    CrossLangFuzzerKotlinRunner().main(args)
+    CrossLangFuzzerScalaRunner().main(args)
 }

@@ -32,8 +32,8 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
         return when (irClassType) {
             ABSTRACT -> "abstract class "
             INTERFACE -> "trait "
-            OPEN -> "open class "
-            FINAL -> "class "
+            OPEN -> "class "
+            FINAL -> "final class "
         }
     }
 
@@ -129,14 +129,16 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
             data.append("]")
         }
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
-        data.append(" {\n")
+        if (clazz.functions.isNotEmpty()) {
+            data.append(" {\n")
 
-        indentCount++
-        super.visitClassDeclaration(clazz, data)
-        indentCount--
+            indentCount++
+            super.visitClassDeclaration(clazz, data)
+            indentCount--
 
-        data.append(indent)
-        data.append("}\n")
+            data.append(indent)
+            data.append("}\n")
+        }
     }
 
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
