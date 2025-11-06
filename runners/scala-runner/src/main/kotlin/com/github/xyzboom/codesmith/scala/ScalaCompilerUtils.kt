@@ -77,10 +77,12 @@ fun compileScala3WithJava(
         val errorString = allErrors.joinToString("\n") { it.msg }
         return CompileResult("scala3", errorString, null)
     }
-    val compileJavaResult = JavaCompilerWrapper().compileJavaAfterMajorFinished(
-        allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
-        outDir.absolutePath
-    )
+    val compileJavaResult = if (fileMap.any { it.key.endsWith(".java") }) {
+        JavaCompilerWrapper().compileJavaAfterMajorFinished(
+            allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
+            outDir.absolutePath
+        )
+    } else null
     // todo refactor this like [CodeSmithGroovyRunner.kt]
     return CompileResult("scala3", null, compileJavaResult)
 }
@@ -115,10 +117,12 @@ fun compileScala2WithJava(
         return CompileResult("scala2", compileScalaResult, null)
     }
 
-    val compileJavaResult = JavaCompilerWrapper().compileJavaAfterMajorFinished(
-        allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
-        outDir.absolutePath
-    )
+    val compileJavaResult = if (fileMap.any { it.key.endsWith(".java") }) {
+        JavaCompilerWrapper().compileJavaAfterMajorFinished(
+            allSourceFiles.filter { it.endsWith(".java") }.map { File(it) },
+            outDir.absolutePath
+        )
+    } else null
     // todo refactor this like [CodeSmithGroovyRunner.kt]
     return CompileResult("scala2", null, compileJavaResult)
 }

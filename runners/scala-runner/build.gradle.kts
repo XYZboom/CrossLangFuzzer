@@ -15,6 +15,8 @@ dependencies {
     implementation(project(":runners:common-runner"))
     implementation("org.scala-lang:scala3-compiler_3:3.6.4-RC1-bin-20241231-1f0c576-NIGHTLY")
     implementation("org.scala-lang:scala-compiler:2.13.15")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
@@ -30,7 +32,7 @@ tasks.withType<JavaExec> {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(11)
     }
-    mainClass.set("com.github.xyzboom.codesmith.scala.CodeSmithScalaDifferentialTestRunnerKt")
+    mainClass.set("com.github.xyzboom.codesmith.scala.CrossLangFuzzerScalaRunnerKt")
     systemProperties["codesmith.logger.console"] = System.getProperty("codesmith.logger.console") ?: "info"
     systemProperties["codesmith.logger.traceFile"] = System.getProperty("codesmith.logger.traceFile") ?: "off"
     systemProperties["codesmith.logger.traceFile.ImmediateFlush"] =
@@ -40,4 +42,6 @@ tasks.withType<JavaExec> {
         systemProperties["java.io.tmpdir"] = tmpPath
     }
     systemProperties["codesmith.logger.outdir"] = System.getProperty("codesmith.logger.outdir") ?: "./out"
+
+    workingDir = rootDir
 }

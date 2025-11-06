@@ -75,7 +75,10 @@ class IrProgramPrinter(
         }
         val javaTopLevelContent = javaClassPrinter.printTopLevelFunctionsAndProperties(element)
         val ktTopLevelContent = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
-        result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
+        if (element.classes.any { it.language == Language.JAVA }) {
+            result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
+            result.putAll(extraJavaFile)
+        }
         if (majorLanguage == Language.KOTLIN) {
             result[MAIN_KT_NAME] = "${ktTopLevelContent}\n" +
                     "fun box(): String {\n" +
@@ -84,7 +87,6 @@ class IrProgramPrinter(
                     "fun main(args: Array<String>) {\n" +
                     "}"
         }
-        result.putAll(extraJavaFile)
         return result
     }
 
