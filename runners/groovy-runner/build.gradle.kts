@@ -13,6 +13,8 @@ repositories {
 dependencies {
     implementation(project.rootProject)
     implementation(project(":runners:common-runner"))
+    implementation("org.jetbrains:annotations:15.0")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     implementation(kotlin("stdlib-jdk8"))
