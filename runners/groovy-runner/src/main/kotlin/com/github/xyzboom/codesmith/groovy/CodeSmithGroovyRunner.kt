@@ -6,21 +6,31 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.xyzboom.codesmith.CommonCompilerRunner
+import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.RunMode
+import com.github.xyzboom.codesmith.data.DataRecorder
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.setMajorLanguage
+import com.github.xyzboom.codesmith.minimize.MinimizeRunner2
 import com.github.xyzboom.codesmith.minimize.MinimizeRunnerImpl
 import com.github.xyzboom.codesmith.mutator.IrMutator
 import com.github.xyzboom.codesmith.mutator.MutatorConfig
 import com.github.xyzboom.codesmith.recordCompileResult
+import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.tempDir
+import io.github.oshai.kotlinlogging.KotlinLogging
+import java.io.File
 import kotlin.system.exitProcess
 import kotlin.time.measureTime
 
 
 class CodeSmithGroovyRunner : CommonCompilerRunner() {
+
+    companion object {
+        private val logger = KotlinLogging.logger {}
+    }
 
     private val groovyVersions by option("--gv")
         .choice(*GroovyCompilerWrapper.groovyJarsWithVersion.keys.toTypedArray())
@@ -31,23 +41,39 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         groovyVersions.map { GroovyCompilerWrapper(it) }
     }
 
-    private val minimizeRunner = MinimizeRunnerImpl(this)
+    private val recorder = DataRecorder()
+    private val minimizeRunner = MinimizeRunner2(this)
+    override val availableCompilers: Map<String, ICompiler>
+        get() = TODO("Not yet implemented")
+    override val defaultCompilers: Map<String, ICompiler>
+        get() = TODO("Not yet implemented")
 
     override fun runnerMain() {
+        val files = inputIRFiles
+        if (files != null) {
+            for (file in files) {
+                val prog = file.reader().use { gson.fromJson(it, IrProgram::class.java) }
+                runDifferential(prog)
+            }
+            return
+        }
+
         val doOneRoundFunction: () -> Unit
         when (runMode) {
-             RunMode.DifferentialTest -> {
+            RunMode.DifferentialTest -> {
                 if (groovyVersions.size <= 1) {
                     System.err.println("You must provide at least 2 different versions of compiler to do differential testing!")
                     exitProcess(-1)
                 }
                 doOneRoundFunction = ::doDifferentialTestingOneRound
             }
+
             RunMode.NormalTest -> {
                 doOneRoundFunction = ::doOneRound
             }
 
             RunMode.GenerateIROnly -> TODO()
+            RunMode.ReduceOnly -> TODO()
         }
         println("start at: $tempDir")
         var i = 0
@@ -57,11 +83,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         }
     }
 
-    private fun runDifferential(
-        groovyCompilers: List<GroovyCompilerWrapper>,
-        generator: IrDeclGenerator,
-        program: IrProgram
-    ) {
+    private fun runDifferential(program: IrProgram) {
         val compileResults = groovyCompilers.map { compiler ->
             if (compiler.isGroovy5) {
                 program.setMajorLanguage(Language.GROOVY5)
@@ -76,10 +98,11 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
 
         if (compileResults.toSet().size != 1) {
             val (minimize, minResult) = try {
-                minimizeRunner.minimize(program, compileResults, groovyCompilers)
+                minimizeRunner.minimize(program, compileResults, recorder.recordCompilers(groovyCompilers))
             } catch (_: Throwable) {
                 null to null
             }
+            logger.info { "compile times: ${recorder.getCompileTimes()}" }
             recordCompileResult(
                 Language.GROOVY4, program, compileResults, minimize, minResult, outDir = nonSimilarOutDir
             )
@@ -97,7 +120,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         val program = generator.genProgram()
         repeat(runConfig.langShuffleTimesBeforeMutate) {
             run normalDifferential@{
-                runDifferential(groovyCompilers, generator, program)
+                runDifferential(program)
             }
             generator.shuffleLanguage(program)
         }
@@ -113,7 +136,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         if (mutator.mutate(program)) {
             repeat(runConfig.langShuffleTimesAfterMutate) {
                 run mutatedDifferential@{
-                    runDifferential(groovyCompilers, generator, program)
+                    runDifferential(program)
                 }
                 generator.shuffleLanguage(program)
             }
