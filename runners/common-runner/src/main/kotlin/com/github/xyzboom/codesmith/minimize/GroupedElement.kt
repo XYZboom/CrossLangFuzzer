@@ -22,6 +22,7 @@ import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
@@ -205,7 +206,34 @@ data class GroupedElement(
                                     if (oriTAExists) {
                                         newTypeArg
                                     } else {
-                                        newTypeParam.upperbound
+                                        val newUpperbound = newTypeParam.upperbound
+                                        if (newUpperbound is IrTypeParameter) {
+                                            val newUpperboundName = IrTypeParameterName(newUpperbound.name)
+
+                                            /**
+                                             * before:
+                                             * ```kt
+                                             * open class X
+                                             * open class Y: X
+                                             * open class A<T0: X, T1: T0>
+                                             * open class B {
+                                             *     fun func(a: A<X, Y>) {}
+                                             * }
+                                             * ```
+                                             * remove class `Y`, after:
+                                             * ```kt
+                                             * open class X
+                                             * open class A<T0: X, T1: T0>
+                                             * open class B {
+                                             *     fun func(a: A<X, X>) {}
+                                             * //                   ^
+                                             * // the arg here is not `T0` but the arg of `T0`
+                                             * }
+                                             * ```
+                                             */
+                                            val mayBeAnotherArg = newType.arguments[newUpperboundName]
+                                            mayBeAnotherArg?.second ?: newUpperbound
+                                        } else newUpperbound
                                     }
                                 } else null
                                 newType.arguments[typeParamName] = newTypeParam to newTypeArg
@@ -330,7 +358,30 @@ data class GroupedElement(
                     val finalNewArg = if (oriExists) {
                         newArg
                     } else {
-                        newTypeParam.upperbound
+                        val newUpperbound = newTypeParam.upperbound
+                        if (newUpperbound is IrTypeParameter) {
+                            val newUpperboundName = IrTypeParameterName(newUpperbound.name)
+
+                            /**
+                             * before:
+                             * ```kt
+                             * open class X
+                             * open class Y: X
+                             * open class A<T0: X, T1: T0>
+                             * open class B: A<X, Y>
+                             * ```
+                             * remove class `Y`, after:
+                             * ```kt
+                             * open class X
+                             * open class A<T0: X, T1: T0>
+                             * open class B: A<X, X>
+                             * //                 ^
+                             * // the arg here is not `T0` but the arg of `T0`
+                             * ```
+                             */
+                            val mayBeAnotherArg = allSuperTypeArguments[newUpperboundName]
+                            mayBeAnotherArg?.second ?: newUpperbound
+                        } else newUpperbound
                     }
                     allSuperTypeArguments[typeParamName] = newTypeParam to finalNewArg
                 }

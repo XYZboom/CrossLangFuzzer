@@ -1,5 +1,8 @@
 package com.github.xyzboom.codesmith.algorithm
 
+import kotlin.math.max
+import kotlin.math.min
+
 class DDMin<T>(private val testFunc: (List<T>) -> Boolean) {
 
     fun execute(input: List<T>): List<T> {
@@ -23,13 +26,13 @@ class DDMin<T>(private val testFunc: (List<T>) -> Boolean) {
             val complement = getComplement(parts, i)
             // if complement passes test, run on complement
             if (testFunc(complement)) {
-                return executeRecursive(complement, 2)
+                return executeRecursive(complement, max(n - 1, 2))
             }
         }
 
         // if we can split further, do it. Otherwise, return the result.
         return if (n < input.size) {
-            executeRecursive(input, minOf(n * 2, input.size))
+            executeRecursive(input, min(n * 2, input.size))
         } else {
             input
         }
