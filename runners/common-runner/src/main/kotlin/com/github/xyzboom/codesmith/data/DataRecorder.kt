@@ -5,6 +5,7 @@ import com.github.xyzboom.codesmith.ICompiler
 import com.github.xyzboom.codesmith.ir.visitors.IrTopDownVisitor
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.inheritanceDepth
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter.Companion.extraSourceFileNames
@@ -67,20 +68,31 @@ open class DataRecorder {
 
     class ProgramDataVisitor : IrTopDownVisitor<ProgramData>() {
         override fun visitClassDeclaration(classDeclaration: IrClassDeclaration, data: ProgramData) {
-            data.methodCount += classDeclaration.functions.size
+            data.methodCount += classDeclaration.functions.count { !it.isOverrideStub }
             val width = classDeclaration.implementedTypes.size + (if (classDeclaration.superType != null) 1 else 0)
             data.maxInheritanceWidth = max(data.maxInheritanceWidth, width)
-            data.avgInheritanceWidth = (data.avgInheritanceWidth * data.classCount + width) / (data.classCount + 1)
+            // this avg is avg of max value per program
+            data.avgInheritanceWidth = data.maxInheritanceWidth.toFloat()
             val depth = classDeclaration.inheritanceDepth
             data.maxInheritanceDepth = max(data.maxInheritanceDepth, depth)
-            data.avgInheritanceDepth = (data.avgInheritanceDepth * data.classCount + depth) / (data.classCount + 1)
+            data.avgInheritanceDepth = data.maxInheritanceDepth.toFloat()
             data.classCount++
+            data.typeParameterCount += classDeclaration.typeParameters.size
             super.visitClassDeclaration(classDeclaration, data)
+        }
+
+        override fun visitFunctionDeclaration(functionDeclaration: IrFunctionDeclaration, data: ProgramData) {
+            if (functionDeclaration.isOverrideStub) {
+                return super.visitFunctionDeclaration(functionDeclaration, data)
+            }
+            data.typeParameterCount += functionDeclaration.typeParameters.size
+            data.parameterCount += functionDeclaration.parameterList.parameters.size
+            super.visitFunctionDeclaration(functionDeclaration, data)
         }
     }
 
     protected fun processProgram(program: IrProgram): ProgramData {
-        val data = ProgramData()
+        val data = ProgramData(programCount = 1)
         program.accept(ProgramDataVisitor(), data)
         data.lineOfCode = IrProgramPrinter(printStub = false).print(program).values
             .filter {

@@ -17,7 +17,11 @@ class DDMin<T>(private val testFunc: (List<T>) -> Boolean) {
         input: List<T>,
         n: Int
     ): List<T> {
-        if (input.size <= 1) return input
+        if (input.isEmpty()) return input
+        if (input.size == 1) {
+            if (testFunc(emptyList())) return emptyList()
+            return input
+        }
         // split input into n parts
         val parts = partition(input, n)
 

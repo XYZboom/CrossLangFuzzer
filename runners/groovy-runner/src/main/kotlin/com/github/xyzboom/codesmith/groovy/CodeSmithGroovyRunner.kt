@@ -53,6 +53,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
         if (files != null) {
             for (file in files) {
                 val prog = file.reader().use { gson.fromJson(it, IrProgram::class.java) }
+                recorder.addProgram("ori", prog)
                 runDifferential(prog)
             }
             return
@@ -102,6 +103,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
             } catch (_: Throwable) {
                 null to null
             }
+            logger.info { gson.toJson(recorder.programData) }
             logger.info { "compile times: ${recorder.getCompileTimes()}" }
             recordCompileResult(
                 Language.GROOVY4, program, compileResults, minimize, minResult, outDir = nonSimilarOutDir
