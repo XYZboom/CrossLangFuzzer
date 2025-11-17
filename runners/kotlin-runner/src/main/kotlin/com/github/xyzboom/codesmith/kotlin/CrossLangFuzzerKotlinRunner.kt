@@ -39,8 +39,7 @@ val testInfo = run {
     KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
 }
 
-class CrossLangFuzzerKotlinRunner : CommonCompilerRunner() {
-
+class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
     companion object {
         private val logger = KotlinLogging.logger {}
         fun TestConfigurationBuilder.config() {

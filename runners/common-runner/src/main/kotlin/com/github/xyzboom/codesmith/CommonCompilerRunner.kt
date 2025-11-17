@@ -17,7 +17,9 @@ import com.github.xyzboom.codesmith.config.RunConfig
 import com.github.xyzboom.codesmith.serde.configGson
 import java.io.File
 
-abstract class CommonCompilerRunner : CliktCommand(), ICompilerRunner {
+abstract class CommonCompilerRunner(
+    name: String? = null
+) : CliktCommand(name), ICompilerRunner {
 
     init {
         context {

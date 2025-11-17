@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    application
 }
 
 group = "com.github.xyzboom"
@@ -13,6 +14,7 @@ dependencies {
     api("com.github.ajalt.clikt:clikt:5.0.3")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
     implementation(project.rootProject)
+    runtimeOnly(project(":runners:kotlin-runner"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
     testImplementation(testFixtures(project.rootProject))
 }
@@ -25,4 +27,10 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-parameters")
     }
+}
+application {
+    mainClass = "com.github.xyzboom.codesmith.CLFMain"
+}
+tasks.withType<JavaExec> {
+    workingDir = rootDir
 }
