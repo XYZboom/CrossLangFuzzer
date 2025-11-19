@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.output.MordantHelpFormatter
+import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
@@ -27,72 +28,91 @@ abstract class CommonCompilerRunner(
         }
     }
 
-    protected val runMode by option("-m", "--mode")
-        .enum<RunMode> {
-            when (it) {
-                NormalTest -> "normal"
-                DifferentialTest -> "diff"
-                GenerateIROnly -> "ironly"
-                ReduceOnly -> "reduce"
-            }
-        }
-        .default(DifferentialTest, "diff")
-        .help {
-            val sb = StringBuilder("Run mode.\u0085")
-            for (mode in RunMode.entries) {
-                val modeHelpString = when (mode) {
-                    NormalTest -> "[normal]: Generate IR automatically. Test compiler(s) normally (not differentially).\u0085"
-                    DifferentialTest -> "[diff]: Generate IR automatically. Test compiler(s) differentially.\u0085"
-                    GenerateIROnly -> "[ironly]: Generate and save IR automatically only. Do no tests.\u0085"
-                    ReduceOnly -> "[reduce]: Reduce the input IR only.\u0085"
+    // must specify type arguments here. See https://youtrack.jetbrains.com/issue/KT-82511
+    protected val runMode by run<OptionWithValues<RunMode, RunMode, RunMode>> {
+        option("-m", "--mode")
+            .enum<RunMode> {
+                when (it) {
+                    NormalTest -> "normal"
+                    DifferentialTest -> "diff"
+                    GenerateIROnly -> "ironly"
+                    ReduceOnly -> "reduce"
                 }
-                sb.append(modeHelpString)
             }
-            sb.toString()
-        }
-    private val inputIR by option("-i", "--input")
-        .file(
+            .default(DifferentialTest, "diff")
+            .help {
+                val sb = StringBuilder("Run mode.\u0085")
+                for (mode in RunMode.entries) {
+                    val modeHelpString = when (mode) {
+                        NormalTest -> "[normal]: Generate IR automatically. Test compiler(s) normally (not differentially).\u0085"
+                        DifferentialTest -> "[diff]: Generate IR automatically. Test compiler(s) differentially.\u0085"
+                        GenerateIROnly -> "[ironly]: Generate and save IR automatically only. Do no tests.\u0085"
+                        ReduceOnly -> "[reduce]: Reduce the input IR only.\u0085"
+                    }
+                    sb.append(modeHelpString)
+                }
+                sb.toString()
+            }
+    }
+    private val inputIR by run<OptionWithValues<File?, File, File>> {
+        option("-i", "--input")
+            .file(
+                mustExist = true,
+                canBeFile = true,
+                canBeDir = true,
+                mustBeReadable = true
+            ).help(
+                "Use input IR file instead of generated. If input is a directory, " +
+                        "all the json files in it will be used as input IR files."
+            )
+    }
+    private val recursivelyInput by run<OptionWithValues<Boolean, Boolean, Boolean>> {
+        option("--recursively-input", "-ri")
+            .flag()
+            .help("Recursively search for JSON files within the input folder")
+    }
+    protected val useCache by run<OptionWithValues<Boolean, Boolean, Boolean>> {
+        option("--use-cache", "-u")
+            .flag()
+            .help("Use cached reduced IR file for reduce only mode if exists. Save cache also.")
+    }
+    protected val stopOnErrors by run<OptionWithValues<Boolean, Boolean, Boolean>> {
+        option("-s", "--stop-on-errors")
+            .flag()
+            .help("Stop the runner when find a compiler bug.")
+    }
+    private val configFile by run<OptionWithValues<File, File, File>> {
+        option("--config-file").file(
             mustExist = true,
             canBeFile = true,
+            canBeDir = false,
+            mustBeReadable = true
+        ).default(File("config/default.json"))
+    }
+    protected lateinit var runConfig: RunConfig
+    protected val nonSimilarOutDir by run<OptionWithValues<File, File, File>> {
+        option("-nso", "--non-similar-out").file(
+            mustExist = false,
+            canBeFile = false,
             canBeDir = true,
             mustBeReadable = true
-        ).help(
-            "Use input IR file instead of generated. If input is a directory, " +
-                    "all the json files in it will be used as input IR files."
-        )
-    private val recursivelyInput by option("--recursively-input", "-ri")
-        .flag()
-        .help("Recursively search for JSON files within the input folder")
-    protected val useCache by option("--use-cache", "-u")
-        .flag()
-        .help("Use cached reduced IR file for reduce only mode if exists. Save cache also.")
-    protected val stopOnErrors by option("-s", "--stop-on-errors")
-        .flag()
-        .help("Stop the runner when find a compiler bug.")
-    private val configFile by option("--config-file").file(
-        mustExist = true,
-        canBeFile = true,
-        canBeDir = false,
-        mustBeReadable = true
-    ).default(File("config/default.json"))
-    protected lateinit var runConfig: RunConfig
-    protected val nonSimilarOutDir by option("-nso", "--non-similar-out").file(
-        mustExist = false,
-        canBeFile = false,
-        canBeDir = true,
-        mustBeReadable = true
-    ).default(File("out/min"))
+        ).default(File("out/min"))
+    }
 
-    protected val generateIROnlyOutDir by option("-iro", "--ir-out").file(
-        mustExist = false,
-        canBeFile = false,
-        canBeDir = true,
-        mustBeReadable = true
-    ).default(File("out/ir"))
+    protected val generateIROnlyOutDir by run<OptionWithValues<File, File, File>> {
+        option("-iro", "--ir-out").file(
+            mustExist = false,
+            canBeFile = false,
+            canBeDir = true,
+            mustBeReadable = true
+        ).default(File("out/ir"))
+    }
 
-    protected val enableGED by option("--enable-ged")
-        .flag()
-        .help("Enable gedlib for program similarity compare. DEVELOP ONLY!")
+    protected val enableGED by run<OptionWithValues<Boolean, Boolean, Boolean>> {
+        option("--enable-ged")
+            .flag()
+            .help("Enable gedlib for program similarity compare. DEVELOP ONLY!")
+    }
 
     protected val inputIRFiles: Sequence<File>?
         get() {
