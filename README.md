@@ -54,6 +54,11 @@ In the Scala and Groovy Runners, the Java compiler being tested is provided by t
 In the Kotlin Runner, it will be the JDK8 and JDK17 installed on the current device.
 Detailed configuration methods will be explained in the corresponding sections for each Runner.
 
+Download [tree-generator](https://github.com/XYZboom/CrossLangFuzzer/releases/download/dev-ef4368/tree-generator-common.jar)
+which compiled from kotlin compiler into "libs/tree-generator-common.jar". 
+See [KT-81261](https://youtrack.jetbrains.com/issue/KT-81261/Request-to-publish-tree-generator-module-as-a-standalone-library)
+for more information.
+
 ### Kotlin Runner 
 
 ```bash
