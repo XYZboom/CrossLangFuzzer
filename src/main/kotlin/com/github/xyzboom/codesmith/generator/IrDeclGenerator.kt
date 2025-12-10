@@ -14,6 +14,7 @@ import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
+import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.ALL_BUILTINS
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
@@ -744,10 +745,14 @@ open class IrDeclGenerator(
                 it !== IrUnit && (it !== IrNothing || config.allowNothingInParameter)
             } ?: IrAny
         logger.trace { "gen parameter: $name, ${chooseType.render()}" }
-        val makeNullableType = if (random.nextBoolean(config.functionParameterNullableProbability)
+        val makeNullableOrPlatformType = if (random.nextBoolean(config.functionParameterNullableProbability)
             || chooseType === IrNothing
         ) {
             buildNullableType {
+                innerType = chooseType
+            }
+        } else if (random.nextBoolean(config.functionParameterPlatformProbability)) {
+            buildPlatformType {
                 innerType = chooseType
             }
         } else {
@@ -755,7 +760,7 @@ open class IrDeclGenerator(
         }
         return buildParameter {
             this.name = name
-            this.type = makeNullableType
+            this.type = makeNullableOrPlatformType
         }
     }
 

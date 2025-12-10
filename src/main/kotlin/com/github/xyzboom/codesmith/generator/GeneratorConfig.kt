@@ -26,7 +26,17 @@ data class GeneratorConfig(
     //<editor-fold desc="Function">
     val functionParameterNumRange: IntRange = 0..3,
     val functionExpressionNumRange: IntRange = 2..8,
+    /**
+     * only available in Kotlin.
+     */
     val functionParameterNullableProbability: Float = 0.4f,
+    /**
+     * only available in Kotlin.
+     * If a parameter is not nullable, generator will try to make it platform.
+     * Thus, the actual probability is
+     * (1 - [functionParameterNullableProbability]) * [functionParameterPlatformProbability]
+     */
+    val functionParameterPlatformProbability: Float = 0.4f,
     val functionReturnTypeNullableProbability: Float = 0.4f,
     val functionHasTypeParameterProbability: Float = 0.3f,
     val functionTypeParameterNumberRange: IntRange = 1..3,
