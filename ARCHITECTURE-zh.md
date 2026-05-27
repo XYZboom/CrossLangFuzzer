@@ -193,7 +193,7 @@ Printer（当前为 TODO）。
 
 ### scala-runner — Scala 编译器测试
 
-差分测试 Scala 2.13 和 Scala 3 nightly 版本。
+差分测试 Scala 2.13 和 Scala 3 nightly 版本（版本暂时固定）。
 
 ### groovy-runner — Groovy 编译器测试
 
@@ -279,7 +279,7 @@ Printer（当前为 TODO）。
                                            ↓
 运行阶段 (Execution)              编译阶段 (Compilation)
 ┌─────────────────┐               ┌──────────────────────────┐
-│ KotlinTest Runner│←───────────── │ .kt / .java / .scala     │
+│ Kotlin Runner     │←───────────── │ .kt / .java / .scala     │
 │ Scala Runner     │               │ files → Compiler          │
 │ Groovy Runner    │               └──────────────────────────┘
 └────────┬────────┘                                    ↓
