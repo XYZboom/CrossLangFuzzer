@@ -21,10 +21,10 @@ CrossLangFuzzer
 ├── tree/               # IR data structure definitions (code generation core)
 ├── tree/tree-generator/# Visitor-pattern printer for IR nodes (code generation)
 ├── src/main/           # Core logic
-│   ├── generator/      # Program generator
-│   ├── mutator/        # Program mutator
+│   ├── generator/      # Program generator (IrDeclGenerator)
+│   ├── mutator/        # Program mutator (IrMutator)
 │   ├── printer/        # Multi-language code output
-│   ├── validator/      # IR semantic validation
+│   ├── validator/      # IR semantic validation (used only in reduction)
 │   ├── ir/             # IR utilities & serialization
 │   ├── algorithm/      # Reduction algorithm (DDMin)
 │   └── config/         # Runtime configuration
@@ -33,7 +33,7 @@ CrossLangFuzzer
 │   ├── kotlin-runner/  # Kotlin compiler testing runner
 │   ├── scala-runner/   # Scala compiler testing runner
 │   └── groovy-runner/  # Groovy compiler testing runner
-├── test-framework/     # Kotlin test framework integration (test generation)
+├── test-framework/     # Kotlin test framework integration
 └── ged/                # Graph Edit Distance — program similarity comparison
 ```
 
@@ -82,12 +82,16 @@ IrType
 
 **Path:** `src/main/kotlin/.../generator/`
 
-`IrDeclGenerator` is the core generator. Starting from an empty `IrProgram`, it builds class hierarchies, member functions, and type parameters using configuration-driven (`GeneratorConfig`) probability distributions, ultimately producing structurally valid cross-language IR programs.
+`IrDeclGenerator` is the core generator. Starting from an empty `IrProgram`, it builds class hierarchies, member functions, and type parameters using configuration-driven (`GeneratorConfig`) probability distributions. Generated IR is **valid by construction** — no post-hoc validation required.
+
+### Valid by Construction
+
+The generator uses internal utility functions `collectFunctionSignatureMap` and `getOverrideCandidates` during generation to check override constraints. This ensures the generated IR always conforms to JVM inheritance rules, without needing an external `IrValidator`.
 
 ### Key Capabilities
 
 - **Subclass relationship building**: Maintains `subClassMap` and `notSubClassCache` to support generic subtype inference
-- **Override detection**: Collects parent/interface methods via `Validator` and enforces override signature constraints
+- **Override detection**: Checks parent/interface methods during generation using internal tools (not external Validator)
 - **Type selection**: Supports both sequential and filtered type selection, ensuring types are semantically compatible with the current context
 - **DSL builders**: Constructs IR in a type-safe manner through `IrClassDeclarationBuilder`, `IrFunctionDeclarationBuilder`, etc.
 
@@ -114,7 +118,7 @@ Renders IR into source code for each target language. The core abstraction is `I
 
 **Path:** `src/main/kotlin/.../mutator/`
 
-Applies mutations to generated IR programs to increase diversity and trigger more compiler code paths.
+Applies mutations to generated IR programs to increase diversity and trigger more compiler code paths. **Mutations are not validated** — the resulting IR may be semantically invalid.
 
 Implemented mutation strategies:
 
@@ -129,13 +133,15 @@ Implemented mutation strategies:
 
 Each mutation has a weight controlled by `MutatorConfig`, which determines whether it is enabled and its relative probability.
 
+**Design rationale**: Invalid IR after mutation is intentional — a semantically broken program may still trigger cross-language compiler bugs worth reporting.
+
 ---
 
-## 7. validator — IR Semantic Validation
+## 7. validator — IR Semantic Validation (used only in reduction)
 
 **Path:** `src/main/kotlin/.../validator/`
 
-Validates IR semantics after generation and mutation to ensure programs conform to each language's type rules. When illegal structures are found, `InvalidElement` is recorded for the caller to decide whether to roll back or fix.
+`IrValidator` is **not used during generation or mutation**. It is called **only** inside `MinimizeRunner2`'s reduction loop. After each element removal, `IrValidator` checks whether the remaining program is still valid; if validation fails, the reduction step is rolled back, ensuring the minimized program still reproduces the bug.
 
 Core checks:
 - Class inheritance hierarchy validity (interface vs class)
@@ -224,9 +230,13 @@ Uses **Graph Edit Distance (GED)** to quantify structural similarity between IR 
 
 `RunConfig` is the top-level configuration container bundling `GeneratorConfig`, `MutatorConfig`, and global parameters such as mutation count.
 
-### Quick Run
+### Quick Start
 
 ```bash
+# Download tree-generator
+curl -L -o libs/tree-generator-common.jar \
+  https://github.com/XYZboom/CrossLangFuzzer/releases/download/dev-ef4368/tree-generator-common.jar
+
 # Kotlin runner
 ./gradlew :runners:kotlin-runner:run --args="-s" \
   -Dorg.gradle.java.home=/path/to/jdk17
@@ -249,43 +259,36 @@ When a bug is found, results are saved in each runner's `out/min` directory.
 ```
 Generation Phase
 ┌─────────────────┐
-│ GeneratorConfig │──→ IrDeclGenerator ──→ IrProgram (IR)
+│ GeneratorConfig │──→ IrDeclGenerator ──→ IrProgram (valid by construction)
 └─────────────────┘
 
-Mutation Phase                  Optional loop
+Mutation Phase — no validation
 ┌─────────────────┐    ┌──────────────────┐
-│ MutatorConfig   │──→│ IrMutator         │──┐
-└─────────────────┘    └──────────────────┘  │
-                                             ↓
-Validation Phase                    (multiple iterations)
-┌─────────────────┐                      ┌──┴─────────────┐
-│ IrValidator     │──(valid IR)──────────→│ IrProgram (IR)│
-└─────────────────┘                      └────────┬───────┘
-                                                   ↓
-Serialization Phase          Printing Phase
-┌─────────────────┐               ┌──────────────────────────┐
-│ IrProgramSerializer│──────────→ │ IrProgramPrinter         │
-└─────────────────┘               │  ├─ KtIrClassPrinter       │
-                                  │  ├─ JavaIrClassPrinter    │
-                                  │  └─ ScalaIrClassPrinter    │
-                                  └────────┬──────────────────┘
-                                           ↓
-Execution Phase              Compilation Phase
-┌─────────────────┐               ┌──────────────────────────┐
-│ Kotlin Runner    │←───────────── │ .kt / .java / .scala     │
-│ Scala Runner     │               │ files → Compiler          │
-│ Groovy Runner    │               └──────────────────────────┘
-└────────┬────────┘                                    ↓
-         ↓                                   ┌───────────────┐
-    CompileResult                           │ CompileResult │
-         │                                  └───────┬───────┘
-         ↓                                          ↓
-    Differential Testing                   Bug found?
-┌──────────────────────────┐          ┌────────┴───────┐
-│ Compare multiple compilers │────────→ │ YES → Reduce   │
-│ to find inconsistencies   │          │ NO  → Next gen │
-└──────────────────────────┘          └────────────────┘
+│ MutatorConfig   │──→│ IrMutator         │──→ IrProgram (may be invalid)
+└─────────────────┘    └──────────────────┘
+
+                                          ┌──────────────┐
+                                          ↓              │
+Printing Phase                    Differential Testing
+IrProgramPrinter ──→ .kt/.java/.scala  →  agree → next round
+├─ KtIrClassPrinter                          disagree → bug → MinimizeRunner2
+├─ JavaIrClassPrinter                                        │
+└─ ScalaIrClassPrinter                                          ↓
+                                                     Reduction Phase — validator used here
+                                                     MinimizeRunner2
+                                                     ├── remove element
+                                                     ├── IrValidator checks
+                                                     │      └── invalid → rollback
+                                                     └── minimized → out/min/
+                                                        ↑
+                                           ┌────────────┘
 ```
+
+### Key Design Decisions
+
+1. **Valid by construction**: `IrDeclGenerator` uses internal tools (`collectFunctionSignatureMap`, `getOverrideCandidates`) during generation to check override constraints. No external `IrValidator` is needed at generation time.
+2. **No validation after mutation**: `IrMutator` directly modifies IR without calling `IrValidator`. Invalid IR after mutation is intentional — it may still trigger cross-language compiler bugs.
+3. **Validator only in reduction**: `IrValidator` is called **only** inside `MinimizeRunner2`. Each element removal is validated; if invalid, the step is rolled back. This ensures the minimized program still reproduces the bug.
 
 ---
 
@@ -298,7 +301,7 @@ Execution Phase              Compilation Phase
 | Fuzzing                          | 模糊测试          | Random/semi-random input generation to trigger bugs                      |
 | Printer                          | 代码生成器         | Module that converts IR to source code                                   |
 | Mutator                          | 变异器           | Module that applies mutations to generated programs                      |
-| Validator                        | 校验器           | Module that validates IR semantic correctness                            |
+| Validator                        | 校验器           | Module that validates IR semantic correctness (used only in reduction)    |
 | DDMin                            | DDMin         | Delta-Debugging Minimization, a program reduction algorithm              |
 | Override stub                    | Override stub | An override method that retains its signature but has its body removed   |
 | Platform Type                    | 平台类型          | Kotlin's mapping type for Java's type system                             |

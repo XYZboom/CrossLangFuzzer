@@ -23,10 +23,10 @@ CrossLangFuzzer
 ├── tree/               # IR 数据结构定义（代码生成核心）
 ├── tree/tree-generator/# IR 节点的 Visitor 模式打印器（代码生成）
 ├── src/main/           # 主要逻辑
-│   ├── generator/      # 程序生成器
-│   ├── mutator/        # 程序变异器
+│   ├── generator/      # 程序生成器（IrDeclGenerator）
+│   ├── mutator/        # 程序变异器（IrMutator）
 │   ├── printer/        # 多语言代码输出
-│   ├── validator/      # IR 语义校验
+│   ├── validator/      # IR 语义校验（仅用于化简阶段）
 │   ├── ir/             # IR 工具与序列化
 │   ├── algorithm/      # 化简算法（DDMin）
 │   └── config/         # 运行配置
@@ -35,7 +35,7 @@ CrossLangFuzzer
 │   ├── kotlin-runner/  # Kotlin 编译器测试 runner
 │   ├── scala-runner/   # Scala 编译器测试 runner
 │   └── groovy-runner/  # Groovy 编译器测试 runner
-├── test-framework/     # Kotlin 测试框架集成（打印测试生成）
+├── test-framework/     # Kotlin 测试框架集成
 └── ged/                # Graph Edit Distance — 程序相似度比较
 ```
 
@@ -86,12 +86,17 @@ IrType
 **路径:** `src/main/kotlin/.../generator/`
 
 `IrDeclGenerator` 是核心生成器，从空的 `IrProgram` 开始，通过配置驱动（`GeneratorConfig`
-）的概率分布，有控制地生成类层次结构、成员函数、类型参数等，最终产生结构上有效的跨语言 IR 程序。
+）的概率分布，有控制地生成类层次结构、成员函数、类型参数等。生成的 IR **天然合法**，不需要后续校验。
+
+### 生成即合法
+
+生成器内部直接使用 `collectFunctionSignatureMap` 和 `getOverrideCandidates` 在生成过程中检查 override
+约束，无需依赖外部的 `IrValidator`。这保证了生成阶段产出的 IR 一定满足 JVM 继承规则。
 
 ### 关键能力
 
 - **子类关系构建**：维护 `subClassMap` 和 `notSubClassCache`，支持泛型子类型判断
-- **Override 检测**：通过 `Validator` 收集父类/接口方法，结合 override 标记约束
+- **Override 检测**：生成过程中检查父类/接口方法，使用内部工具而非外部 Validator
 - **类型选择**：支持顺序选择（sequential）和过滤选择（filtered），确保类型在语义上兼容当前上下文
 - **DSL 构建器**：通过 `IrClassDeclarationBuilder`、`IrFunctionDeclarationBuilder` 等以类型安全的方式构造 IR
 
@@ -120,7 +125,7 @@ Printer（当前为 TODO）。
 
 **路径:** `src/main/kotlin/.../mutator/`
 
-在已生成的 IR 程序基础上施加变异操作，增加程序多样性以触发更多编译器路径。
+在已生成的 IR 程序基础上施加变异操作，增加程序多样性以触发更多编译器路径。**变异后不校验**，变异结果可能是语义非法的 IR。
 
 已实现的变异策略：
 
@@ -135,13 +140,16 @@ Printer（当前为 TODO）。
 
 每种变异有权重（weight），由 `MutatorConfig` 控制是否启用及相对概率。
 
+**设计原则**：变异后的 IR 可能违反 JVM 继承规则，但仍然可能触发跨语言编译器 bug，因此有意跳过校验。
+
 ---
 
-## 7. validator — IR 语义校验
+## 7. validator — IR 语义校验（仅用于化简阶段）
 
 **路径:** `src/main/kotlin/.../validator/`
 
-在生成和变异后校验 IR 的语义合法性，确保程序结构符合各语言的类型规则。发现非法结构时记录 `InvalidElement`，供调用者决策是否回退或修复。
+`IrValidator` **不在生成或变异阶段使用**，而是仅在 `MinimizeRunner2` 的化简循环中调用。每次移除元素后，用
+`IrValidator` 检查剩余程序是否仍合法；若验证失败则回滚该步化简，确保缩减后的程序仍能复现 bug。
 
 核心检查：
 
@@ -234,6 +242,10 @@ Printer（当前为 TODO）。
 ### 快速运行
 
 ```bash
+# Download tree-generator
+curl -L -o libs/tree-generator-common.jar \
+  https://github.com/XYZboom/CrossLangFuzzer/releases/download/dev-ef4368/tree-generator-common.jar
+
 # Kotlin runner
 ./gradlew :runners:kotlin-runner:run --args="-s" \
   -Dorg.gradle.java.home=/path/to/jdk17
@@ -256,43 +268,35 @@ Printer（当前为 TODO）。
 ```
 生成阶段 (Generation)
 ┌─────────────────┐
-│ GeneratorConfig │──→ IrDeclGenerator ──→ IrProgram (IR)
+│ GeneratorConfig │──→ IrDeclGenerator ──→ IrProgram（生成即合法）
 └─────────────────┘
 
-变异阶段 (Mutation)          可选循环
+变异阶段 (Mutation) — 不校验
 ┌─────────────────┐    ┌──────────────────┐
-│ MutatorConfig   │──→│ IrMutator         │──┐
-└─────────────────┘    └──────────────────┘  │
-                                             ↓
-校验阶段 (Validation)                  (可重复多次)
-┌─────────────────┐                      ┌──┴─────────────┐
-│ IrValidator     │──(合法 IR)────────────→│ IrProgram (IR)│
-└─────────────────┘                      └────────┬───────┘
-                                                   ↓
-序列化阶段 (Serialization)          渲染阶段 (Printing)
-┌─────────────────┐               ┌──────────────────────────┐
-│ IrProgramSerializer│──────────→ │ IrProgramPrinter         │
-└─────────────────┘               │  ├─ KtIrClassPrinter       │
-                                  │  ├─ JavaIrClassPrinter    │
-                                  │  └─ ScalaIrClassPrinter    │
-                                  └────────┬──────────────────┘
-                                           ↓
-运行阶段 (Execution)              编译阶段 (Compilation)
-┌─────────────────┐               ┌──────────────────────────┐
-│ Kotlin Runner     │←───────────── │ .kt / .java / .scala     │
-│ Scala Runner     │               │ files → Compiler          │
-│ Groovy Runner    │               └──────────────────────────┘
-└────────┬────────┘                                    ↓
-         ↓                                   ┌───────────────┐
-    CompileResult                           │ CompileResult │
-         │                                  └───────┬───────┘
-         ↓                                          ↓
-    差分检测 (Differential Testing)          Bug 发现？
-┌──────────────────────────┐          ┌────────┴───────┐
-│ Compare multiple compilers │────────→ │ YES → Reduce   │
-│ to find inconsistencies   │          │ NO  → Next gen │
-└──────────────────────────┘          └────────────────┘
+│ MutatorConfig   │──→│ IrMutator         │──→ IrProgram（可能非法）
+└─────────────────┘    └──────────────────┘
+
+化简阶段 (Reduction) — 使用 Validator
+                      IrProgram ──→ MinimizeRunner2
+                                    ├── 移除元素
+                                    ├── IrValidator 检查
+                                    │      └── 失败则回滚
+                                    └── 最终化简结果 → out/min/
+                                       ↑
+                          ┌────────────┘
+                          ↓
+              渲染阶段 (Printing) ──→ 差分测试 (Differential Testing)
+              IrProgramPrinter            disagree → bug → 化简
+              ├─ KtIrClassPrinter
+              ├─ JavaIrClassPrinter
+              └─ ScalaIrClassPrinter
 ```
+
+**关键设计决策**：
+
+1. **生成即合法**：`IrDeclGenerator` 在生成过程中使用内部工具（`collectFunctionSignatureMap`、`getOverrideCandidates`）检查 override 约束，无需外部 Validator
+2. **变异后不校验**：`IrMutator` 直接修改 IR，变异后的 IR 可能是非法的。这是有意为之——非法 IR 仍可能触发跨语言编译器 bug
+3. **Validator 仅用于化简**：`IrValidator` 仅在 `MinimizeRunner2` 化简循环中使用，每次移除元素后验证剩余程序是否仍能复现 bug
 
 ---
 
@@ -305,7 +309,7 @@ Printer（当前为 TODO）。
 | Fuzzing / 模糊测试  | Fuzzing                     | 随机/半随机输入生成以触发 bug                   |
 | Printer / 代码生成器 | Printer                     | 将 IR 转换为源码的模块                       |
 | Mutator / 变异器   | Mutator                     | 对已生成程序施加变异的模块                       |
-| Validator / 校验器 | Validator                   | 校验 IR 语义合法性的模块                      |
+| Validator / 校验器 | Validator                   | 校验 IR 语义合法性的模块（仅用于化简阶段）           |
 | DDMin           | DDMin                       | Delta-Debugging Minimization，程序化简算法 |
 | Override stub   | Override stub               | 保留了签名但删除了实现的 override 方法            |
 | 平台类型            | Platform Type               | Kotlin 对 Java 类型系统的映射类型             |
