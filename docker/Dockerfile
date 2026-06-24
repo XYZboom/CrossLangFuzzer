@@ -17,8 +17,9 @@ RUN dpkg -i zulu17.62.17-ca-jdk17.0.17-linux_amd64.deb || true \
     && java -version \
     && rm zulu17.62.17-ca-jdk17.0.17-linux_amd64.deb
 
-ARG GRADLE_OPTS
-ENV GRADLE_OPTS=$GRADLE_OPTS
+# Intentionally empty — build-time proxy leaks cause runtime failures.
+# Override at runtime via `docker run -e GRADLE_OPTS=...` if needed.
+ENV GRADLE_OPTS=;
 RUN git clone https://github.com/XYZboom/CrossLangFuzzer && cd CrossLangFuzzer \
     && git checkout $VERSION \
     && mkdir libs && cd libs \
