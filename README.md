@@ -110,6 +110,10 @@ This table shows the bugs we have found.
 | Kotlin  | [KT-74202](https://youtrack.jetbrains.com/issue/KT-74202)                   |
 | Kotlin  | [KT-74209](https://youtrack.jetbrains.com/issue/KT-74209)                   |
 | Kotlin  | [KT-74288](https://youtrack.jetbrains.com/issue/KT-74288)                   |
+| Kotlin  | [KT-78819](https://youtrack.jetbrains.com/issue/KT-78819)                   |
+| Kotlin  | [KT-79508](https://youtrack.jetbrains.com/issue/KT-79508)                   |
+| Kotlin  | [KT-80382](https://youtrack.jetbrains.com/issue/KT-80382)                   |
+| Kotlin  | [KT-80387](https://youtrack.jetbrains.com/issue/KT-80387)                   |
 | Groovy  | [GROOVY-11548](https://issues.apache.org/jira/browse/GROOVY-11548)          |
 | Groovy  | [GROOVY-11549](https://issues.apache.org/jira/browse/GROOVY-11549)          |
 | Groovy  | [GROOVY-11550](https://issues.apache.org/jira/browse/GROOVY-11550)          |
@@ -123,4 +127,7 @@ This table shows the bugs we have found.
 | Scala3  | [SCALA3-22717](https://github.com/scala/scala3/issues/22717)                |
 | Scala2  | [SCALA2-13074](https://github.com/scala/bug/issues/13074)                   |
 | Scala2  | [SCALA2-13075](https://github.com/scala/bug/issues/13075)                   |
+| Java    | [JDK-8347330](https://bugs.openjdk.org/browse/JDK-8347330?filter=allissues) |
 | Java    | [JDK-8352290](https://bugs.openjdk.org/browse/JDK-8352290?filter=allissues) |
+| Java    | [JDK-8361835](https://bugs.openjdk.org/browse/JDK-8361835?filter=allissues) |
+| Java    | [JDK-8370716](https://bugs.openjdk.org/browse/JDK-8370716?filter=allissues) |
