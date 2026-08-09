@@ -2,7 +2,9 @@
 CrossLangFuzzer is an innovative fuzzing tool designed specifically for testing JVM-based language compilers.
 It currently supports generating structurally valid cross-language programs in Kotlin,
 Java, Groovy, Scala 2, and Scala 3.
-Three mutators have been designed to diversify the generated programs.
+Several mutators have been designed to diversify the generated programs.
+
+The generator, mutator, and reducer are all language-agnostic. Only the translator (which translates IR into source code for different languages) and the test executor are language-specific. The test executors are currently isolated in separate modules because there are some unresolved dependency conflicts among the different executors.
 
 # Quick Run
 
