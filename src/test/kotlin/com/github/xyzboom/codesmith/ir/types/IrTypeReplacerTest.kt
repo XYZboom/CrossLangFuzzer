@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.ir.types
 
 import com.github.xyzboom.codesmith.generator.IrTypeMatcher
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
+import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import io.kotest.matchers.shouldBe
@@ -25,6 +26,15 @@ class IrTypeReplacerTest {
         val t1 = buildTypeParameter { name = "T1"; upperbound = IrAny }
         val nullableT1 = buildNullableType { innerType = t1 }
         nullableT0.replaceType(t0, nullableT1) shouldBe IrTypeMatcher(nullableT1)
+    }
+
+    @Test
+    fun testGetActualTypeFromArgumentsReplacesTypeParameterInsidePlatformType() {
+        val t0 = buildTypeParameter { name = "T0"; upperbound = IrAny }
+        val platformT0 = buildPlatformType { innerType = t0 }
+        val typeArguments = mapOf(IrTypeParameterName(t0.name) to (t0 to IrAny))
+
+        getActualTypeFromArguments(platformT0, typeArguments, true) shouldBe IrTypeMatcher(IrAny)
     }
 
     // todo we need more test here, see comments in IrTypeReplacer

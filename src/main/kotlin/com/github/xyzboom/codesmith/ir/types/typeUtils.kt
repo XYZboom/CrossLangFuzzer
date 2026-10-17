@@ -169,11 +169,15 @@ fun getActualTypeFromArguments(
          *    `A<Any?>::foo::t` in Java is `Any!`
          * 3. `A<Any!>::foo::t` is `Any!`
          */
-        if (oriInner is IrTypeParameter && oriInner.deepUpperboundNullable()) {
-            return if (typeArg is IrNullableType || typeArg is IrPlatformType) {
-                buildPlatformType { innerType = typeArg }
+        if (oriInner is IrTypeParameter) {
+            return if (oriInner.deepUpperboundNullable()) {
+                if (typeArg is IrNullableType || typeArg is IrPlatformType) {
+                    buildPlatformType { innerType = typeArg }
+                } else {
+                    typeArg.notPlatformType
+                }
             } else {
-                typeArg.notPlatformType
+                typeArg
             }
         }
     }
