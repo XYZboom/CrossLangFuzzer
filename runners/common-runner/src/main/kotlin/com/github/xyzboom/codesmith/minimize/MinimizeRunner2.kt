@@ -40,7 +40,13 @@ class MinimizeRunner2(
         initCompileResult: List<CompileResult>,
         compilers: List<ICompiler>
     ): Pair<IrProgram, List<CompileResult>> {
-        var group = GroupedElement.groupElements(initProg)
+        val sourcePreferredProgram = BytecodeDowngradeMinimizer().tryDowngrade(
+            runner = this,
+            program = initProg,
+            originalResults = initCompileResult,
+            compilers = compilers,
+        )
+        var group = GroupedElement.groupElements(sourcePreferredProgram)
         var lastResult = initCompileResult
         val groupCache = mutableMapOf<GroupedElement, Boolean>()
         val stringCache = mutableMapOf<String, Boolean>()

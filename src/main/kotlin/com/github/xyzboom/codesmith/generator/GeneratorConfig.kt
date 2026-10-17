@@ -68,7 +68,19 @@ data class GeneratorConfig(
     val overrideOnlyMustOnes: Boolean = false,
     val noFinalFunction: Boolean = false,
     val noFinalProperties: Boolean = false,
+    /**
+     * Range of module counts used when partitioning the generated program.
+     * Strongly connected class components remain in the same module, and modules
+     * follow dependency order.
+     */
+    val moduleNumRange: IntRange = 1..1,
 ) {
+    init {
+        require(moduleNumRange.first >= 1 && moduleNumRange.last >= moduleNumRange.first) {
+            "moduleNumRange must be valid and >= 1, but was $moduleNumRange"
+        }
+    }
+
     companion object {
         @JvmStatic
         val default = GeneratorConfig()

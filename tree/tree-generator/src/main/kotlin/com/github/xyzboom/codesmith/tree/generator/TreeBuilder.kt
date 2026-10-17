@@ -21,10 +21,17 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         +field("name", StandardTypes.string, isChild = false)
     }
 
-    val program: Element by element(Element.Kind.Other, name = "Program") {
+    val module: Element by element(Element.Kind.Other, name = "Module") {
+        parent(namedElement)
         parent(classContainer)
         parent(funcContainer)
         parent(propertyContainer)
+        +listField("dependencies", module, isChild = false)
+        kind = ImplementationKind.Interface
+    }
+
+    val program: Element by element(Element.Kind.Other, name = "Program") {
+        +listField("modules", module)
         kind = ImplementationKind.Interface
     }
 

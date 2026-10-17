@@ -7,6 +7,27 @@
         "@type": {
           "const": "IrProgram"
         },
+        "modules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/IrModule"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "IrModule": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "classes": {
           "type": "array",
           "items": {

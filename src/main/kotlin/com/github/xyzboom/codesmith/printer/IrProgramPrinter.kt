@@ -1,12 +1,17 @@
 package com.github.xyzboom.codesmith.printer
 
-import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.IrModule
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.builder.buildModule
+import com.github.xyzboom.codesmith.ir.classes
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.printer.clazz.JavaIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.KtIrClassPrinter
 import com.github.xyzboom.codesmith.printer.clazz.ScalaIrClassPrinter
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
 import java.io.File
+
 
 /**
  * Printer for whole program.
@@ -14,9 +19,10 @@ import java.io.File
  */
 @Suppress("unused")
 class IrProgramPrinter(
-    private val majorLanguage: Language = Language.KOTLIN,
+    majorLanguage: Language = Language.KOTLIN,
     private val printStub: Boolean = true,
 ) : IrPrinter<IrProgram, Map<String, String>> {
+    private val majorLanguage = majorLanguage
     private lateinit var javaClassPrinter: JavaIrClassPrinter
     private val ktClassPrinter = KtIrClassPrinter(printStub = printStub)
     private val scalaClassPrinter = ScalaIrClassPrinter(printStub = printStub)
@@ -62,14 +68,11 @@ class IrProgramPrinter(
         val result = mutableMapOf<String, String>()
         javaClassPrinter = JavaIrClassPrinter(majorLanguage, printStub = printStub)
         for (clazz in element.classes) {
-            // todo
-//            clazz.changeLanguageIfNotSuitable()
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
                 Language.JAVA -> "${clazz.name}.java" to javaClassPrinter.print(clazz)
                 Language.GROOVY4, Language.GROOVY5 -> "${clazz.name}.groovy" to javaClassPrinter.print(clazz)
                 Language.SCALA -> "${clazz.name}.scala" to scalaClassPrinter.print(clazz)
-                else -> TODO("The language ${clazz.language} has not been implemented yet")
             }
             result[fileName] = content
         }
@@ -111,15 +114,56 @@ class IrProgramPrinter(
     fun printToSingle(element: IrProgram): String {
         val map = print(element)
         val sb = StringBuilder(
-            "// JVM_DEFAULT_MODE: all\n" +
+            "// JVM_DEFAULT_MODE: no-compatibility\n" +
                     "// TARGET_BACKEND: JVM\n" +
                     "// JVM_TARGET: 1.8\n"
         )
-        for ((key, value) in map) {
+        val effectiveModules: List<IrModule> = if (element.modules.isEmpty()) {
+            listOf(buildModule {
+                name = "main"
+                classes.addAll(element.classes)
+            })
+        } else {
+            element.modules
+        }
+
+        val mainModule = effectiveModules.firstOrNull { it.name == "main" } ?: effectiveModules.last()
+        val firstJavaModule = effectiveModules.firstOrNull { mod ->
+            mod.classes.any { it.language == Language.JAVA }
+        }
+        val lastJavaModule = effectiveModules.lastOrNull { mod ->
+            mod.classes.any { it.language == Language.JAVA }
+        }
+
+        for (module in effectiveModules) {
+            val depNames = module.dependencies.map { it.name }
+            val depString = if (depNames.isEmpty()) "" else "(${depNames.joinToString(", ")})"
+            sb.append("// MODULE: ${module.name}$depString\n")
+
+            val modFileNames = buildSet {
+                for (clazz in module.classes) {
+                    add("${clazz.name}.${clazz.language.extension}")
+                }
+                if (module === firstJavaModule) {
+                    addAll(extraJavaFile.keys)
+                }
+                if (module === lastJavaModule) {
+                    add("${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java")
+                }
+                if (module === mainModule) {
+                    add(MAIN_KT_NAME)
+                }
+            }
+            appendFiles(sb, map.filterKeys { it in modFileNames })
+        }
+        return sb.toString()
+    }
+
+    private fun appendFiles(sb: StringBuilder, files: Map<String, String>) {
+        for ((key, value) in files) {
             sb.append("// FILE: $key\n")
             sb.append(value)
             sb.append("\n")
         }
-        return sb.toString()
     }
 }

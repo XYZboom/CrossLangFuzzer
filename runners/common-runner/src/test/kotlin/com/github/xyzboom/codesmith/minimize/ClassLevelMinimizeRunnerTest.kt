@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.minimize
 
 import com.github.xyzboom.codesmith.MockCompilerRunner
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration

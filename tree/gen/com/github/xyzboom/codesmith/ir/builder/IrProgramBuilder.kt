@@ -8,26 +8,19 @@
 package com.github.xyzboom.codesmith.ir.builder
 
 import com.github.xyzboom.codesmith.ir.IrImplementationDetail
+import com.github.xyzboom.codesmith.ir.IrModule
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
-import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
-import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.impl.IrProgramImpl
 import kotlin.contracts.*
 
 @BuilderDsl
-class IrProgramBuilder : IrFuncContainerBuilder {
-    val classes: MutableList<IrClassDeclaration> = mutableListOf()
-    override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
-    val properties: MutableList<IrPropertyDeclaration> = mutableListOf()
+class IrProgramBuilder {
+    val modules: MutableList<IrModule> = mutableListOf()
 
     @OptIn(IrImplementationDetail::class)
-    override fun build(): IrProgram {
+    fun build(): IrProgram {
         return IrProgramImpl(
-            classes,
-            functions,
-            properties,
+            modules,
         )
     }
 }

@@ -1,6 +1,9 @@
 package com.github.xyzboom.codesmith.kotlin
 
 import com.github.ajalt.clikt.core.main
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.int
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.CompileResult
 import com.github.xyzboom.codesmith.ICompiler
@@ -21,7 +24,6 @@ import kotlinx.coroutines.*
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
 import org.jetbrains.kotlin.test.runners.codegen.AbstractFirPsiBlackBoxCodegenTest
-import org.jetbrains.kotlin.test.runners.codegen.AbstractIrBlackBoxCodegenTest
 import org.jetbrains.kotlin.test.services.EnvironmentBasedStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinStandardLibrariesPathProvider
 import org.jetbrains.kotlin.test.services.KotlinTestInfo
@@ -33,8 +35,7 @@ import kotlin.time.Duration
 import kotlin.time.measureTime
 
 val testInfo = run {
-    // make sure JDK HOME is set
-    KtTestUtil.getJdk8Home()
+    // make sure the JDK used by the active compiler matrix is available
     KtTestUtil.getJdk17Home()
     KotlinTestInfo("CrossLangFuzzerKotlinRunner", "main", emptySet())
 }
@@ -60,21 +61,6 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
         }
     }
 
-    object K2Jdk8Compiler : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompiler.IJDK8Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
-
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
     object K2Jdk17Compiler : AbstractFirPsiBlackBoxCodegenTest(), IKotlinCompiler.IJDK17Compiler {
         init {
             initTestInfo(testInfo)
@@ -90,40 +76,11 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
         }
     }
 
-    object K1Jdk8Compiler : AbstractIrBlackBoxCodegenTest(), IKotlinCompiler.IJDK8Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
+    private val testers = listOf<IKotlinCompiler>(K2Jdk17Compiler)
 
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
-    object K1Jdk17Compiler : AbstractIrBlackBoxCodegenTest(), IKotlinCompiler.IJDK17Compiler {
-        init {
-            initTestInfo(testInfo)
-        }
-
-        override fun createKotlinStandardLibrariesPathProvider(): KotlinStandardLibrariesPathProvider {
-            return EnvironmentBasedStandardLibrariesPathProvider
-        }
-
-        override fun configure(builder: TestConfigurationBuilder) {
-            super.configure(builder)
-            builder.config()
-        }
-    }
-
-    private val testers = listOf<IKotlinCompiler>(
-        K1Jdk8Compiler, /*K1Jdk17Compiler,*/
-        /*K2Jdk8Compiler*/ K2Jdk17Compiler,
-    )
+    private val maxRounds by option("--max-rounds")
+        .int()
+        .default(0)
 
     private val minimizeRunner = MinimizeRunner2(this)
 
@@ -134,7 +91,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
 
     fun doNormalCompile(program: IrProgram): CompileResult {
         val printer = IrProgramPrinter(Language.KOTLIN)
-        val testResult = K2Jdk8Compiler.testProgram(printer.printToSingle(program))
+        val testResult = K2Jdk17Compiler.testProgram(printer.printToSingle(program))
         return testResult
     }
 
@@ -263,6 +220,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
     override fun runnerMain() {
         logger.info { "start kotlin runner" }
+        require(maxRounds >= 0) { "--max-rounds must be non-negative, but was $maxRounds" }
         val i = AtomicInteger(0)
         val parallelSize = 1
         val inputIRFiles = inputIRFiles
@@ -316,7 +274,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
             }
 
             RunMode.NormalTest -> {
-                while (true) {
+                while (shouldContinueNormalRounds(i.get(), maxRounds)) {
                     val generator = IrDeclGenerator(runConfig.generatorConfig)
                     val prog = generator.genProgram()
                     val dur = measureTime { doOneRoundAndRecord(prog, stopOnErrors) }
@@ -342,6 +300,9 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
         }
     }
 }
+
+internal fun shouldContinueNormalRounds(completedRounds: Int, maxRounds: Int): Boolean =
+    maxRounds == 0 || completedRounds < maxRounds
 
 fun main(args: Array<String>) {
     /*Thread {

@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.minimize
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.copyForOverride
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -37,6 +38,54 @@ import kotlin.collections.iterator
 private val logger = KotlinLogging.logger {}
 
 class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
+    inner class DelegatedClassesList : AbstractMutableList<IrClassDeclaration>() {
+        override val size: Int
+            get() = prog.modules.sumOf { it.classes.size }
+
+        override fun get(index: Int): IrClassDeclaration {
+            var curr = index
+            for (m in prog.modules) {
+                if (curr < m.classes.size) return m.classes[curr]
+                curr -= m.classes.size
+            }
+            throw IndexOutOfBoundsException(index.toString())
+        }
+
+        override fun add(index: Int, element: IrClassDeclaration) {
+            val targetModule = prog.modules.firstOrNull() ?: error("No module in program")
+            targetModule.classes.add(index, element)
+        }
+
+        override fun removeAt(index: Int): IrClassDeclaration {
+            var curr = index
+            for (m in prog.modules) {
+                if (curr < m.classes.size) return m.classes.removeAt(curr)
+                curr -= m.classes.size
+            }
+            throw IndexOutOfBoundsException(index.toString())
+        }
+
+        override fun set(index: Int, element: IrClassDeclaration): IrClassDeclaration {
+            var curr = index
+            for (m in prog.modules) {
+                if (curr < m.classes.size) return m.classes.set(curr, element)
+                curr -= m.classes.size
+            }
+            throw IndexOutOfBoundsException(index.toString())
+        }
+
+        override fun remove(element: IrClassDeclaration): Boolean {
+            var removed = false
+            for (m in prog.modules) {
+                if (m.classes.remove(element)) {
+                    removed = true
+                }
+            }
+            return removed
+        }
+    }
+
+    val classes: MutableList<IrClassDeclaration> = DelegatedClassesList()
     val removedClasses = mutableSetOf<IrClassDeclaration>()
 
     /**

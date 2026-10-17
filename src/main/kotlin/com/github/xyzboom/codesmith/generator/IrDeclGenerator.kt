@@ -3,8 +3,14 @@ package com.github.xyzboom.codesmith.generator
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
+import com.github.xyzboom.codesmith.ir.classes
+import com.github.xyzboom.codesmith.ir.functions
+import com.github.xyzboom.codesmith.ir.properties
+import com.github.xyzboom.codesmith.ir.partitionClassesToModules
+import com.github.xyzboom.codesmith.ir.repartitionModules
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.copyForOverride
@@ -31,8 +37,9 @@ import kotlin.random.Random
 open class IrDeclGenerator(
     internal val config: GeneratorConfig = GeneratorConfig.default,
     internal val random: Random = Random.Default,
-    private val majorLanguage: Language = Language.KOTLIN
+    majorLanguage: Language = Language.KOTLIN
 ) {
+    private val majorLanguage = majorLanguage
     private val logger = KotlinLogging.logger {}
 
     private val generatedNames = mutableSetOf<String>().apply {
@@ -203,16 +210,19 @@ open class IrDeclGenerator(
         for (property in prog.properties) {
             property.language = randomLanguage()
         }
+        prog.repartitionModules(config.moduleNumRange, random)
     }
 
     fun genProgram(): IrProgram {
         logger.trace { "start gen program" }
-        return buildProgram().apply {
-            repeat(config.topLevelDeclRange.random(random)) {
-                genClass(context = this, randomName(true), randomLanguage())
-            }
-            logger.trace { "finish gen program" }
+        val program = buildProgram {
+            modules += buildModule { name = "main" }
         }
+        repeat(config.topLevelDeclRange.random(random)) {
+            genClass(context = program, randomName(true), randomLanguage())
+        }
+        logger.trace { "finish gen program" }
+        return partitionClassesToModules(program.classes, config.moduleNumRange, random)
     }
 
     fun IrTypeParameterContainer.genTypeParameter(
@@ -561,7 +571,7 @@ open class IrDeclGenerator(
             this.language = language
             allSuperTypeArguments = mutableMapOf()
         }
-        context.classes.add(clazz)
+        context.modules.first().classes.add(clazz)
         clazz.apply {
             if (random.nextBoolean(config.classHasTypeParameterProbability)) {
                 repeat(config.classTypeParameterNumberRange.random(random)) {

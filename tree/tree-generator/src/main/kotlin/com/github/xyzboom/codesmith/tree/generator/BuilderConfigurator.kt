@@ -33,7 +33,7 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
         val funcContainerBuilder by builder {
             fields from funcContainer
         }
-        builder(program) {
+        builder(module) {
             parents += funcContainerBuilder
         }
         builder(classDecl) {

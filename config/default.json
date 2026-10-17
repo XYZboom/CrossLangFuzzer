@@ -55,7 +55,11 @@
     "functionCallExpressionWeight": 1,
     "overrideOnlyMustOnes": false,
     "noFinalFunction": false,
-    "noFinalProperties": false
+    "noFinalProperties": false,
+    "moduleNumRange": [
+      1,
+      1
+    ]
   },
   "mutatorConfig": {
     "mutateGenericArgumentInParentWeight": 1,

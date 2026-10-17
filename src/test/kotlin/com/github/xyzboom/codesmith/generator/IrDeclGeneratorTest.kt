@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.classes
+import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -27,7 +29,9 @@ import kotlin.random.Random
 
 class IrDeclGeneratorTest {
     val mockProgram
-        get() = buildProgram()
+        get() = buildProgram {
+            modules.add(buildModule { name = "main" })
+        }
 
     //<editor-fold desc="Gen super">
     @Test
@@ -44,13 +48,13 @@ class IrDeclGeneratorTest {
             classKind = ClassKind.OPEN
             typeParameters.add(t0)
         }
-        prog.classes.add(p)
+        prog.modules.single().classes.add(p)
         val c = buildClassDeclaration {
             name = "C"
             classKind = ClassKind.FINAL
             typeParameters.add(t1)
         }
-        prog.classes.add(c)
+        prog.modules.single().classes.add(c)
 
         val generator = SequentialTypeSelectionIrDeclGenerator(
             listOf(p.type, t1)
@@ -82,7 +86,7 @@ class IrDeclGeneratorTest {
             classKind = ClassKind.OPEN
             typeParameters.add(t0)
         }
-        prog.classes.add(p)
+        prog.modules.single().classes.add(p)
         val c = buildClassDeclaration {
             name = "C"
             classKind = ClassKind.OPEN
@@ -93,13 +97,13 @@ class IrDeclGeneratorTest {
             }
             allSuperTypeArguments[IrTypeParameterName(t0.name)] = t0 to t1
         }
-        prog.classes.add(c)
+        prog.modules.single().classes.add(c)
         val gc = buildClassDeclaration {
             name = "GC"
             classKind = ClassKind.FINAL
             typeParameters.add(t2)
         }
-        prog.classes.add(gc)
+        prog.modules.single().classes.add(gc)
         val generator = SequentialTypeSelectionIrDeclGenerator(
             listOf(c.type, t2)
         )
@@ -160,7 +164,7 @@ class IrDeclGeneratorTest {
                 name = "MyClass"
                 classKind = ClassKind.OPEN
             }
-            prog.classes.add(clazz)
+            prog.modules.single().classes.add(clazz)
             val func = buildFunctionDeclaration {
                 name = "func"
                 parameterList = buildParameterList()
@@ -194,7 +198,7 @@ class IrDeclGeneratorTest {
                 classKind = ClassKind.OPEN
                 typeParameters.add(t1)
             }
-            prog.classes.add(clazz)
+            prog.modules.single().classes.add(clazz)
             val func = buildFunctionDeclaration {
                 name = "func"
                 parameterList = buildParameterList()
@@ -229,7 +233,7 @@ class IrDeclGeneratorTest {
                 name = "MyClass"
                 classKind = ClassKind.OPEN
             }
-            prog.classes.add(clazz)
+            prog.modules.single().classes.add(clazz)
             val func = buildFunctionDeclaration {
                 name = "func"
                 parameterList = buildParameterList()
@@ -304,7 +308,7 @@ class IrDeclGeneratorTest {
                 name = "MyClass"
                 classKind = ClassKind.OPEN
             }
-            prog.classes.add(clazz)
+            prog.modules.single().classes.add(clazz)
             val func = buildFunctionDeclaration {
                 name = "func"
                 parameterList = buildParameterList()
@@ -338,7 +342,7 @@ class IrDeclGeneratorTest {
                 classKind = ClassKind.OPEN
                 typeParameters.add(t1)
             }
-            prog.classes.add(clazz)
+            prog.modules.single().classes.add(clazz)
             val func = buildFunctionDeclaration {
                 name = "func"
                 parameterList = buildParameterList()
@@ -373,7 +377,7 @@ class IrDeclGeneratorTest {
                 name = "MyClass"
                 classKind = ClassKind.OPEN
             }
-            prog.classes.add(clazz)
+            prog.modules.single().classes.add(clazz)
             val func = buildFunctionDeclaration {
                 name = "func"
                 parameterList = buildParameterList()

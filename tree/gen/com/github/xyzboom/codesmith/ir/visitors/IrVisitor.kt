@@ -5,10 +5,7 @@
 
 package com.github.xyzboom.codesmith.ir.visitors
 
-import com.github.xyzboom.codesmith.ir.IrElement
-import com.github.xyzboom.codesmith.ir.IrNamedElement
-import com.github.xyzboom.codesmith.ir.IrParameterList
-import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.*
 import com.github.xyzboom.codesmith.ir.containers.*
 import com.github.xyzboom.codesmith.ir.declarations.*
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
@@ -24,6 +21,9 @@ abstract class IrVisitor<out R, in D> {
 
     open fun visitNamedElement(namedElement: IrNamedElement, data: D): R =
         visitElement(namedElement, data)
+
+    open fun visitModule(module: IrModule, data: D): R =
+        visitElement(module, data)
 
     open fun visitProgram(program: IrProgram, data: D): R =
         visitElement(program, data)

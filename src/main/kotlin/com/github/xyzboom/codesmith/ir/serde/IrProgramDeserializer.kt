@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.ir.serde
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -305,22 +306,81 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
         }
 
         fun deserialize(map: Map<String, JsonElement>): IrProgram {
-            return buildProgram {
-                val classesObj = map[IrProgram::classes.name]
-                if (classesObj == null) {
-                    return@buildProgram
+            val modulesObj = map["modules"]
+            if (modulesObj != null) {
+                if (!modulesObj.isJsonArray) {
+                    throw JsonParseException("The 'modules' of an ${IrProgram::class.simpleName} must be json array!")
                 }
+                val rawModuleList = modulesObj.asJsonArray.mapNotNull { it.asJsonObject }
+                // First stage: collect skeleton of all classes across all modules
+                for (modObj in rawModuleList) {
+                    val classesObj = modObj["classes"] ?: continue
+                    if (classesObj.isJsonArray) {
+                        for (classObj in classesObj.asJsonArray) {
+                            deserializeClassFirstStage(classObj.asJsonObject, context)
+                        }
+                    }
+                }
+                // Second stage: instantiate modules and deserialize class details
+                val moduleMap = linkedMapOf<String, com.github.xyzboom.codesmith.ir.IrModule>()
+                for (modObj in rawModuleList) {
+                    val modName = modObj["name"]?.asString ?: "main"
+                    val modClasses = mutableListOf<IrClassDeclaration>()
+                    val classesObj = modObj["classes"]
+                    if (classesObj != null && classesObj.isJsonArray) {
+                        for (classObj in classesObj.asJsonArray) {
+                            val clazz = deserializeClassSecondStage(classObj.asJsonObject, context)
+                            modClasses.add(clazz)
+                        }
+                    }
+                    val module = buildModule {
+                        name = modName
+                        classes.addAll(modClasses)
+                    }
+                    moduleMap[modName] = module
+                }
+                // Resolve module dependencies
+                for (modObj in rawModuleList) {
+                    val modName = modObj["name"]?.asString ?: "main"
+                    val currentMod = moduleMap[modName]!!
+                    val depsObj = modObj["dependencies"]
+                    if (depsObj != null && depsObj.isJsonArray) {
+                        for (depElem in depsObj.asJsonArray) {
+                            val depName = depElem.asString
+                            val depMod = moduleMap[depName]
+                                ?: throw JsonParseException("Module '$modName' references unknown dependency '$depName'")
+                            currentMod.dependencies.add(depMod)
+                        }
+                    }
+                }
+                return buildProgram {
+                    modules.addAll(moduleMap.values)
+                }
+            }
+
+            // Legacy compatibility: deserialize unmodularized program with 'classes'
+            val classesObj = map["classes"]
+            if (classesObj != null) {
                 if (!classesObj.isJsonArray) {
-                    throw JsonParseException("The classes of an ${IrProgram::class.simpleName} must be json array!")
+                    throw JsonParseException("Legacy classes format must be a json array!")
                 }
                 for (classObj in classesObj.asJsonArray) {
                     deserializeClassFirstStage(classObj.asJsonObject, context)
                 }
+                val classes = mutableListOf<IrClassDeclaration>()
                 for (classObj in classesObj.asJsonArray) {
                     val clazz = deserializeClassSecondStage(classObj.asJsonObject, context)
                     classes.add(clazz)
                 }
+                return buildProgram {
+                    modules += buildModule {
+                        name = "main"
+                        this.classes.addAll(classes)
+                    }
+                }
             }
+
+            throw JsonParseException("Neither 'modules' nor legacy 'classes' found in ${IrProgram::class.simpleName} JSON!")
         }
     }
 

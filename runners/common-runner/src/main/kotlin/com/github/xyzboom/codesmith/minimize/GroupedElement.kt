@@ -4,6 +4,8 @@ import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrNamedElement
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.classes
+import com.github.xyzboom.codesmith.ir.partitionClassesToModules
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -437,22 +439,23 @@ data class GroupedElement(
         }
 
         fun newProg(): IrProgram {
-            return buildProgram().apply {
-                val existsClasses = program.classes.filter { it in this@GroupedElement.classes }
-                for (clazz in existsClasses) {
-                    val newClass = newClassSkeleton(clazz)
-                    classes.add(newClass)
-                    old2NewClasses[clazz] = newClass
-                    new2OldClasses[newClass] = clazz
-                }
-                for (clazz in existsClasses) {
-                    val newClass = old2NewClasses[clazz]!!
-                    firstStageNewClassFromClosure(clazz, newClass)
-                }
-                for (clazz in topologicalOrderedClasses) {
-                    secondStageNewClassFromClosure(clazz)
-                }
+            val existsClasses = program.classes.filter { it in this@GroupedElement.classes }
+            val newClassList = ArrayList<IrClassDeclaration>()
+            for (clazz in existsClasses) {
+                val newClass = newClassSkeleton(clazz)
+                newClassList.add(newClass)
+                old2NewClasses[clazz] = newClass
+                new2OldClasses[newClass] = clazz
             }
+            for (clazz in existsClasses) {
+                val newClass = old2NewClasses[clazz]!!
+                firstStageNewClassFromClosure(clazz, newClass)
+            }
+            val newProg = partitionClassesToModules(newClassList)
+            for (clazz in newProg.topologicalOrderedClasses) {
+                secondStageNewClassFromClosure(clazz)
+            }
+            return newProg
         }
     }
 

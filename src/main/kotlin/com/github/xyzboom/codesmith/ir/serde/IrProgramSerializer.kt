@@ -19,13 +19,23 @@ object IrProgramSerializer : JsonSerializer<IrProgram> {
         if (p0 == null) return JsonNull.INSTANCE
         val result = JsonObject()
         result.addProperty(SERDE_TYPE_NAME, IrProgram::class.simpleName)
-        if (p0.classes.isNotEmpty()) {
+        val modulesObj = JsonArray()
+        for (module in p0.modules) {
+            val modObj = JsonObject()
+            modObj.addProperty("name", module.name)
+            val depsObj = JsonArray()
+            for (dep in module.dependencies) {
+                depsObj.add(dep.name)
+            }
+            modObj.add("dependencies", depsObj)
             val classesObj = JsonArray()
-            for (clazz in p0.classes) {
+            for (clazz in module.classes) {
                 classesObj.add(p2?.serialize(clazz, IrClassDeclaration::class.java))
             }
-            result.add(IrProgram::classes.name, classesObj)
+            modObj.add("classes", classesObj)
+            modulesObj.add(modObj)
         }
+        result.add("modules", modulesObj)
         return result
     }
 }
