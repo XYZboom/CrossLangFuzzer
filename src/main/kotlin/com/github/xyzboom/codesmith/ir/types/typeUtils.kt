@@ -180,6 +180,7 @@ fun getActualTypeFromArguments(
                 typeArg
             }
         }
+        return buildPlatformType { innerType = typeArg }
     }
     if (oriType is IrParameterizedClassifier) {
         return oriType.copy().apply {

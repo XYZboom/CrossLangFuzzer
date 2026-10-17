@@ -130,6 +130,20 @@ fun partitionClassesToModules(
         module.dependencies.addAll(sortedDeps)
     }
 
+    for (module in createdModules) {
+        val transitiveDependencies = linkedSetOf<IrModule>()
+        fun collectDependencies(current: IrModule) {
+            for (dependency in current.dependencies) {
+                if (transitiveDependencies.add(dependency)) {
+                    collectDependencies(dependency)
+                }
+            }
+        }
+        collectDependencies(module)
+        module.dependencies.clear()
+        module.dependencies.addAll(createdModules.filter { it in transitiveDependencies })
+    }
+
     return buildProgram {
         modules.addAll(createdModules)
     }

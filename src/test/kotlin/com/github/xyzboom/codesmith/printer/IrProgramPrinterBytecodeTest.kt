@@ -23,7 +23,11 @@ class IrProgramPrinterBytecodeTest {
             }
         }
         val output = IrProgramPrinter().printToSingle(program)
-        assertTrue(output.contains("// MODULE: main"))
+        assertTrue(output.contains("// MODULE: annotations"))
+        assertTrue(output.contains("// FILE: org/jetbrains/annotations/NotNull.java"))
+        assertTrue(output.contains("// FILE: org/jetbrains/annotations/Nullable.java"))
+        assertTrue(output.contains("// MODULE: main(annotations)"))
+        assertTrue(output.indexOf("// MODULE: annotations") < output.indexOf("// MODULE: main(annotations)"))
         assertTrue(output.contains("// FILE: ClassA.kt"))
         assertTrue(output.contains("// FILE: main.kt"))
     }
@@ -54,9 +58,11 @@ class IrProgramPrinterBytecodeTest {
             modules += main
         }
         val output = IrProgramPrinter().printToSingle(program)
-        assertTrue(output.contains("// MODULE: m0"))
+        assertTrue(output.contains("// MODULE: annotations"))
+        assertTrue(output.contains("// MODULE: m0(annotations)"))
         assertTrue(output.contains("// FILE: JavaClass.java"))
-        assertTrue(output.contains("// MODULE: main(m0)"))
+        assertTrue(output.contains("// MODULE: main(annotations, m0)"))
         assertTrue(output.contains("// FILE: KtClass.kt"))
+        assertTrue(output.indexOf("// MODULE: annotations") < output.indexOf("// MODULE: m0(annotations)"))
     }
 }

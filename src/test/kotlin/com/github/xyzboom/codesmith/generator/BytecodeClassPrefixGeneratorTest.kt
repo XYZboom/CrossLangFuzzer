@@ -71,6 +71,35 @@ class BytecodeClassPrefixGeneratorTest {
     }
 
     @Test
+    fun `partitionClassesToModules includes transitive module dependencies`() {
+        val base = buildClassDeclaration {
+            name = "Base"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val middle = buildClassDeclaration {
+            name = "Middle"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            superType = base.type
+        }
+        val derived = buildClassDeclaration {
+            name = "Derived"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = middle.type
+        }
+
+        val program = partitionClassesToModules(
+            listOf(base, middle, derived),
+            moduleNumRange = 3..3,
+            random = Random(1),
+        )
+
+        assertEquals(listOf("m0", "m1"), program.modules.single { it.name == "main" }.dependencies.map { it.name })
+    }
+
+    @Test
     fun `serde roundtrip preserves modules and inter-module dependencies`() {
         val base = buildClassDeclaration {
             name = "Base"

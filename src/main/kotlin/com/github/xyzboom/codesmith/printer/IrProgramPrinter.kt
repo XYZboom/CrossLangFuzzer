@@ -58,6 +58,7 @@ class IrProgramPrinter(
                         "}"
             )
         }
+        const val ANNOTATIONS_MODULE_NAME = "annotations"
         const val MAIN_KT_NAME = "main.kt"
         val extraSourceFileNames = listOf(
             MAIN_KT_NAME, *extraJavaFile.keys.toTypedArray()
@@ -128,24 +129,21 @@ class IrProgramPrinter(
         }
 
         val mainModule = effectiveModules.firstOrNull { it.name == "main" } ?: effectiveModules.last()
-        val firstJavaModule = effectiveModules.firstOrNull { mod ->
-            mod.classes.any { it.language == Language.JAVA }
-        }
         val lastJavaModule = effectiveModules.lastOrNull { mod ->
             mod.classes.any { it.language == Language.JAVA }
         }
 
+        sb.append("// MODULE: $ANNOTATIONS_MODULE_NAME\n")
+        appendFiles(sb, extraJavaFile)
+
         for (module in effectiveModules) {
-            val depNames = module.dependencies.map { it.name }
-            val depString = if (depNames.isEmpty()) "" else "(${depNames.joinToString(", ")})"
+            val depNames = listOf(ANNOTATIONS_MODULE_NAME) + module.dependencies.map { it.name }
+            val depString = "(${depNames.joinToString(", ")})"
             sb.append("// MODULE: ${module.name}$depString\n")
 
             val modFileNames = buildSet {
                 for (clazz in module.classes) {
                     add("${clazz.name}.${clazz.language.extension}")
-                }
-                if (module === firstJavaModule) {
-                    addAll(extraJavaFile.keys)
                 }
                 if (module === lastJavaModule) {
                     add("${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java")
