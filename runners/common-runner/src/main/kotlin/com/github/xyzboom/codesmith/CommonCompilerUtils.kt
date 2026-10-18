@@ -100,11 +100,13 @@ fun recordCompileResult(
     compileResults: List<CompileResult>,
     minimizedProgram: IrProgram? = null,
     minimizedCompileResults: List<CompileResult>? = null,
-    outDir: File = logFile
+    outDir: File = logFile,
+    metadata: Map<String, String> = emptyMap(),
+    forceRecord: Boolean = false,
 ) {
     val resultSet = compileResults.toSet()
     require(compileResults.size == 1 || resultSet.size != 1)
-    if (shouldNotRecord(resultSet)) {
+    if (!forceRecord && shouldNotRecord(resultSet)) {
         return
     }
     val dir = File(outDir, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
@@ -134,6 +136,9 @@ fun recordCompileResult(
     }
     File(dir, "main.${majorLanguage.extension}").writeText(IrProgramPrinter(majorLanguage).printToSingle(program))
     File(dir, "main.json").writeText(gson.toJson(program))
+    for ((fileName, content) in metadata) {
+        File(dir, fileName).writeText(content)
+    }
 }
 
 fun recordCompileResult(

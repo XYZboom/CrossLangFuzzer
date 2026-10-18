@@ -4,6 +4,12 @@ import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.classes
+import com.github.xyzboom.codesmith.ir.functions
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.types.IrPlatformType
+import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeContainer
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.areEqualTypes
@@ -28,6 +34,7 @@ class IrMutator(
 ) {
     private val logger = KotlinLogging.logger {}
     private val random: Random = generator.random
+    private var semanticValidity = SemanticValidity.UNKNOWN
 
     @ConfigBy("mutateGenericArgumentInParentWeight")
     fun mutateGenericArgumentInParent(program: IrProgram): Boolean {
@@ -49,7 +56,8 @@ class IrMutator(
                         "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
                     }
                     impl.putTypeArgument(typeParam, replaceArg)
-                    return@mutateGenericArgumentInParent true
+                    semanticValidity = SemanticValidity.UNKNOWN
+                return@mutateGenericArgumentInParent true
                 }
             }
             false
@@ -62,6 +70,7 @@ class IrMutator(
         program.randomTraverseMemberFunctions(random) { func, _ ->
             if (func.isOverride && !func.isOverrideStub) {
                 func.isOverrideStub = true
+                semanticValidity = SemanticValidity.UNKNOWN
                 return@removeOverrideMemberFunction true
             }
             false
@@ -91,6 +100,7 @@ class IrMutator(
                             "${clazz.name}:${func.name}, " +
                             "change: $typeArg into $replaceArg, new param $param"
                 }
+                semanticValidity = SemanticValidity.UNKNOWN
                 return@mutateGenericArgumentInMemberFunctionParameter true
             }
             false
@@ -119,27 +129,91 @@ class IrMutator(
             if (func.language == Language.JAVA) {
                 func.printNullableAnnotations = true
             }
-            return@mutateParameterNullability true
+            semanticValidity = SemanticValidity.UNKNOWN
+                return@mutateParameterNullability true
         }
         return false
     }
 
     @ConfigBy("mutateClassTypeParameterUpperBoundNullabilityWeight")
     fun mutateClassTypeParameterUpperBoundNullability(program: IrProgram): Boolean {
+        var applied = false
         program.randomTraverseClasses(random) { clazz ->
             if (clazz.typeParameters.isNotEmpty()) {
                 val typeParameter = clazz.typeParameters.random(random)
                 val upperbound = typeParameter.upperbound
                 if (upperbound is IrNullableType) {
                     typeParameter.upperbound = upperbound.innerType
+                    semanticValidity = calculateTightenedUpperBoundValidity(program, clazz, typeParameter)
                 } else {
                     typeParameter.upperbound = buildNullableType { innerType = upperbound }
+                    // U -> U? relaxes the bound. Every type argument accepted before
+                    // the mutation remains accepted in the current body-free IR model.
+                    semanticValidity = SemanticValidity.VALID
                 }
-                return@mutateClassTypeParameterUpperBoundNullability true
+                applied = true
+                return@randomTraverseClasses true
             }
-            return@randomTraverseClasses false
+            false
         }
-        return false
+        return applied
+    }
+
+    /**
+     * Calculates the effect of changing `T : U?` to `T : U`.
+     *
+     * Every occurrence of `Target<Argument>` must satisfy `Argument <: U`.
+     * [SemanticValidity.UNKNOWN] is returned instead of claiming invalidity
+     * when the current subtype model cannot represent a platform or nested
+     * parameterized argument.
+     */
+    private fun calculateTightenedUpperBoundValidity(
+        program: IrProgram,
+        targetClass: IrClassDeclaration,
+        targetTypeParameter: IrTypeParameter,
+    ): SemanticValidity {
+        var result = SemanticValidity.VALID
+
+        fun inspect(type: IrType?) {
+            when (type) {
+                null -> Unit
+                is IrParameterizedClassifier -> {
+                    if (type.classDecl === targetClass) {
+                        val argument = type.getTypeArguments().values
+                            .firstOrNull { (parameter, _) -> parameter === targetTypeParameter }
+                            ?.second
+                        if (argument == null || argument is IrPlatformType || argument is IrParameterizedClassifier) {
+                            if (result != SemanticValidity.INVALID) result = SemanticValidity.UNKNOWN
+                        } else if (!with(generator) { argument.isSubTypeOf(targetTypeParameter.upperbound) }) {
+                            result = SemanticValidity.INVALID
+                        }
+                    }
+                    type.arguments.values.forEach { (_, argument) -> inspect(argument) }
+                }
+                is IrTypeContainer -> inspect(type.innerType)
+                is IrTypeParameter -> inspect(type.upperbound)
+            }
+        }
+
+        fun inspectClass(clazz: IrClassDeclaration) {
+            inspect(clazz.superType)
+            clazz.implementedTypes.forEach(::inspect)
+            clazz.allSuperTypeArguments.values.forEach { (_, type) -> inspect(type) }
+            clazz.typeParameters.forEach { inspect(it.upperbound) }
+            clazz.functions.forEach { function ->
+                inspect(function.returnType)
+                function.parameterList.parameters.forEach { inspect(it.type) }
+                function.typeParameters.forEach { inspect(it.upperbound) }
+            }
+        }
+
+        program.classes.forEach(::inspectClass)
+        program.functions.forEach { function ->
+            inspect(function.returnType)
+            function.parameterList.parameters.forEach { inspect(it.type) }
+            function.typeParameters.forEach { inspect(it.upperbound) }
+        }
+        return result
     }
 
     @ConfigBy("mutateClassTypeParameterUpperBoundWeight")
@@ -162,6 +236,7 @@ class IrMutator(
                 }
                 logger.trace { "mutateClassTypeParameterUpperBound in class ${clazz.name}," +
                         " before: ${before.render()}, after: ${replace.render()}" }
+                semanticValidity = SemanticValidity.UNKNOWN
                 return@mutateClassTypeParameterUpperBound true
             }
             return@randomTraverseClasses false
@@ -169,7 +244,12 @@ class IrMutator(
         return false
     }
 
-    fun mutate(program: IrProgram): Boolean {
+    /**
+     * @return the calculated semantic validity when a mutation was applied, or
+     * `null` when the selected operator could not mutate this program.
+     */
+    fun mutate(program: IrProgram): SemanticValidity? {
+        semanticValidity = SemanticValidity.UNKNOWN
         val configByMethods = this::class.declaredMemberFunctions.filter {
             it.annotations.any { anno ->
                 anno.annotationClass == ConfigBy::class
@@ -181,6 +261,7 @@ class IrMutator(
             configProperty.get(config) as Int
         }
         val mutatorMethod = rouletteSelection(configByMethods, weights, random)
-        return mutatorMethod.call(this, program) as Boolean
+        val applied = mutatorMethod.call(this, program) as Boolean
+        return if (applied) semanticValidity else null
     }
 }

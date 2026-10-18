@@ -135,7 +135,7 @@ class CodeSmithGroovyRunner : CommonCompilerRunner() {
                 mutateParameterNullabilityWeight = 0
             )
         )
-        if (mutator.mutate(program)) {
+        if (mutator.mutate(program) != null) {
             repeat(runConfig.langShuffleTimesAfterMutate) {
                 run mutatedDifferential@{
                     runDifferential(program)

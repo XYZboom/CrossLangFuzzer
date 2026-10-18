@@ -15,6 +15,7 @@ import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.deepCopy
 import com.github.xyzboom.codesmith.minimize.MinimizeRunner2
 import com.github.xyzboom.codesmith.mutator.IrMutator
+import com.github.xyzboom.codesmith.mutator.SemanticValidity
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.serde.gson
@@ -127,7 +128,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    fun doOneRoundAndRecord(program: IrProgram, throwException: Boolean) {
+    fun doOneRoundAndRecord(program: IrProgram, throwException: Boolean): CompileResult {
         val testResult = doNormalCompile(program)
         if (!testResult.success) {
             val (minimize, minResult) = try {
@@ -140,6 +141,37 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
                 throw RuntimeException()
             }
         }
+        return testResult
+    }
+
+    /**
+     * Compiles a mutated program only when its mutator supplied a known oracle.
+     * A report is created exactly when compiler acceptance disagrees with that
+     * oracle; the concrete compiler diagnostic is deliberately not predicted.
+     */
+    fun doOneMutatedRoundAndRecord(
+        program: IrProgram,
+        semanticValidity: SemanticValidity,
+        throwException: Boolean,
+    ): CompileResult {
+        require(semanticValidity != SemanticValidity.UNKNOWN)
+        val testResult = doNormalCompile(program)
+        if (!isMutationOracleSatisfied(semanticValidity, testResult.success)) {
+            recordCompileResult(
+                majorLanguage = Language.KOTLIN,
+                program = program,
+                compileResults = listOf(testResult),
+                metadata = mapOf(
+                    "mutation-oracle.txt" to
+                            "expected=$semanticValidity\nactual=${if (testResult.success) "VALID" else "INVALID"}\n",
+                ),
+                forceRecord = true,
+            )
+            if (throwException) {
+                throw RuntimeException("Mutation result disagrees with semantic oracle")
+            }
+        }
+        return testResult
     }
 
     override val availableCompilers: Map<String, ICompiler>
@@ -251,7 +283,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
                                         generator = generator
                                     )
                                     val copiedProg = prog.deepCopy()
-                                    if (mutator.mutate(copiedProg)) {
+                                    if (mutator.mutate(copiedProg) != null) {
                                         repeat(runConfig.langShuffleTimesAfterMutate) {
                                             val dur =
                                                 measureTime {
@@ -277,8 +309,35 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
                 while (shouldContinueNormalRounds(i.get(), maxRounds)) {
                     val generator = IrDeclGenerator(runConfig.generatorConfig)
                     val prog = generator.genProgram()
-                    val dur = measureTime { doOneRoundAndRecord(prog, stopOnErrors) }
+                    var originalResult: CompileResult? = null
+                    val dur = measureTime {
+                        originalResult = doOneRoundAndRecord(prog, stopOnErrors)
+                    }
                     println("${i.incrementAndGet()}:${dur}\t\t")
+
+                    // Mutation oracles are meaningful only because the original
+                    // generated program is known to compile successfully.
+                    if (originalResult?.success != true) continue
+
+                    for (mutationIndex in 0 until runConfig.mutateTimes) {
+                        if (!shouldContinueNormalRounds(i.get(), maxRounds)) break
+                        val copiedProg = prog.deepCopy()
+                        val semanticValidity = IrMutator(
+                            runConfig.mutatorConfig,
+                            generator = generator,
+                        ).mutate(copiedProg)
+
+                        // No mutation and unknown validity are both discarded:
+                        // neither provides a usable semantic oracle.
+                        if (semanticValidity == null || semanticValidity == SemanticValidity.UNKNOWN) {
+                            continue
+                        }
+
+                        val mutatedDuration = measureTime {
+                            doOneMutatedRoundAndRecord(copiedProg, semanticValidity, stopOnErrors)
+                        }
+                        println("${i.incrementAndGet()}:${mutatedDuration}\tmutation=$semanticValidity")
+                    }
                 }
             }
 
@@ -303,6 +362,15 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
 
 internal fun shouldContinueNormalRounds(completedRounds: Int, maxRounds: Int): Boolean =
     maxRounds == 0 || completedRounds < maxRounds
+
+internal fun isMutationOracleSatisfied(
+    semanticValidity: SemanticValidity,
+    compileSuccess: Boolean,
+): Boolean = when (semanticValidity) {
+    SemanticValidity.VALID -> compileSuccess
+    SemanticValidity.INVALID -> !compileSuccess
+    SemanticValidity.UNKNOWN -> error("Unknown mutation validity must be discarded before compilation")
+}
 
 fun main(args: Array<String>) {
     /*Thread {

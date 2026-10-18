@@ -215,7 +215,7 @@ class CrossLangFuzzerScalaRunner : CommonCompilerRunner() {
                                         generator = generator
                                     )
                                     val copiedProg = prog.deepCopy()
-                                    if (mutator.mutate(copiedProg)) {
+                                    if (mutator.mutate(copiedProg) != null) {
                                         repeat(runConfig.langShuffleTimesAfterMutate) {
                                             val dur =
                                                 measureTime {

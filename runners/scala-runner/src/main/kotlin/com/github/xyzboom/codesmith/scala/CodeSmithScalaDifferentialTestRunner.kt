@@ -38,7 +38,7 @@ private fun doOneRound(stopOnErrors: Boolean = false) {
             mutateClassTypeParameterUpperBoundWeight = 0
         )
     )
-    if (mutator.mutate(program)) {
+    if (mutator.mutate(program) != null) {
         repeat(5) {
             run mutatedDifferential@{
                 runDifferential(printer, program, stopOnErrors)
