@@ -103,7 +103,7 @@ fun IrParameterizedClassifier.putAllTypeArguments(
                 } else {
                     replaceWith.second
                 }
-                putTypeArgument(typeParam, newInner)
+                putTypeArgument(typeParam, typeArg.copy(type = newInner))
             }
         }
     }
@@ -389,6 +389,9 @@ fun IrType.isSubTypeOf(other: IrType): Boolean {
     }
     if (this === IrNothing) {
         return true
+    }
+    if (other is IrNullableType && this !is IrNullableType) {
+        return this.isSubTypeOf(other.innerType)
     }
     return when (this) {
         is IrBuiltInType -> false

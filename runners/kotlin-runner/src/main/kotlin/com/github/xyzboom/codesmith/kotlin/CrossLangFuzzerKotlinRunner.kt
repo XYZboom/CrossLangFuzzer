@@ -153,18 +153,24 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
         program: IrProgram,
         semanticValidity: SemanticValidity,
         throwException: Boolean,
+        mutationDescriptions: List<String> = emptyList(),
     ): CompileResult {
         require(semanticValidity != SemanticValidity.UNKNOWN)
         val testResult = doNormalCompile(program)
         if (!isMutationOracleSatisfied(semanticValidity, testResult.success)) {
+            val mutationDetails = if (mutationDescriptions.isNotEmpty()) {
+                "\nmutations:\n" + mutationDescriptions.joinToString("\n") + "\n"
+            } else ""
+            val metadata = mutableMapOf(
+                "mutation-oracle.txt" to
+                        "expected=$semanticValidity\nactual=${if (testResult.success) "VALID" else "INVALID"}\n" +
+                                mutationDetails,
+            )
             recordCompileResult(
                 majorLanguage = Language.KOTLIN,
                 program = program,
                 compileResults = listOf(testResult),
-                metadata = mapOf(
-                    "mutation-oracle.txt" to
-                            "expected=$semanticValidity\nactual=${if (testResult.success) "VALID" else "INVALID"}\n",
-                ),
+                metadata = metadata,
                 forceRecord = true,
             )
             if (throwException) {
@@ -324,16 +330,21 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
                     ) continue
 
                     val mutatedProgram = prog.deepCopy()
+                    val mutationDescriptions = mutableListOf<String>()
                     for (mutationIndex in 0 until runConfig.mutateTimes) {
                         if (!shouldContinueNormalRounds(i.get(), maxRounds)) break
 
-                        val mutationValidity = IrMutator(
+                        val mutator = IrMutator(
                             runConfig.mutatorConfig,
                             generator = generator,
-                        ).mutate(mutatedProgram)
+                        )
+                        val mutationResult = mutator.mutate(mutatedProgram) ?: continue
+                        val (mutationValidity, mutationDesc) = mutationResult
+                        if (mutationDesc != null) {
+                            mutationDescriptions.add("[$mutationIndex] $mutationDesc (expected=$mutationValidity)")
+                        }
 
                         when (mutationValidity) {
-                            null -> continue
                             SemanticValidity.UNKNOWN -> {
                                 // This mutation has already changed the program, but
                                 // provides no usable oracle. The cumulative chain can
@@ -347,6 +358,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
                                         mutatedProgram,
                                         mutationValidity,
                                         stopOnErrors,
+                                        mutationDescriptions.toList(),
                                     )
                                 }
                                 println(

@@ -62,5 +62,61 @@ class IrTypeReplacerTest {
         (actual as IrPlatformType).innerType shouldBe IrTypeMatcher(wrapperOfAny)
     }
 
+    @Test
+    fun testGetActualTypeFromArgumentsPreservesCovariantArgument() {
+        testGetActualTypeFromArgumentsPreservesVariance(IrVariance.COVARIANT)
+    }
+
+    @Test
+    fun testGetActualTypeFromArgumentsPreservesContravariantArgument() {
+        testGetActualTypeFromArgumentsPreservesVariance(IrVariance.CONTRAVARIANT)
+    }
+
+    private fun testGetActualTypeFromArgumentsPreservesVariance(variance: IrVariance) {
+        val sourceTypeParameter = buildTypeParameter { name = "T"; upperbound = IrAny }
+        val wrapperTypeParameter = buildTypeParameter { name = "U"; upperbound = IrAny }
+        val wrapper = buildClassDeclaration {
+            name = "Wrapper"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            typeParameters += wrapperTypeParameter
+        }
+        val wrapperOfT = wrapper.type as IrParameterizedClassifier
+        wrapperOfT.putTypeArgument(
+            wrapperTypeParameter,
+            IrTypeArgument(variance, sourceTypeParameter)
+        )
+        val typeArguments = mapOf(
+            IrTypeParameterName(sourceTypeParameter.name) to (sourceTypeParameter to IrAny)
+        )
+
+        val actual = getActualTypeFromArguments(wrapperOfT, typeArguments, true) as IrParameterizedClassifier
+        val actualArgument = actual.arguments[IrTypeParameterName(wrapperTypeParameter.name)]!!.second
+        actualArgument.variance shouldBe variance
+        actualArgument.type shouldBe IrTypeMatcher(IrAny)
+    }
+
+    @Test
+    fun testGetActualTypeFromArgumentsPreservesStarArgument() {
+        val sourceTypeParameter = buildTypeParameter { name = "T"; upperbound = IrAny }
+        val wrapperTypeParameter = buildTypeParameter { name = "U"; upperbound = IrAny }
+        val wrapper = buildClassDeclaration {
+            name = "Wrapper"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            typeParameters += wrapperTypeParameter
+        }
+        val wrapperOfStar = wrapper.type as IrParameterizedClassifier
+        wrapperOfStar.putTypeArgument(wrapperTypeParameter, IrTypeArgument.STAR)
+        val typeArguments = mapOf(
+            IrTypeParameterName(sourceTypeParameter.name) to (sourceTypeParameter to IrAny)
+        )
+
+        val actual = getActualTypeFromArguments(wrapperOfStar, typeArguments, true) as IrParameterizedClassifier
+        val actualArgument = actual.arguments[IrTypeParameterName(wrapperTypeParameter.name)]!!.second
+        actualArgument.variance shouldBe IrVariance.STAR
+        actualArgument.type shouldBe null
+    }
+
     // todo we need more test here, see comments in IrTypeReplacer
 }

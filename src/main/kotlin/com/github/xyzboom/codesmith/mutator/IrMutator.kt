@@ -36,7 +36,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.random.Random
-import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.full.memberProperties
 
 class IrMutator(
@@ -45,16 +44,14 @@ class IrMutator(
 ) {
     private val logger = KotlinLogging.logger {}
     private val random: Random = generator.random
-    var semanticValidity = SemanticValidity.UNKNOWN
-        internal set
 
-    @ConfigBy("mutateGenericArgumentInParentWeight")
-    fun mutateGenericArgumentInParent(program: IrProgram): Boolean {
+    fun mutateGenericArgumentInParent(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseClasses(random) { clazz ->
-            val implements = clazz.implementedTypes
-            for (impl in implements) {
-                if (impl is IrParameterizedClassifier) {
-                    val typeArguments = impl.getTypeArguments()
+            val parentTypes = listOfNotNull(clazz.superType) + clazz.implementedTypes
+            for (parentType in parentTypes) {
+                if (parentType is IrParameterizedClassifier) {
+                    val typeArguments = parentType.getTypeArguments()
                     val entries = typeArguments.entries.filter { it.value.second.isInvariant && it.value.second.type !== IrAny }
                     if (entries.isEmpty()) continue
                     val (_, pair) = entries.random(random)
@@ -64,27 +61,27 @@ class IrMutator(
                     ) { type ->
                         type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
                     } ?: continue
-                    logger.trace {
-                        "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
-                    }
-                    impl.putTypeArgument(typeParam, replaceArg)
-                    semanticValidity = calculateParentGenericArgumentValidity(
+                    val desc = "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
+                    logger.trace { desc }
+                    parentType.putTypeArgument(typeParam, replaceArg)
+                    val validity = calculateParentGenericArgumentValidity(
                         program = program,
                         targetClass = clazz,
-                        parentType = impl,
+                        parentType = parentType,
                         changedTypeParameter = typeParam,
                     )
-                    return@mutateGenericArgumentInParent true
+                    result = validity to desc
+                    return@randomTraverseClasses true
                 }
             }
             false
         }
-        return false
+        return result
     }
 
     /**
-     * Calculates validity after replacing one argument in an implemented
-     * parameterized interface.
+     * Calculates validity after replacing one argument in a parameterized
+     * superclass or implemented interface.
      *
      * 1. All arguments of the implemented parameterized type must satisfy their bounds.
      * 2. Any override in the implementing class or downstream subclasses that depends
@@ -124,20 +121,22 @@ class IrMutator(
             return SemanticValidity.VALID
         }
 
-        val affectedNames = affectedParentFunctions.map { it.name }.toSet()
-        if (targetClass.functions.any { it.isOverride && !it.isOverrideStub && it.name in affectedNames }) {
-            return SemanticValidity.INVALID
+        fun hasAffectedExplicitOverride(clazz: IrClassDeclaration): Boolean {
+            return clazz.functions.any { function ->
+                function.isOverride &&
+                        !function.isOverrideStub &&
+                        affectedParentFunctions.any { parentFunction ->
+                            function.overridesTransitively(parentFunction)
+                        }
+            }
         }
-        if (targetClass.classKind == ClassKind.FINAL || targetClass.classKind == ClassKind.OPEN) {
+        if (hasAffectedExplicitOverride(targetClass) || targetClass.hasMissingRequiredOverride()) {
             return SemanticValidity.INVALID
         }
 
         for (subClass in program.classes) {
             if (subClass === targetClass || !subClass.isSubClassOf(targetClass)) continue
-            if (subClass.functions.any { it.isOverride && !it.isOverrideStub && it.name in affectedNames }) {
-                return SemanticValidity.INVALID
-            }
-            if (subClass.classKind == ClassKind.FINAL || subClass.classKind == ClassKind.OPEN) {
+            if (hasAffectedExplicitOverride(subClass) || subClass.hasMissingRequiredOverride()) {
                 return SemanticValidity.INVALID
             }
         }
@@ -145,63 +144,71 @@ class IrMutator(
         return SemanticValidity.VALID
     }
 
-    @ConfigBy("removeOverrideMemberFunctionWeight")
-    fun removeOverrideMemberFunction(program: IrProgram): Boolean {
+    fun removeOverrideMemberFunction(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseMemberFunctions(random) { func, clazz ->
             if (func.isOverride && !func.isOverrideStub) {
                 func.isOverrideStub = true
-                semanticValidity = if (program.isRequiredOverride(clazz, func)) {
+                val desc = "removeOverrideMemberFunction in class ${clazz.name}, function ${func.name}"
+                logger.trace { desc }
+                val validity = if (program.isRequiredOverride(clazz, func)) {
                     SemanticValidity.INVALID
                 } else {
                     SemanticValidity.VALID
                 }
-                return@removeOverrideMemberFunction true
+                result = validity to desc
+                return@randomTraverseMemberFunctions true
             }
             false
         }
-        return false
+        return result
     }
 
-    @ConfigBy("mutateGenericArgumentInMemberFunctionParameterWeight")
-    fun mutateGenericArgumentInMemberFunctionParameter(program: IrProgram): Boolean {
+    fun mutateGenericArgumentInMemberFunctionParameter(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseMemberFunctions(random) { func, clazz ->
-            val param = func.parameterList.parameters.firstOrNull { it.type is IrParameterizedClassifier }
-            if (func.isOverride && !func.isOverrideStub && param != null) {
-                val paramType = param.type as IrParameterizedClassifier
-                val typeArguments = paramType.getTypeArguments()
-                val entries = typeArguments.entries.filter { it.value.second.isInvariant && it.value.second.type !== IrAny }
-                if (entries.isEmpty()) return@randomTraverseMemberFunctions false
-                val (_, pair) = entries.random(random)
-                val (typeParam, typeArg) = pair
-                val replaceArg = generator.randomType(
-                    program.classes, clazz.typeParameters + func.typeParameters, false
-                ) { type ->
-                    type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
-                } ?: return@randomTraverseMemberFunctions false
-                paramType.putTypeArgument(typeParam, replaceArg)
-                logger.trace {
-                    "mutateGenericArgumentInMemberFunctionParameter at: " +
-                            "${clazz.name}:${func.name}, " +
-                            "change: $typeArg into $replaceArg, new param $param"
-                }
-                /**
-                 * The operator only mutates a non-stub override. Replacing an
-                 * invariant parameterized argument changes the source-level
-                 * parameter type while preserving only its JVM erasure. The
-                 * declaration therefore no longer overrides its recorded parent
-                 * method (Java reports a name clash; Kotlin reports that there is
-                 * nothing to override).
-                 */
-                semanticValidity = SemanticValidity.INVALID
-                return@mutateGenericArgumentInMemberFunctionParameter true
+            if (!func.isOverride || func.isOverrideStub) {
+                return@randomTraverseMemberFunctions false
             }
-            false
+            val candidates = func.parameterList.parameters.mapNotNull { parameter ->
+                val parameterizedType = parameter.type.parameterizedClassifierOrNull()
+                    ?: return@mapNotNull null
+                val entries = parameterizedType.getTypeArguments().entries.filter {
+                    it.value.second.isInvariant && it.value.second.type !== IrAny
+                }
+                if (entries.isEmpty()) null else Triple(parameter, parameterizedType, entries)
+            }
+            if (candidates.isEmpty()) {
+                return@randomTraverseMemberFunctions false
+            }
+            val (param, paramType, entries) = candidates.random(random)
+            val (_, pair) = entries.random(random)
+            val (typeParam, typeArg) = pair
+            val replaceArg = generator.randomType(
+                program.classes, clazz.typeParameters + func.typeParameters, false
+            ) { type ->
+                type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
+            } ?: return@randomTraverseMemberFunctions false
+            paramType.putTypeArgument(typeParam, replaceArg)
+            val desc = "mutateGenericArgumentInMemberFunctionParameter at: ${clazz.name}.${func.name}, " +
+                    "parameter ${param.name}, change: $typeArg into $replaceArg"
+            logger.trace { desc }
+            /**
+             * The operator only mutates a non-stub override. Replacing an
+             * invariant parameterized argument changes the source-level
+             * parameter type while preserving only its JVM erasure. The
+             * declaration therefore no longer overrides its recorded parent
+             * method (Java reports a name clash; Kotlin reports that there is
+             * nothing to override).
+             */
+            result = SemanticValidity.INVALID to desc
+            return@randomTraverseMemberFunctions true
         }
-        return false
+        return result
     }
 
-    @ConfigBy("mutateParameterNullabilityWeight")
-    fun mutateParameterNullability(program: IrProgram): Boolean {
+    fun mutateParameterNullability(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseMemberFunctions(random) { func, clazz ->
             val param = func.parameterList.parameters.firstOrNull {
                 if (random.nextBoolean()) {
@@ -218,15 +225,19 @@ class IrMutator(
                     this.innerType = type
                 }
             }
-            semanticValidity = calculateParameterNullabilityValidity(
+            val desc = "mutateParameterNullability at: ${clazz.name}.${func.name}, " +
+                    "parameter ${param.name}, before: ${type.render()}, after: ${param.type.render()}"
+            logger.trace { desc }
+            val validity = calculateParameterNullabilityValidity(
                 program = program,
                 function = func,
                 containingClass = clazz,
                 parameterIndex = func.parameterList.parameters.indexOf(param),
             )
-            return@mutateParameterNullability true
+            result = validity to desc
+            return@randomTraverseMemberFunctions true
         }
-        return false
+        return result
     }
 
     /**
@@ -326,8 +337,8 @@ class IrMutator(
         return (childType is IrNullableType) == (parentType is IrNullableType)
     }
 
-    @ConfigBy("mutateReturnTypeNullabilityWeight")
-    fun mutateReturnTypeNullability(program: IrProgram): Boolean {
+    fun mutateReturnTypeNullability(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseMemberFunctions(random) { func, clazz ->
             if (func.isOverrideStub) return@randomTraverseMemberFunctions false
             val returnType = func.returnType
@@ -341,14 +352,18 @@ class IrMutator(
                     this.innerType = returnType
                 }
             }
-            semanticValidity = calculateReturnTypeNullabilityValidity(
+            val desc = "mutateReturnTypeNullability at: ${clazz.name}.${func.name}, " +
+                    "before: ${returnType.render()}, after: ${func.returnType.render()}"
+            logger.trace { desc }
+            val validity = calculateReturnTypeNullabilityValidity(
                 program = program,
                 function = func,
                 containingClass = clazz,
             )
-            return@mutateReturnTypeNullability true
+            result = validity to desc
+            return@randomTraverseMemberFunctions true
         }
-        return false
+        return result
     }
 
     /**
@@ -414,40 +429,36 @@ class IrMutator(
             childClass.allSuperTypeArguments,
             true,
         )
-        if (parentReturnType is IrPlatformType) {
+        if (parentReturnType is IrPlatformType || childReturnType is IrPlatformType) {
             return true
         }
-        if (childReturnType is IrPlatformType) {
-            return true
-        }
-        if (childReturnType is IrNullableType && parentReturnType !is IrNullableType) {
-            return false
-        }
-        return true
+        return childReturnType.isSubTypeOf(parentReturnType)
     }
 
-    @ConfigBy("mutateClassTypeParameterUpperBoundNullabilityWeight")
-    fun mutateClassTypeParameterUpperBoundNullability(program: IrProgram): Boolean {
-        var applied = false
+    fun mutateClassTypeParameterUpperBoundNullability(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseClasses(random) { clazz ->
             if (clazz.typeParameters.isNotEmpty()) {
                 val typeParameter = clazz.typeParameters.random(random)
                 val upperbound = typeParameter.upperbound
-                if (upperbound is IrNullableType) {
+                val validity = if (upperbound is IrNullableType) {
                     typeParameter.upperbound = upperbound.innerType
-                    semanticValidity = calculateUpperBoundValidity(program, clazz, typeParameter)
+                    calculateUpperBoundValidity(program, clazz, typeParameter)
                 } else {
                     typeParameter.upperbound = buildNullableType { innerType = upperbound }
                     // U -> U? relaxes the bound. Every type argument accepted before
                     // the mutation remains accepted in the current body-free IR model.
-                    semanticValidity = SemanticValidity.VALID
+                    SemanticValidity.VALID
                 }
-                applied = true
+                val desc = "mutateClassTypeParameterUpperBoundNullability in class ${clazz.name}, " +
+                        "typeParam ${typeParameter.name}, before: ${upperbound.render()}, after: ${typeParameter.upperbound.render()}"
+                logger.trace { desc }
+                result = validity to desc
                 return@randomTraverseClasses true
             }
             false
         }
-        return applied
+        return result
     }
 
     /**
@@ -468,12 +479,19 @@ class IrMutator(
             when (type) {
                 null -> Unit
                 is IrParameterizedClassifier -> {
-                    if (type.classDecl === targetClass) {
-                        val argument = type.getTypeArguments().values
-                            .firstOrNull { (parameter, _) -> parameter === targetTypeParameter }
-                            ?.second
-                        val innerType = argument?.type
-                        if (argument == null || innerType == null || !innerType.isSubTypeOf(targetTypeParameter.upperbound)) {
+                    for ((paramName, pair) in type.arguments) {
+                        val (param, arg) = pair
+                        if (arg.isStar) continue
+                        val innerType = arg.type ?: continue
+                        val declParam = type.classDecl.typeParameters.firstOrNull {
+                            it.name == paramName.value
+                        } ?: param
+                        val actualUpperBound = getActualTypeFromArguments(
+                            declParam.upperbound,
+                            type.getConcreteTypeArguments(),
+                            true,
+                        )
+                        if (!innerType.isSubTypeOf(actualUpperBound)) {
                             result = SemanticValidity.INVALID
                         }
                     }
@@ -505,8 +523,8 @@ class IrMutator(
         return result
     }
 
-    @ConfigBy("mutateClassTypeParameterUpperBoundWeight")
-    fun mutateClassTypeParameterUpperBound(program: IrProgram): Boolean {
+    fun mutateClassTypeParameterUpperBound(program: IrProgram): Pair<SemanticValidity, String?>? {
+        var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseClasses(random) { clazz ->
             if (clazz.typeParameters.isNotEmpty()) {
                 val typeParameter = clazz.typeParameters.random(random)
@@ -524,32 +542,34 @@ class IrMutator(
                             && !type.dependsOnTypeParameter(typeParameter)
                             && (generator.config.allowUnitInTypeArgument || type !== IrUnit)
                             && (generator.config.allowNothingInTypeArgument || type !== IrNothing)
-                } ?: return@mutateClassTypeParameterUpperBound false
+                } ?: return@randomTraverseClasses false
                 typeParameter.upperbound = if (oldUpperBound is IrNullableType) {
                     buildNullableType { innerType = replace }
                 } else {
                     replace
                 }
-                logger.trace { "mutateClassTypeParameterUpperBound in class ${clazz.name}," +
-                        " before: ${oldUpperBound.render()}, after: ${typeParameter.upperbound.render()}" }
-                semanticValidity = calculateUpperBoundValidity(program, clazz, typeParameter)
-                return@mutateClassTypeParameterUpperBound true
+                val desc = "mutateClassTypeParameterUpperBound in class ${clazz.name}, " +
+                        "typeParam ${typeParameter.name}, before: ${oldUpperBound.render()}, after: ${typeParameter.upperbound.render()}"
+                logger.trace { desc }
+                val validity = calculateUpperBoundValidity(program, clazz, typeParameter)
+                result = validity to desc
+                return@randomTraverseClasses true
             }
             return@randomTraverseClasses false
         }
-        return false
+        return result
     }
 
-    @ConfigBy("mutateInterfaceMethodDefaultWeight")
-    fun mutateInterfaceMethodDefault(program: IrProgram): Boolean {
+    fun mutateInterfaceMethodDefault(program: IrProgram): Pair<SemanticValidity, String?>? {
         val candidates = mutableListOf<Pair<IrClassDeclaration, IrFunctionDeclaration>>()
         for (clazz in program.classes) {
             if (clazz.classKind != ClassKind.INTERFACE) continue
             for (func in clazz.functions) {
+                if (func.isOverrideStub) continue
                 candidates.add(clazz to func)
             }
         }
-        if (candidates.isEmpty()) return false
+        if (candidates.isEmpty()) return null
         val (targetClass, targetFunc) = candidates.random(random)
         val oldBody = targetFunc.body
         if (oldBody != null) {
@@ -557,36 +577,44 @@ class IrMutator(
         } else {
             targetFunc.body = buildBlock()
         }
-        logger.trace {
-            "mutateInterfaceMethodDefault in interface ${targetClass.name}, " +
-                    "function ${targetFunc.name}: ${if (oldBody != null) "default -> abstract" else "abstract -> default"}"
-        }
-        semanticValidity = if (program.hasMissingRequiredOverride()) {
+        val desc = "mutateInterfaceMethodDefault in interface ${targetClass.name}, " +
+                "function ${targetFunc.name}: ${if (oldBody != null) "default -> abstract" else "abstract -> default"}"
+        logger.trace { desc }
+        val validity = if (program.hasMissingRequiredOverride()) {
             SemanticValidity.INVALID
         } else {
             SemanticValidity.VALID
         }
-        return true
+        return validity to desc
     }
 
+    private val mutatorMethods = listOf(
+        this::mutateGenericArgumentInParent,
+        this::removeOverrideMemberFunction,
+        this::mutateGenericArgumentInMemberFunctionParameter,
+        this::mutateParameterNullability,
+        this::mutateReturnTypeNullability,
+        this::mutateClassTypeParameterUpperBoundNullability,
+        this::mutateClassTypeParameterUpperBound,
+        this::mutateInterfaceMethodDefault,
+    )
+
     /**
-     * @return the calculated semantic validity when a mutation was applied, or
+     * @return a pair of the calculated semantic validity and description when a mutation was applied, or
      * `null` when the selected operator could not mutate this program.
      */
-    fun mutate(program: IrProgram): SemanticValidity? {
-        semanticValidity = SemanticValidity.UNKNOWN
-        val configByMethods = this::class.declaredMemberFunctions.filter {
-            it.annotations.any { anno ->
-                anno.annotationClass == ConfigBy::class
-            }
-        }
-        val weights = configByMethods.map { method ->
-            val anno = method.annotations.single { it.annotationClass == ConfigBy::class } as ConfigBy
-            val configProperty = MutatorConfig::class.memberProperties.single { it.name == anno.name }
+    fun mutate(program: IrProgram): Pair<SemanticValidity, String?>? {
+        val weights = mutatorMethods.map { method ->
+            val configProperty = MutatorConfig::class.memberProperties.single { it.name == "${method.name}Weight" }
             configProperty.get(config) as Int
         }
-        val mutatorMethod = rouletteSelection(configByMethods, weights, random)
-        val applied = mutatorMethod.call(this, program) as Boolean
-        return if (applied) semanticValidity else null
+        val mutatorMethod = rouletteSelection(mutatorMethods, weights, random)
+        return mutatorMethod(program)
     }
+}
+
+private fun IrType.parameterizedClassifierOrNull(): IrParameterizedClassifier? = when (this) {
+    is IrParameterizedClassifier -> this
+    is IrTypeContainer -> innerType.parameterizedClassifierOrNull()
+    else -> null
 }
