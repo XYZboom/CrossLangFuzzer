@@ -30,8 +30,7 @@ import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
 import com.github.xyzboom.codesmith.validator.isRequiredOverride
 import com.github.xyzboom.codesmith.validator.hasMissingRequiredOverride
-import com.github.xyzboom.codesmith.ir.expressions.IrBlock
-import com.github.xyzboom.codesmith.ir.expressions.IrReturnExpression
+import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -571,13 +570,15 @@ class IrMutator(
         if (oldBody != null) {
             targetFunc.body = null
         } else {
-            val block = IrBlock(targetFunc)
-            if (targetFunc.returnType !== IrUnit) {
-                val returnExpr = IrReturnExpression(block)
-                returnExpr.value = generator.randomExpression(targetFunc.returnType, targetFunc)
-                block.statements.add(returnExpr)
+            val expr = if (targetFunc.returnType !== IrUnit) {
+                generator.randomExpression(targetFunc.returnType, targetFunc)
+            } else null
+            targetFunc.body = buildBlock {
+                parent = targetFunc
+                if (expr != null) {
+                    statements.add(expr)
+                }
             }
-            targetFunc.body = block
         }
         logger.trace {
             "mutateInterfaceMethodDefault in interface ${targetClass.name}, " +
