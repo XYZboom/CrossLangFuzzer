@@ -500,6 +500,82 @@ class IrMutatorSemanticValidityTest {
         removeOverrideMutator().mutate(program) shouldBe SemanticValidity.VALID
     }
 
+    @Test
+    fun `changing a class type parameter upper bound without uses is valid`() {
+        val bound = buildClassDeclaration {
+            name = "Bound"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += bound
+                classes += target
+            }
+        }
+
+        upperBoundMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `changing a class type parameter upper bound rejects an incompatible argument`() {
+        val bound = buildClassDeclaration {
+            name = "Bound"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val argument = buildClassDeclaration {
+            name = "Argument"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+        }
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+        }
+        val targetType = target.type as IrParameterizedClassifier
+        targetType.putTypeArgument(typeParameter, argument.type)
+        val user = buildClassDeclaration {
+            name = "User"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            implementedTypes += targetType
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += bound
+                classes += argument
+                classes += target
+                classes += user
+            }
+        }
+
+        upperBoundMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    private fun upperBoundMutator() = IrMutator(
+        config = MutatorConfig.allZero.copy(mutateClassTypeParameterUpperBoundWeight = 1),
+        generator = IrDeclGenerator(random = alwaysFalseRandom),
+    )
+
     private fun removeOverrideMutator() = IrMutator(
         config = MutatorConfig.allZero.copy(removeOverrideMemberFunctionWeight = 1),
         generator = IrDeclGenerator(random = alwaysFalseRandom),

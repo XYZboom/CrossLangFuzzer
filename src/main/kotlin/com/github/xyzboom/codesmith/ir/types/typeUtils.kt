@@ -306,6 +306,26 @@ fun IrType.containsTypeParameter(target: IrTypeParameter): Boolean = when (this)
     else -> false
 }
 
+fun IrType.dependsOnTypeParameter(
+    target: IrTypeParameter,
+    visited: MutableSet<IrTypeParameter> = mutableSetOf(),
+): Boolean = when (this) {
+    is IrTypeParameter -> {
+        if (this === target || name == target.name) {
+            true
+        } else if (!visited.add(this)) {
+            false
+        } else {
+            upperbound.dependsOnTypeParameter(target, visited)
+        }
+    }
+    is IrTypeContainer -> innerType.dependsOnTypeParameter(target, visited)
+    is IrParameterizedClassifier -> arguments.values.any { (_, argument) ->
+        argument?.dependsOnTypeParameter(target, visited) == true
+    }
+    else -> false
+}
+
 fun IrType.isSubTypeOf(other: IrType): Boolean {
     if (areEqualTypes(this, other)) {
         return true

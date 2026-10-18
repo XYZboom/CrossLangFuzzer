@@ -20,6 +20,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.types.containsTypeParameter
+import com.github.xyzboom.codesmith.ir.types.dependsOnTypeParameter
 import com.github.xyzboom.codesmith.ir.types.getTypeArguments
 import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
 import com.github.xyzboom.codesmith.ir.types.isSubClassOf
@@ -333,7 +334,7 @@ class IrMutator(
                 val upperbound = typeParameter.upperbound
                 if (upperbound is IrNullableType) {
                     typeParameter.upperbound = upperbound.innerType
-                    semanticValidity = calculateTightenedUpperBoundValidity(program, clazz, typeParameter)
+                    semanticValidity = calculateUpperBoundValidity(program, clazz, typeParameter)
                 } else {
                     typeParameter.upperbound = buildNullableType { innerType = upperbound }
                     // U -> U? relaxes the bound. Every type argument accepted before
@@ -349,14 +350,13 @@ class IrMutator(
     }
 
     /**
-     * Calculates the effect of changing `T : U?` to `T : U`.
+     * Calculates validity after changing a class type parameter's upper bound.
      *
      * Every occurrence of `Target<Argument>` must satisfy `Argument <: U`.
-     * [SemanticValidity.UNKNOWN] is returned instead of claiming invalidity
-     * when the current subtype model cannot represent a platform or nested
-     * parameterized argument.
+     * Platform and nested parameterized arguments are handled by the shared
+     * subtype checker in the IR type utilities.
      */
-    private fun calculateTightenedUpperBoundValidity(
+    private fun calculateUpperBoundValidity(
         program: IrProgram,
         targetClass: IrClassDeclaration,
         targetTypeParameter: IrTypeParameter,
@@ -371,9 +371,7 @@ class IrMutator(
                         val argument = type.getTypeArguments().values
                             .firstOrNull { (parameter, _) -> parameter === targetTypeParameter }
                             ?.second
-                        if (argument == null || argument is IrPlatformType || argument is IrParameterizedClassifier) {
-                            if (result != SemanticValidity.INVALID) result = SemanticValidity.UNKNOWN
-                        } else if (!with(generator) { argument.isSubTypeOf(targetTypeParameter.upperbound) }) {
+                        if (argument == null || !argument.isSubTypeOf(targetTypeParameter.upperbound)) {
                             result = SemanticValidity.INVALID
                         }
                     }
@@ -410,22 +408,29 @@ class IrMutator(
         program.randomTraverseClasses(random) { clazz ->
             if (clazz.typeParameters.isNotEmpty()) {
                 val typeParameter = clazz.typeParameters.random(random)
+                val oldUpperBound = typeParameter.upperbound
+                val oldInnerBound = if (oldUpperBound is IrNullableType) {
+                    oldUpperBound.innerType
+                } else {
+                    oldUpperBound
+                }
                 val replace = generator.randomType(
                     program.classes, clazz.typeParameters, false
                 ) { type ->
                     type !is IrParameterizedClassifier && !areEqualTypes(type, typeParameter)
+                            && !areEqualTypes(type, oldInnerBound)
+                            && !type.dependsOnTypeParameter(typeParameter)
                             && (generator.config.allowUnitInTypeArgument || type !== IrUnit)
                             && (generator.config.allowNothingInTypeArgument || type !== IrNothing)
                 } ?: return@mutateClassTypeParameterUpperBound false
-                val before = typeParameter.upperbound
-                if (typeParameter.upperbound is IrNullableType) {
-                    (typeParameter.upperbound as IrNullableType).innerType = replace
+                typeParameter.upperbound = if (oldUpperBound is IrNullableType) {
+                    buildNullableType { innerType = replace }
                 } else {
-                    typeParameter.upperbound = replace
+                    replace
                 }
                 logger.trace { "mutateClassTypeParameterUpperBound in class ${clazz.name}," +
-                        " before: ${before.render()}, after: ${replace.render()}" }
-                semanticValidity = SemanticValidity.UNKNOWN
+                        " before: ${oldUpperBound.render()}, after: ${typeParameter.upperbound.render()}" }
+                semanticValidity = calculateUpperBoundValidity(program, clazz, typeParameter)
                 return@mutateClassTypeParameterUpperBound true
             }
             return@randomTraverseClasses false
