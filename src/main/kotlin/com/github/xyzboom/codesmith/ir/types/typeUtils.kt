@@ -7,6 +7,8 @@ import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifie
 import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
+import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.iterator
 
@@ -267,4 +269,88 @@ fun IrTypeParameter.deepUpperboundNullable(): Boolean {
         return upperbound.deepUpperboundNullable()
     }
     return false
+}
+
+fun IrTypeParameter.upperboundHave(other: IrTypeParameter): Boolean {
+    if (areEqualTypes(this.upperbound, other)) {
+        return true
+    }
+    val upperbound = this.upperbound
+    return if (upperbound is IrTypeParameter) {
+        upperbound.upperboundHave(other)
+    } else {
+        false
+    }
+}
+
+fun IrClassDeclaration.isSubClassOf(other: IrClassDeclaration): Boolean {
+    if (this === other || name == other.name) return true
+    val superType = superType
+    if (superType is IrClassifier && superType.classDecl.isSubClassOf(other)) {
+        return true
+    }
+    for (implementedType in implementedTypes) {
+        if (implementedType is IrClassifier && implementedType.classDecl.isSubClassOf(other)) {
+            return true
+        }
+    }
+    return false
+}
+
+fun IrType.containsTypeParameter(target: IrTypeParameter): Boolean = when (this) {
+    is IrTypeParameter -> this === target || name == target.name
+    is IrTypeContainer -> innerType.containsTypeParameter(target)
+    is IrParameterizedClassifier -> arguments.values.any { (_, argument) ->
+        argument?.containsTypeParameter(target) == true
+    }
+    else -> false
+}
+
+fun IrType.isSubTypeOf(other: IrType): Boolean {
+    if (areEqualTypes(this, other)) {
+        return true
+    }
+    if (other === IrAny) {
+        return if (this !is IrTypeParameter) {
+            this !is IrNullableType
+        } else {
+            !this.deepUpperboundNullable()
+        }
+    }
+    if (this === IrNothing) {
+        return true
+    }
+    return when (this) {
+        is IrBuiltInType -> false
+        is IrPlatformType -> this.innerType.isSubTypeOf(other)
+        is IrTypeParameter -> when (other) {
+            is IrTypeParameter -> this.upperboundHave(other)
+            is IrClassifier, is IrNullableType -> this.upperbound.isSubTypeOf(other)
+            else -> false
+        }
+        is IrClassifier -> when (other) {
+            is IrTypeParameter -> false
+            is IrSimpleClassifier -> this.classDecl.isSubClassOf(other.classDecl)
+            is IrParameterizedClassifier -> {
+                if (this is IrParameterizedClassifier && this.classDecl == other.classDecl) {
+                    val thisArgs = this.getTypeArguments()
+                    val otherArgs = other.getTypeArguments()
+                    thisArgs.size == otherArgs.size && thisArgs.all { (k, v) ->
+                        val otherArg = otherArgs[k]?.second ?: return@all false
+                        areEqualTypes(v.second, otherArg)
+                    }
+                } else {
+                    this.classDecl.isSubClassOf(other.classDecl)
+                }
+            }
+            is IrNullableType -> false
+            else -> false
+        }
+        is IrNullableType -> if (other !is IrNullableType) {
+            false
+        } else {
+            this.innerType.isSubTypeOf(other.innerType)
+        }
+        else -> false
+    }
 }

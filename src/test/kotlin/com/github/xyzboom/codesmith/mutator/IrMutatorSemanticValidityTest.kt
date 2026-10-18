@@ -257,6 +257,153 @@ class IrMutatorSemanticValidityTest {
         mutator.mutate(program) shouldBe SemanticValidity.INVALID
     }
 
+    @Test
+    fun `changing an unused parent generic argument is valid`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+        }
+        val oldArgument = buildClassDeclaration {
+            name = "OldArgument"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+        }
+        val parentType = parent.type as IrParameterizedClassifier
+        parentType.putTypeArgument(typeParameter, oldArgument.type)
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            implementedTypes += parentType
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+
+        parentGenericArgumentMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `changing a parent generic argument can violate its upper bound`() {
+        val bound = buildClassDeclaration {
+            name = "Bound"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = bound.type
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+        }
+        val parentType = parent.type as IrParameterizedClassifier
+        parentType.putTypeArgument(typeParameter, bound.type)
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            implementedTypes += parentType
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+
+        parentGenericArgumentMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `changing a parent argument used by a member of concrete class is invalid`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+            functions += parameterFunction(Language.KOTLIN, typeParameter)
+        }
+        val oldArgument = buildClassDeclaration {
+            name = "OldArgument"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+        }
+        val parentType = parent.type as IrParameterizedClassifier
+        parentType.putTypeArgument(typeParameter, oldArgument.type)
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            implementedTypes += parentType
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+
+        parentGenericArgumentMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `changing a parent argument used by a member of an interface without overrides is valid`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+            functions += parameterFunction(Language.KOTLIN, typeParameter)
+        }
+        val oldArgument = buildClassDeclaration {
+            name = "OldArgument"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+        }
+        val parentType = parent.type as IrParameterizedClassifier
+        parentType.putTypeArgument(typeParameter, oldArgument.type)
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            implementedTypes += parentType
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+
+        parentGenericArgumentMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
+    private fun parentGenericArgumentMutator() = IrMutator(
+        config = MutatorConfig.allZero.copy(mutateGenericArgumentInParentWeight = 1),
+        generator = IrDeclGenerator(random = alwaysFalseRandom),
+    )
+
     private fun parameterNullabilityMutator() = IrMutator(
         config = MutatorConfig.allZero.copy(mutateParameterNullabilityWeight = 1),
         generator = IrDeclGenerator(random = alwaysFalseRandom),

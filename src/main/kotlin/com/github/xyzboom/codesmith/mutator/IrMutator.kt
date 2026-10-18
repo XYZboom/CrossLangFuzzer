@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.mutator
 
+import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.IrProgram
@@ -18,8 +19,11 @@ import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.ir.types.containsTypeParameter
 import com.github.xyzboom.codesmith.ir.types.getTypeArguments
 import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
+import com.github.xyzboom.codesmith.ir.types.isSubClassOf
+import com.github.xyzboom.codesmith.ir.types.isSubTypeOf
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
@@ -58,13 +62,80 @@ class IrMutator(
                         "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
                     }
                     impl.putTypeArgument(typeParam, replaceArg)
-                    semanticValidity = SemanticValidity.UNKNOWN
-                return@mutateGenericArgumentInParent true
+                    semanticValidity = calculateParentGenericArgumentValidity(
+                        program = program,
+                        targetClass = clazz,
+                        parentType = impl,
+                        changedTypeParameter = typeParam,
+                    )
+                    return@mutateGenericArgumentInParent true
                 }
             }
             false
         }
         return false
+    }
+
+    /**
+     * Calculates validity after replacing one argument in an implemented
+     * parameterized interface.
+     *
+     * 1. All arguments of the implemented parameterized type must satisfy their bounds.
+     * 2. Any override in the implementing class or downstream subclasses that depends
+     *    on this changed generic parameter will have its signature changed upon printing,
+     *    causing it to mismatch its upstream or downstream contract, or failing to fulfill
+     *    abstract requirements if it is no longer recognized as an override.
+     */
+    private fun calculateParentGenericArgumentValidity(
+        program: IrProgram,
+        targetClass: IrClassDeclaration,
+        parentType: IrParameterizedClassifier,
+        changedTypeParameter: IrTypeParameter,
+    ): SemanticValidity {
+        val typeArguments = parentType.getTypeArguments()
+        for ((_, pair) in typeArguments) {
+            val (typeParameter, typeArgument) = pair
+            val actualUpperBound = getActualTypeFromArguments(
+                typeParameter.upperbound,
+                typeArguments,
+                true,
+            )
+            if (!typeArgument.isSubTypeOf(actualUpperBound)) {
+                return SemanticValidity.INVALID
+            }
+        }
+
+        val parentClass = parentType.classDecl
+        val affectedParentFunctions = parentClass.functions.filter { function ->
+            function.parameterList.parameters.any { it.type.containsTypeParameter(changedTypeParameter) } ||
+                    function.returnType.containsTypeParameter(changedTypeParameter) ||
+                    function.typeParameters.any {
+                        it.upperbound.containsTypeParameter(changedTypeParameter)
+                    }
+        }
+        if (affectedParentFunctions.isEmpty()) {
+            return SemanticValidity.VALID
+        }
+
+        val affectedNames = affectedParentFunctions.map { it.name }.toSet()
+        if (targetClass.functions.any { it.isOverride && !it.isOverrideStub && it.name in affectedNames }) {
+            return SemanticValidity.INVALID
+        }
+        if (targetClass.classKind == ClassKind.FINAL || targetClass.classKind == ClassKind.OPEN) {
+            return SemanticValidity.INVALID
+        }
+
+        for (subClass in program.classes) {
+            if (subClass === targetClass || !subClass.isSubClassOf(targetClass)) continue
+            if (subClass.functions.any { it.isOverride && !it.isOverrideStub && it.name in affectedNames }) {
+                return SemanticValidity.INVALID
+            }
+            if (subClass.classKind == ClassKind.FINAL || subClass.classKind == ClassKind.OPEN) {
+                return SemanticValidity.INVALID
+            }
+        }
+
+        return SemanticValidity.VALID
     }
 
     @ConfigBy("removeOverrideMemberFunctionWeight")
