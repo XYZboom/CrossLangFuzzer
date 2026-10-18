@@ -20,6 +20,8 @@ import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.recordCompileResult
 import com.github.xyzboom.codesmith.serde.gson
 import com.github.xyzboom.codesmith.utils.mkdirsIfNotExists
+import com.github.xyzboom.codesmith.kotlin.bsp.BspKotlinCompiler
+import com.github.xyzboom.codesmith.kotlin.bsp.BspServerManager
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
@@ -77,29 +79,36 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
         }
     }
 
-    private val testers = listOf<IKotlinCompiler>(K2Jdk17Compiler)
-
     private val maxRounds by option("--max-rounds")
         .int()
         .default(0)
 
+    private val compilerVersions by option(
+        "--compiler-versions",
+        help = "Comma-separated Kotlin compiler versions served by CompilerRunner",
+    ).default("2.0.21")
+
+    private val testers: List<ICompiler> by lazy {
+        compilerVersions.split(',')
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .map(::BspKotlinCompiler)
+            .also { require(it.isNotEmpty()) { "--compiler-versions must contain a version" } }
+    }
+
     private val minimizeRunner = MinimizeRunner2(this)
 
     fun doDifferentialCompile(program: IrProgram): List<CompileResult> {
-        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
-        return testers.map { it.testProgram(fileContent) }
+        return testers.map { it.compile(program) }
     }
 
     fun doNormalCompile(program: IrProgram): CompileResult {
-        val printer = IrProgramPrinter(Language.KOTLIN)
-        val testResult = K2Jdk17Compiler.testProgram(printer.printToSingle(program))
-        return testResult
+        return testers.first().compile(program)
     }
 
     @OptIn(ExperimentalStdlibApi::class)
     fun doOneRoundDifferentialAndRecord(program: IrProgram, throwException: Boolean) {
-        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
-        val testResults = testers.map { it.testProgram(fileContent) }
+        val testResults = testers.map { it.compile(program) }
         val resultSet = testResults.toSet()
         if (resultSet.size != 1) {
             val (minimize, minResult) = try {
@@ -182,8 +191,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
     private val recorder = DataRecorder()
 
     private fun doReduce(program: IrProgram): IrProgram? {
-        val fileContent = IrProgramPrinter(Language.KOTLIN).printToSingle(program)
-        val testResults = testers.map { it.testProgram(fileContent) }
+        val testResults = testers.map { it.compile(program) }
         recorder.addProgram("ori", program)
         val reduced: IrProgram
         val reduceTime = measureTime {
@@ -253,6 +261,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
     override fun runnerMain() {
         logger.info { "start kotlin runner" }
         require(maxRounds >= 0) { "--max-rounds must be non-negative, but was $maxRounds" }
+        try {
         val i = AtomicInteger(0)
         val parallelSize = 1
         val inputIRFiles = inputIRFiles
@@ -375,6 +384,9 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
             RunMode.ReduceOnly -> {
                 throw IllegalStateException("No input IR file, cannot run ReduceOnly mode.")
             }
+        }
+        } finally {
+            BspServerManager.close()
         }
     }
 }
