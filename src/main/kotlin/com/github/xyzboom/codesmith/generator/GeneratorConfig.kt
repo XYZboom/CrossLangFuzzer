@@ -77,7 +77,7 @@ data class GeneratorConfig(
      * Strongly connected class components remain in the same module, and modules
      * follow dependency order.
      */
-    val moduleNumRange: IntRange = 1..1,
+    val moduleNumRange: IntRange = 3..5,
 ) {
     init {
         require(moduleNumRange.first >= 1 && moduleNumRange.last >= moduleNumRange.first) {

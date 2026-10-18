@@ -9,10 +9,13 @@ import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.Signature
 import com.github.xyzboom.codesmith.ir.declarations.SuperAndIntfFunctions
-import com.github.xyzboom.codesmith.ir.declarations.signature
+
 import com.github.xyzboom.codesmith.ir.declarations.traceFunc
 import com.github.xyzboom.codesmith.ir.declarations.traverseOverride
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
+import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
+import com.github.xyzboom.codesmith.ir.types.getConcreteTypeArguments
 import com.github.xyzboom.codesmith.ir.types.isSubClassOf
 import com.github.xyzboom.codesmith.ir.types.render
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -23,7 +26,9 @@ private val logger = KotlinLogging.logger {}
  * collect a map whose value is a set of function inherited directly from the supers
  * and whose key is the signature of whose value.
  */
-fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
+fun IrClassDeclaration.collectFunctionSignatureMap(
+    exactSignatures: Boolean = false,
+): FunctionSignatureMap {
     logger.trace { "start collectFunctionSignatureMap for class: $name" }
     val result = mutableMapOf<Signature,
             Pair<IrFunctionDeclaration?, MutableSet<IrFunctionDeclaration>>>()
@@ -32,7 +37,7 @@ fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
     for (superType in implementedTypes) {
         superType as? IrClassifier ?: continue
         for (func in superType.classDecl.functions) {
-            val signature = func.signature
+            val signature = func.signatureIn(superType, exactSignatures)
             result.getOrPut(signature) { null to mutableSetOf() }.second.add(func)
         }
     }
@@ -65,7 +70,7 @@ fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
     val superType = superType
     if (superType is IrClassifier) {
         for (function in superType.classDecl.functions) {
-            val signature = function.signature
+            val signature = function.signatureIn(superType, exactSignatures)
             val pair = result[signature]
             if (pair == null) {
                 result[signature] = function to mutableSetOf()
@@ -76,6 +81,22 @@ fun IrClassDeclaration.collectFunctionSignatureMap(): FunctionSignatureMap {
     }
     logger.trace { "end collectFunctionSignatureMap for class: $name" }
     return result
+}
+
+private fun IrFunctionDeclaration.signatureIn(
+    ownerType: IrClassifier,
+    exactSignature: Boolean,
+): Signature {
+    val typeArguments = (ownerType as? IrParameterizedClassifier)
+        ?.getConcreteTypeArguments()
+        .orEmpty()
+    return Signature(
+        name,
+        parameterList.parameters.map { parameter ->
+            getActualTypeFromArguments(parameter.type, typeArguments, true)
+        },
+        compareParameterTypes = exactSignature,
+    )
 }
 
 fun IrClassDeclaration.getOverrideCandidates(
@@ -136,9 +157,15 @@ fun IrClassDeclaration.getOverrideCandidates(
             mustOverrides.add(pair)
             notMustOverride = false
         } else if (nonAbstractCount > 0) {
-            logger.debug { "must override because super and intf is conflict and no final" }
-            mustOverrides.add(pair)
-            notMustOverride = false
+            val superOverrides = mutableSetOf<IrFunctionDeclaration>()
+            superFunction.traverseOverride { superOverrides.add(it) }
+            // If the superFunction already overrides all interface functions, there is no conflict
+            val unoverriddenIntfFunctions = functions.filter { it.body != null && it !in superOverrides }
+            if (unoverriddenIntfFunctions.isNotEmpty()) {
+                logger.debug { "must override because super and intf is conflict and no final" }
+                mustOverrides.add(pair)
+                notMustOverride = false
+            }
         } else if (superFunction.isOverrideStub) {
             /**
              * handle such situation:
@@ -189,9 +216,8 @@ fun IrClassDeclaration.getOverrideCandidates(
                 }
             }
             val nonStubNonAbstractCount = nonStubOverrides.count { it.body != null }
-            if (nonStubNonAbstractCount > 0 && nonStubOverrides.size > 1) {
-                //                      ^^^ may conflict
-                //    override several functions, conflict confirmed ^^^
+            if (nonStubOverrides.any { it.body == null } || (nonStubNonAbstractCount > 0 && nonStubOverrides.size > 1)) {
+                // abstract in super interface, or conflict confirmed
                 mustOverrides.add(pair)
                 notMustOverride = false
             }
@@ -210,12 +236,16 @@ fun IrClassDeclaration.getOverrideCandidates(
 fun IrFunctionDeclaration.implements(candidate: SuperAndIntfFunctions): Boolean {
     if (isOverrideStub) return false
     val (superFunction, interfaceFunctions) = candidate
-    return superFunction in override || interfaceFunctions.any { it in override }
+    val allOverrides = mutableSetOf<IrFunctionDeclaration>()
+    traverseOverride { allOverrides.add(it) }
+    return superFunction in override ||
+            (superFunction != null && superFunction in allOverrides) ||
+            interfaceFunctions.any { it in override || it in allOverrides }
 }
 
 fun IrClassDeclaration.hasMissingRequiredOverride(): Boolean {
     val (mustOverrides, _, _) = getOverrideCandidates(
-        collectFunctionSignatureMap(),
+        collectFunctionSignatureMap(exactSignatures = true),
         doNotEditLanguage = true,
     )
     return mustOverrides.any { candidate ->

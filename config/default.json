@@ -63,8 +63,8 @@
     "noFinalFunction": false,
     "noFinalProperties": false,
     "moduleNumRange": [
-      1,
-      1
+      3,
+      5
     ]
   },
   "mutatorConfig": {

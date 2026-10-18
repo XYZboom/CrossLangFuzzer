@@ -24,7 +24,8 @@ data class MutatorConfig(
             mutateParameterNullabilityWeight = 0,
             mutateReturnTypeNullabilityWeight = 0,
             mutateClassTypeParameterUpperBoundNullabilityWeight = 0,
-            mutateClassTypeParameterUpperBoundWeight = 0
+            mutateClassTypeParameterUpperBoundWeight = 0,
+            mutateInterfaceMethodDefaultWeight = 0
         )
     }
 }
