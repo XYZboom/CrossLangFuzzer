@@ -44,7 +44,8 @@ class IrMutator(
 ) {
     private val logger = KotlinLogging.logger {}
     private val random: Random = generator.random
-    private var semanticValidity = SemanticValidity.UNKNOWN
+    var semanticValidity = SemanticValidity.UNKNOWN
+        internal set
 
     @ConfigBy("mutateGenericArgumentInParentWeight")
     fun mutateGenericArgumentInParent(program: IrProgram): Boolean {
