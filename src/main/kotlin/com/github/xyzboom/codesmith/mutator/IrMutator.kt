@@ -27,6 +27,7 @@ import com.github.xyzboom.codesmith.ir.types.isSubTypeOf
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
+import com.github.xyzboom.codesmith.validator.isRequiredOverride
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -140,10 +141,14 @@ class IrMutator(
 
     @ConfigBy("removeOverrideMemberFunctionWeight")
     fun removeOverrideMemberFunction(program: IrProgram): Boolean {
-        program.randomTraverseMemberFunctions(random) { func, _ ->
+        program.randomTraverseMemberFunctions(random) { func, clazz ->
             if (func.isOverride && !func.isOverrideStub) {
                 func.isOverrideStub = true
-                semanticValidity = SemanticValidity.UNKNOWN
+                semanticValidity = if (program.isRequiredOverride(clazz, func)) {
+                    SemanticValidity.INVALID
+                } else {
+                    SemanticValidity.VALID
+                }
                 return@removeOverrideMemberFunction true
             }
             false

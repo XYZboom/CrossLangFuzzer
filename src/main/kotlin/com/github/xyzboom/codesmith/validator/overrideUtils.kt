@@ -1,6 +1,9 @@
 package com.github.xyzboom.codesmith.validator
 
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.declarations.FunctionSignatureMap
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
@@ -10,6 +13,7 @@ import com.github.xyzboom.codesmith.ir.declarations.signature
 import com.github.xyzboom.codesmith.ir.declarations.traceFunc
 import com.github.xyzboom.codesmith.ir.declarations.traverseOverride
 import com.github.xyzboom.codesmith.ir.types.IrClassifier
+import com.github.xyzboom.codesmith.ir.types.isSubClassOf
 import com.github.xyzboom.codesmith.ir.types.render
 import io.github.oshai.kotlinlogging.KotlinLogging
 
@@ -201,4 +205,45 @@ fun IrClassDeclaration.getOverrideCandidates(
         }
     }
     return Triple(mustOverrides, canOverride, stubOverride)
+}
+
+/**
+ * Returns whether [function] is required to resolve an inherited abstract
+ * member or an inherited implementation conflict in this class.
+ */
+fun IrProgram.isRequiredOverride(
+    containingClass: IrClassDeclaration,
+    function: IrFunctionDeclaration,
+): Boolean {
+    require(function.isOverride)
+
+    fun IrFunctionDeclaration.implements(candidate: SuperAndIntfFunctions): Boolean {
+        if (isOverrideStub) return false
+        val (superFunction, interfaceFunctions) = candidate
+        return superFunction in override || interfaceFunctions.any { it in override }
+    }
+
+    fun IrClassDeclaration.hasMissingRequiredOverride(): Boolean {
+        val (mustOverrides, _, _) = getOverrideCandidates(
+            collectFunctionSignatureMap(),
+            doNotEditLanguage = true,
+        )
+        return mustOverrides.any { candidate ->
+            if (functions.any { it.implements(candidate) }) return@any false
+
+            if (classKind == ClassKind.FINAL || classKind == ClassKind.OPEN) {
+                return@any true
+            }
+
+            val (superFunction, interfaceFunctions) = candidate
+            superFunction == null && interfaceFunctions.count { it.body != null } > 1
+        }
+    }
+
+    if (containingClass.hasMissingRequiredOverride()) return true
+    return classes.any { clazz ->
+        clazz !== containingClass &&
+                clazz.isSubClassOf(containingClass) &&
+                clazz.hasMissingRequiredOverride()
+    }
 }

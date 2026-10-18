@@ -319,24 +319,43 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
                     // generated program is known to compile successfully.
                     if (originalResult?.success != true) continue
 
+                    if (runConfig.mutateTimes == 0 ||
+                        !shouldContinueNormalRounds(i.get(), maxRounds)
+                    ) continue
+
+                    val mutatedProgram = prog.deepCopy()
                     for (mutationIndex in 0 until runConfig.mutateTimes) {
                         if (!shouldContinueNormalRounds(i.get(), maxRounds)) break
-                        val copiedProg = prog.deepCopy()
-                        val semanticValidity = IrMutator(
+
+                        val mutationValidity = IrMutator(
                             runConfig.mutatorConfig,
                             generator = generator,
-                        ).mutate(copiedProg)
+                        ).mutate(mutatedProgram)
 
-                        // No mutation and unknown validity are both discarded:
-                        // neither provides a usable semantic oracle.
-                        if (semanticValidity == null || semanticValidity == SemanticValidity.UNKNOWN) {
-                            continue
+                        when (mutationValidity) {
+                            null -> continue
+                            SemanticValidity.UNKNOWN -> {
+                                // This mutation has already changed the program, but
+                                // provides no usable oracle. The cumulative chain can
+                                // no longer be tested soundly.
+                                break
+                            }
+                            SemanticValidity.VALID,
+                            SemanticValidity.INVALID -> {
+                                val mutatedDuration = measureTime {
+                                    doOneMutatedRoundAndRecord(
+                                        mutatedProgram,
+                                        mutationValidity,
+                                        stopOnErrors,
+                                    )
+                                }
+                                println(
+                                    "${i.incrementAndGet()}:${mutatedDuration}" +
+                                            "\tmutation=$mutationValidity"
+                                )
+                                if (mutationValidity == SemanticValidity.INVALID) break
+                            }
                         }
-
-                        val mutatedDuration = measureTime {
-                            doOneMutatedRoundAndRecord(copiedProg, semanticValidity, stopOnErrors)
-                        }
-                        println("${i.incrementAndGet()}:${mutatedDuration}\tmutation=$semanticValidity")
                     }
                 }
             }

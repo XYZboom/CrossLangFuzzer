@@ -399,6 +399,112 @@ class IrMutatorSemanticValidityTest {
         parentGenericArgumentMutator().mutate(program) shouldBe SemanticValidity.VALID
     }
 
+    @Test
+    fun `removing an override required for an abstract interface member is invalid`() {
+        val parentFunction = parameterFunction(Language.KOTLIN).apply { body = null }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            functions += parentFunction
+        }
+        val childFunction = parameterFunction(Language.KOTLIN).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            implementedTypes += parent.type
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += child
+            }
+        }
+
+        removeOverrideMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `removing an abstract override needed by a concrete descendant is invalid`() {
+        val parentFunction = parameterFunction(Language.KOTLIN).apply { body = null }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            functions += parentFunction
+        }
+        val middleFunction = parameterFunction(Language.KOTLIN).apply {
+            body = null
+            isOverride = true
+            override += parentFunction
+        }
+        val middle = buildClassDeclaration {
+            name = "Middle"
+            language = Language.KOTLIN
+            classKind = ClassKind.ABSTRACT
+            implementedTypes += parent.type
+            functions += middleFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = middle.type
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += middle
+                classes += child
+            }
+        }
+
+        removeOverrideMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `removing an optional override of a concrete parent member is valid`() {
+        val parentFunction = parameterFunction(Language.KOTLIN)
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            functions += parentFunction
+        }
+        val childFunction = parameterFunction(Language.KOTLIN).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = parent.type
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += child
+            }
+        }
+
+        removeOverrideMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
+    private fun removeOverrideMutator() = IrMutator(
+        config = MutatorConfig.allZero.copy(removeOverrideMemberFunctionWeight = 1),
+        generator = IrDeclGenerator(random = alwaysFalseRandom),
+    )
+
     private fun parentGenericArgumentMutator() = IrMutator(
         config = MutatorConfig.allZero.copy(mutateGenericArgumentInParentWeight = 1),
         generator = IrDeclGenerator(random = alwaysFalseRandom),
