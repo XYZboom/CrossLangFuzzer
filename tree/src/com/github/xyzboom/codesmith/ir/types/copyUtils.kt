@@ -18,7 +18,8 @@ fun IrParameterizedClassifier.copy(): IrParameterizedClassifier {
         for ((typeParameterName, pair) in this@copy.arguments) {
             val (typeParameter, typeArgument) = pair
             val newTypeParameter = typeParameter.copy()
-            arguments[typeParameterName] = newTypeParameter to typeArgument?.copy()
+            val newTypeArgument = typeArgument.copy(type = typeArgument.type?.copy())
+            arguments[typeParameterName] = newTypeParameter to newTypeArgument
         }
     }
 }

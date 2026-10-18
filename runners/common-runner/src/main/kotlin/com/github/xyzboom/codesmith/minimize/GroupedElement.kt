@@ -7,7 +7,6 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.partitionClassesToModules
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
-import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrParameter
@@ -23,6 +22,7 @@ import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
@@ -203,41 +203,21 @@ data class GroupedElement(
                                 val (typeParam, typeArg) = pair
                                 val (newTypeParam, oriTPExists) = newTypeFromClosure(typeParam)
                                 if (!oriTPExists || newTypeParam !is IrTypeParameter) continue
-                                val newTypeArg = if (typeArg != null) {
-                                    val (newTypeArg, oriTAExists) = newTypeFromClosure(typeArg)
+                                val innerType = typeArg.type
+                                val newTypeArg = if (innerType != null) {
+                                    val (newInnerType, oriTAExists) = newTypeFromClosure(innerType)
                                     if (oriTAExists) {
-                                        newTypeArg
+                                        IrTypeArgument(typeArg.variance, newInnerType)
                                     } else {
                                         val newUpperbound = newTypeParam.upperbound
-                                        if (newUpperbound is IrTypeParameter) {
+                                        val fallbackType = if (newUpperbound is IrTypeParameter) {
                                             val newUpperboundName = IrTypeParameterName(newUpperbound.name)
-
-                                            /**
-                                             * before:
-                                             * ```kt
-                                             * open class X
-                                             * open class Y: X
-                                             * open class A<T0: X, T1: T0>
-                                             * open class B {
-                                             *     fun func(a: A<X, Y>) {}
-                                             * }
-                                             * ```
-                                             * remove class `Y`, after:
-                                             * ```kt
-                                             * open class X
-                                             * open class A<T0: X, T1: T0>
-                                             * open class B {
-                                             *     fun func(a: A<X, X>) {}
-                                             * //                   ^
-                                             * // the arg here is not `T0` but the arg of `T0`
-                                             * }
-                                             * ```
-                                             */
                                             val mayBeAnotherArg = newType.arguments[newUpperboundName]
-                                            mayBeAnotherArg?.second ?: newUpperbound
+                                            mayBeAnotherArg?.second?.type ?: newUpperbound
                                         } else newUpperbound
+                                        IrTypeArgument(typeArg.variance, fallbackType)
                                     }
-                                } else null
+                                } else IrTypeArgument.STAR
                                 newType.arguments[typeParamName] = newTypeParam to newTypeArg
                             }
                         }

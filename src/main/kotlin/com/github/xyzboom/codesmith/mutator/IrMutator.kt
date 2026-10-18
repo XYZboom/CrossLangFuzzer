@@ -22,6 +22,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.types.containsTypeParameter
 import com.github.xyzboom.codesmith.ir.types.dependsOnTypeParameter
 import com.github.xyzboom.codesmith.ir.types.getTypeArguments
+import com.github.xyzboom.codesmith.ir.types.getConcreteTypeArguments
 import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
 import com.github.xyzboom.codesmith.ir.types.isSubClassOf
 import com.github.xyzboom.codesmith.ir.types.isSubTypeOf
@@ -54,14 +55,14 @@ class IrMutator(
             for (impl in implements) {
                 if (impl is IrParameterizedClassifier) {
                     val typeArguments = impl.getTypeArguments()
-                    val entries = typeArguments.entries.filter { it.value.second !== IrAny }
+                    val entries = typeArguments.entries.filter { it.value.second.isInvariant && it.value.second.type !== IrAny }
                     if (entries.isEmpty()) continue
                     val (_, pair) = entries.random(random)
                     val (typeParam, typeArg) = pair
                     val replaceArg = generator.randomType(
                         program.classes, clazz.typeParameters, false
                     ) { type ->
-                        type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg)
+                        type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
                     } ?: continue
                     logger.trace {
                         "mutateGenericArgumentInParent at: ${clazz.name}, change: $typeArg into $replaceArg"
@@ -100,12 +101,13 @@ class IrMutator(
         val typeArguments = parentType.getTypeArguments()
         for ((_, pair) in typeArguments) {
             val (typeParameter, typeArgument) = pair
+            val innerType = typeArgument.type ?: continue
             val actualUpperBound = getActualTypeFromArguments(
                 typeParameter.upperbound,
-                typeArguments,
+                parentType.getConcreteTypeArguments(),
                 true,
             )
-            if (!typeArgument.isSubTypeOf(actualUpperBound)) {
+            if (!innerType.isSubTypeOf(actualUpperBound)) {
                 return SemanticValidity.INVALID
             }
         }
@@ -167,14 +169,14 @@ class IrMutator(
             if (func.isOverride && !func.isOverrideStub && param != null) {
                 val paramType = param.type as IrParameterizedClassifier
                 val typeArguments = paramType.getTypeArguments()
-                val entries = typeArguments.entries.filter { it.value.second !== IrAny }
+                val entries = typeArguments.entries.filter { it.value.second.isInvariant && it.value.second.type !== IrAny }
                 if (entries.isEmpty()) return@randomTraverseMemberFunctions false
                 val (_, pair) = entries.random(random)
                 val (typeParam, typeArg) = pair
                 val replaceArg = generator.randomType(
                     program.classes, clazz.typeParameters + func.typeParameters, false
                 ) { type ->
-                    type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg)
+                    type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
                 } ?: return@randomTraverseMemberFunctions false
                 paramType.putTypeArgument(typeParam, replaceArg)
                 logger.trace {
@@ -470,11 +472,12 @@ class IrMutator(
                         val argument = type.getTypeArguments().values
                             .firstOrNull { (parameter, _) -> parameter === targetTypeParameter }
                             ?.second
-                        if (argument == null || !argument.isSubTypeOf(targetTypeParameter.upperbound)) {
+                        val innerType = argument?.type
+                        if (argument == null || innerType == null || !innerType.isSubTypeOf(targetTypeParameter.upperbound)) {
                             result = SemanticValidity.INVALID
                         }
                     }
-                    type.arguments.values.forEach { (_, argument) -> inspect(argument) }
+                    type.arguments.values.forEach { (_, argument) -> inspect(argument.type) }
                 }
                 is IrTypeContainer -> inspect(type.innerType)
                 is IrTypeParameter -> inspect(type.upperbound)

@@ -73,7 +73,13 @@ class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(print
                         val typeArgs = irType.getTypeArguments()
                         for ((index, typeParam) in irType.classDecl.typeParameters.withIndex()) {
                             val typeArg = typeArgs[IrTypeParameterName(typeParam.name)]!!.second
-                            sb.append(printType(typeArg))
+                            val rendered = when (typeArg.variance) {
+                                IrVariance.INVARIANT -> printType(typeArg.type ?: IrAny)
+                                IrVariance.COVARIANT -> "out ${printType(typeArg.type ?: IrAny)}"
+                                IrVariance.CONTRAVARIANT -> "in ${printType(typeArg.type ?: IrAny)}"
+                                IrVariance.STAR -> "*"
+                            }
+                            sb.append(rendered)
                             if (index != irType.classDecl.typeParameters.lastIndex) {
                                 sb.append(", ")
                             }

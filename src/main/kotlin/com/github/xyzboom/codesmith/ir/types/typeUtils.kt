@@ -17,14 +17,26 @@ private val logger = KotlinLogging.logger {}
 fun IrParameterizedClassifier.putTypeArgument(typeParameter: IrTypeParameter, type: IrType) {
     val name = IrTypeParameterName(typeParameter.name)
     require(arguments.containsKey(name))
-    arguments[name] = typeParameter to type
+    arguments[name] = typeParameter to IrTypeArgument.invariant(type)
 }
 
-fun IrParameterizedClassifier.getTypeArguments(): Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>> {
-    require(arguments.values.all { it.second != null })
-    @Suppress("UNCHECKED_CAST")
-    // as we check all type argument is not null, this cast is null safe
-    return arguments as Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>>
+fun IrParameterizedClassifier.putTypeArgument(typeParameter: IrTypeParameter, typeArgument: IrTypeArgument) {
+    val name = IrTypeParameterName(typeParameter.name)
+    require(arguments.containsKey(name))
+    arguments[name] = typeParameter to typeArgument
+}
+
+fun IrParameterizedClassifier.getTypeArguments(): Map<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>> {
+    return arguments
+}
+
+fun IrParameterizedClassifier.getConcreteTypeArguments(): Map<IrTypeParameterName, Pair<IrTypeParameter, IrType>> {
+    val result = mutableMapOf<IrTypeParameterName, Pair<IrTypeParameter, IrType>>()
+    for ((k, v) in arguments) {
+        val inner = v.second.type ?: continue
+        result[k] = v.first to inner
+    }
+    return result
 }
 
 fun IrType.equalsIgnoreTypeArguments(other: IrType): Boolean {
@@ -32,12 +44,12 @@ fun IrType.equalsIgnoreTypeArguments(other: IrType): Boolean {
         is IrBuiltInType -> other === this
         is IrClassifier -> {
             if (other !is IrClassifier) return false
-            return classDecl == other.classDecl
+            classDecl == other.classDecl
         }
 
         is IrNullableType -> {
             if (other !is IrNullableType) return false
-            return innerType.equalsIgnoreTypeArguments(other.innerType)
+            innerType.equalsIgnoreTypeArguments(other.innerType)
         }
 
         is IrTypeParameter -> this == other
@@ -79,24 +91,32 @@ fun IrParameterizedClassifier.putAllTypeArguments(
              * [args] will be {"T2": "T1"},
              * "T1" here matches value in [args] above.
              */
-            if (typeArg == null) continue
-            val notNullTypeArg = typeArg.notNullType
+            val innerType = typeArg.type ?: continue
+            val notNullTypeArg = innerType.notNullType
             if (notNullTypeArg !is IrTypeParameter) continue
             val typeArgAsTypeParameterName = IrTypeParameterName(notNullTypeArg.name)
             if (args.containsKey(typeArgAsTypeParameterName)) {
                 val replaceWith = args[typeArgAsTypeParameterName]!!
                 logger.trace { "replace ${typeParam.render()} with ${replaceWith.second.render()}" }
-                putTypeArgument(
-                    typeParam,
-                    if (typeArg is IrNullableType) {
-                        buildNullableType { innerType = replaceWith.second }
-                    } else {
-                        replaceWith.second
-                    }
-                )
+                val newInner = if (innerType is IrNullableType) {
+                    buildNullableType { this.innerType = replaceWith.second }
+                } else {
+                    replaceWith.second
+                }
+                putTypeArgument(typeParam, newInner)
             }
         }
     }
+}
+
+@JvmName("containsTypeArgument")
+operator fun Map<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>.contains(key: IrTypeParameter): Boolean {
+    return containsKey(IrTypeParameterName(key.name))
+}
+
+@JvmName("getTypeArgument")
+operator fun Map<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>.get(key: IrTypeParameter): IrTypeArgument? {
+    return get(IrTypeParameterName(key.name))?.second
 }
 
 operator fun MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>.set(
@@ -196,12 +216,13 @@ fun areEqualTypes(a: IrType?, b: IrType?): Boolean {
     return when (a) {
         is IrParameterizedClassifier -> {
             if (b !is IrParameterizedClassifier) return false
+            if (a.classDecl !== b.classDecl) return false
+            if (a.arguments.size != b.arguments.size) return false
             for ((paramName, pair) in a.arguments) {
                 val (_, arg) = pair
-                if (paramName !in b.arguments) {
-                    return false
-                }
-                if (!areEqualTypes(arg, b.arguments[paramName]!!.second)) {
+                val otherArg = b.arguments[paramName]?.second ?: return false
+                if (arg.variance != otherArg.variance) return false
+                if (!areEqualTypes(arg.type, otherArg.type)) {
                     return false
                 }
             }
@@ -237,7 +258,7 @@ val IrClassDeclaration.type: IrClassifier
         buildParameterizedClassifier {
             classDecl = this@type
             arguments = HashMap(classDecl.typeParameters.associate {
-                IrTypeParameterName(it.name) to (it to null)
+                IrTypeParameterName(it.name) to (it to IrTypeArgument.STAR)
             })
         }
     }
@@ -301,7 +322,7 @@ fun IrType.containsTypeParameter(target: IrTypeParameter): Boolean = when (this)
     is IrTypeParameter -> this === target || name == target.name
     is IrTypeContainer -> innerType.containsTypeParameter(target)
     is IrParameterizedClassifier -> arguments.values.any { (_, argument) ->
-        argument?.containsTypeParameter(target) == true
+        argument.type?.containsTypeParameter(target) == true
     }
     else -> false
 }
@@ -321,9 +342,38 @@ fun IrType.dependsOnTypeParameter(
     }
     is IrTypeContainer -> innerType.dependsOnTypeParameter(target, visited)
     is IrParameterizedClassifier -> arguments.values.any { (_, argument) ->
-        argument?.dependsOnTypeParameter(target, visited) == true
+        argument.type?.dependsOnTypeParameter(target, visited) == true
     }
     else -> false
+}
+
+fun IrTypeArgument.isSubArgumentOf(other: IrTypeArgument): Boolean {
+    if (other.isStar) return true
+    return when (other.variance) {
+        IrVariance.STAR -> true
+        IrVariance.COVARIANT -> {
+            val otherType = other.type ?: return false
+            when (this.variance) {
+                IrVariance.INVARIANT, IrVariance.COVARIANT -> {
+                    this.type?.isSubTypeOf(otherType) == true
+                }
+                else -> false
+            }
+        }
+        IrVariance.CONTRAVARIANT -> {
+            val otherType = other.type ?: return false
+            when (this.variance) {
+                IrVariance.INVARIANT, IrVariance.CONTRAVARIANT -> {
+                    otherType.isSubTypeOf(this.type ?: return false)
+                }
+                else -> false
+            }
+        }
+        IrVariance.INVARIANT -> {
+            if (this.variance != IrVariance.INVARIANT) false
+            else areEqualTypes(this.type, other.type)
+        }
+    }
 }
 
 fun IrType.isSubTypeOf(other: IrType): Boolean {
@@ -353,11 +403,12 @@ fun IrType.isSubTypeOf(other: IrType): Boolean {
             is IrSimpleClassifier -> this.classDecl.isSubClassOf(other.classDecl)
             is IrParameterizedClassifier -> {
                 if (this is IrParameterizedClassifier && this.classDecl == other.classDecl) {
-                    val thisArgs = this.getTypeArguments()
-                    val otherArgs = other.getTypeArguments()
+                    val thisArgs = this.arguments
+                    val otherArgs = other.arguments
                     thisArgs.size == otherArgs.size && thisArgs.all { (k, v) ->
                         val otherArg = otherArgs[k]?.second ?: return@all false
-                        areEqualTypes(v.second, otherArg)
+                        val thisArg = v.second
+                        thisArg.isSubArgumentOf(otherArg)
                     }
                 } else {
                     this.classDecl.isSubClassOf(other.classDecl)

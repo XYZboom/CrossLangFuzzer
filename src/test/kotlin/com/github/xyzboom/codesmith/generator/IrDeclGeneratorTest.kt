@@ -1,13 +1,13 @@
 package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.ir.ClassKind
-import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
@@ -16,6 +16,8 @@ import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
+import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.ir.types.IrVariance
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.type
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -270,7 +272,10 @@ class IrDeclGeneratorTest {
         @Test
         fun testGenFunctionParameter0() {
             val generator = SequentialTypeSelectionIrDeclGenerator(
-                listOf(IrAny, IrAny), GeneratorConfig(functionParameterNullableProbability = 0.5f),
+                listOf(IrAny, IrAny), GeneratorConfig(
+                    functionParameterNullableProbability = 0.5f,
+                    functionParameterPlatformProbability = 0.0f
+                ),
                 object : Random() {
                     // 0.7: do not make return type nullable
                     // 0.3: make return type nullable
@@ -592,6 +597,263 @@ class IrDeclGeneratorTest {
                 putTypeArgument(t1, IrAny)
             }
             typeA shouldBe IrTypeMatcher(expectA)
+        }
+    }
+
+    @Nested
+    inner class UseSiteVariance {
+        private fun getAvailableTypeNames(): List<String> {
+            val base = buildClassDeclaration {
+                name = "Base"
+                classKind = ClassKind.OPEN
+            }
+            val sub = buildClassDeclaration {
+                name = "Sub"
+                classKind = ClassKind.FINAL
+                superType = base.type
+            }
+            val unrelated = buildClassDeclaration {
+                name = "Unrelated"
+                classKind = ClassKind.FINAL
+            }
+            val generic = buildClassDeclaration {
+                name = "Generic"
+                classKind = ClassKind.FINAL
+                typeParameters += buildTypeParameter { name = "T"; upperbound = IrAny }
+            }
+            val candidates = listOf(
+                base.type,
+                sub.type,
+                unrelated.type,
+                IrAny,
+                IrUnit,
+                IrNothing,
+                generic.type
+            )
+            return IrDeclGenerator().getAvailableTypesForPosition(
+                candidates,
+                base.type
+            ).map { (it as IrClassifier).classDecl.name }
+        }
+
+        @Test
+        fun `available concrete types must satisfy the effective upper bound`() {
+            getAvailableTypeNames() shouldBe listOf("Base", "Sub")
+        }
+
+        @Test
+        fun `available concrete types include in-scope type parameters`() {
+            val t1 = buildTypeParameter { name = "T1"; upperbound = IrAny }
+            val availableTypes = IrDeclGenerator().getAvailableTypesForPosition(
+                candidateTypes = listOf(t1),
+                upperbound = IrAny
+            )
+
+            availableTypes.single() shouldBeSameInstanceAs t1
+        }
+
+        @Test
+        fun `generic argument generation can select an enclosing class type parameter`() {
+            val t1 = buildTypeParameter { name = "T1"; upperbound = IrAny }
+            val u = buildTypeParameter { name = "U"; upperbound = IrAny }
+            val classB = buildClassDeclaration {
+                name = "B"
+                classKind = ClassKind.FINAL
+                typeParameters += u
+            }
+            val generator = FilteredSequentialTypeSelectionIrDeclGenerator(listOf(t1))
+            val typeB = classB.type as IrParameterizedClassifier
+
+            generator.genTypeArguments(
+                fromClasses = listOf(classB),
+                fromTypeParameters = listOf(t1),
+                targetType = typeB
+            )
+
+            val argument = typeB.arguments[IrTypeParameterName("U")]!!.second
+            argument.variance shouldBe IrVariance.INVARIANT
+            argument.type shouldBeSameInstanceAs t1
+        }
+
+        @Test
+        fun `dependent generic argument can select a compatible enclosing type parameter`() {
+            val base = buildClassDeclaration {
+                name = "Base"
+                classKind = ClassKind.OPEN
+            }
+            val sub = buildClassDeclaration {
+                name = "Sub"
+                classKind = ClassKind.FINAL
+                superType = base.type
+            }
+            val t1 = buildTypeParameter { name = "T1"; upperbound = sub.type }
+            val x = buildTypeParameter { name = "X"; upperbound = base.type }
+            val y = buildTypeParameter { name = "Y"; upperbound = x }
+            val classB = buildClassDeclaration {
+                name = "B"
+                classKind = ClassKind.FINAL
+                typeParameters += x
+                typeParameters += y
+            }
+            val generator = FilteredSequentialTypeSelectionIrDeclGenerator(
+                listOf(base.type, t1)
+            )
+            val typeB = classB.type as IrParameterizedClassifier
+
+            generator.genTypeArguments(
+                fromClasses = listOf(base, sub, classB),
+                fromTypeParameters = listOf(t1),
+                targetType = typeB
+            )
+
+            val argument = typeB.arguments[IrTypeParameterName("Y")]!!.second
+            argument.type shouldBeSameInstanceAs t1
+        }
+
+        @Test
+        fun `test use-site star projection`() {
+            val t0 = buildTypeParameter { name = "T0"; upperbound = IrAny }
+            val classBox = buildClassDeclaration {
+                name = "Box"
+                classKind = ClassKind.FINAL
+                typeParameters += t0
+            }
+            val config = GeneratorConfig(
+                enableUseSiteVariance = true,
+                useSiteVarianceProbability = 1.0f,
+                starProjectionProbability = 1.0f
+            )
+            val generator = IrDeclGenerator(config = config)
+            val targetType = classBox.type as IrParameterizedClassifier
+            generator.genTypeArguments(
+                listOf(classBox),
+                emptyList(),
+                targetType,
+                allowVariance = true
+            )
+            val arg = targetType.arguments[IrTypeParameterName("T0")]!!.second
+            arg.variance shouldBe IrVariance.STAR
+            arg.type shouldBe null
+        }
+
+        @Test
+        fun `test use-site covariance`() {
+            val t0 = buildTypeParameter { name = "T0"; upperbound = IrAny }
+            val classBox = buildClassDeclaration {
+                name = "Box"
+                classKind = ClassKind.FINAL
+                typeParameters += t0
+            }
+            val config = GeneratorConfig(
+                enableUseSiteVariance = true,
+                useSiteVarianceProbability = 1.0f,
+                starProjectionProbability = 0.0f,
+                covariantProbability = 1.0f
+            )
+            val generator = IrDeclGenerator(config = config)
+            val targetType = classBox.type as IrParameterizedClassifier
+            generator.genTypeArguments(
+                listOf(classBox),
+                emptyList(),
+                targetType,
+                allowVariance = true
+            )
+            val arg = targetType.arguments[IrTypeParameterName("T0")]!!.second
+            arg.variance shouldBe IrVariance.COVARIANT
+            arg.type shouldBe IrAny
+        }
+
+        @Test
+        fun `test use-site contravariance`() {
+            val t0 = buildTypeParameter { name = "T0"; upperbound = IrAny }
+            val classBox = buildClassDeclaration {
+                name = "Box"
+                classKind = ClassKind.FINAL
+                typeParameters += t0
+            }
+            val config = GeneratorConfig(
+                enableUseSiteVariance = true,
+                useSiteVarianceProbability = 1.0f,
+                starProjectionProbability = 0.0f,
+                covariantProbability = 0.0f
+            )
+            val generator = IrDeclGenerator(config = config)
+            val targetType = classBox.type as IrParameterizedClassifier
+            generator.genTypeArguments(
+                listOf(classBox),
+                emptyList(),
+                targetType,
+                allowVariance = true
+            )
+            val arg = targetType.arguments[IrTypeParameterName("T0")]!!.second
+            arg.variance shouldBe IrVariance.CONTRAVARIANT
+            arg.type shouldBe IrAny
+        }
+
+        @Test
+        fun `type parameter used as a later upper bound must stay invariant`() {
+            val t0 = buildTypeParameter { name = "T0"; upperbound = IrAny }
+            val t1 = buildTypeParameter { name = "T1"; upperbound = t0 }
+            val classBox = buildClassDeclaration {
+                name = "Box"
+                classKind = ClassKind.FINAL
+                typeParameters += t0
+                typeParameters += t1
+            }
+            val config = GeneratorConfig(
+                enableUseSiteVariance = true,
+                useSiteVarianceProbability = 1.0f,
+                starProjectionProbability = 1.0f
+            )
+            val generator = SequentialTypeSelectionIrDeclGenerator(
+                listOf(IrAny),
+                config = config
+            )
+            val targetType = classBox.type as IrParameterizedClassifier
+            generator.genTypeArguments(
+                listOf(classBox),
+                emptyList(),
+                targetType,
+                allowVariance = true
+            )
+            val firstArg = targetType.arguments[IrTypeParameterName("T0")]!!.second
+            firstArg.variance shouldBe IrVariance.INVARIANT
+            firstArg.type shouldBe IrAny
+            val secondArg = targetType.arguments[IrTypeParameterName("T1")]!!.second
+            secondArg.variance shouldBe IrVariance.STAR
+            secondArg.type shouldBe null
+        }
+
+        @Test
+        fun `supertype must always be invariant even if variance is enabled`() {
+            val t0 = buildTypeParameter { name = "T0"; upperbound = IrAny }
+            val classP = buildClassDeclaration {
+                name = "P"
+                classKind = ClassKind.OPEN
+                typeParameters += t0
+            }
+            val classC = buildClassDeclaration {
+                name = "C"
+                classKind = ClassKind.FINAL
+            }
+            val prog = mockProgram.apply {
+                modules.single().classes += classP
+                modules.single().classes += classC
+            }
+            val config = GeneratorConfig(
+                enableUseSiteVariance = true,
+                useSiteVarianceProbability = 1.0f,
+                starProjectionProbability = 1.0f
+            )
+            val generator = SequentialTypeSelectionIrDeclGenerator(
+                listOf(classP.type, IrAny), config = config
+            )
+            with(generator) {
+                classC.genSuperTypes(prog)
+            }
+            val superType = classC.superType as IrParameterizedClassifier
+            val arg = superType.arguments[IrTypeParameterName("T0")]!!.second
+            arg.variance shouldBe IrVariance.INVARIANT
         }
     }
 }

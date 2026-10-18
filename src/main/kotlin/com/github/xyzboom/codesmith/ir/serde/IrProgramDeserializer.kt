@@ -15,8 +15,10 @@ import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
+import com.github.xyzboom.codesmith.ir.types.IrVariance
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
@@ -68,9 +70,22 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                         argPairObj as JsonArray
                         val paramObj = argPairObj[0]
                         val argObj = argPairObj[1]
-                        val arg: IrType? = argObj?.let { deserializeType(it.asJsonObject, context) }
                         val param = deserializeTypeParameter(paramObj.asJsonObject, context)
-                        arguments[IrTypeParameterName(name)] = param to arg
+                        val typeArg = if (argObj == null || argObj.isJsonNull) {
+                            IrTypeArgument.STAR
+                        } else if (argObj.isJsonObject && argObj.asJsonObject.has("variance")) {
+                            val argJsonObject = argObj.asJsonObject
+                            val variance = IrVariance.valueOf(argJsonObject.get("variance").asString)
+                            val innerType = if (argJsonObject.has("type") && !argJsonObject.get("type").isJsonNull) {
+                                deserializeType(argJsonObject.get("type").asJsonObject, context)
+                            } else null
+                            IrTypeArgument(variance, innerType)
+                        } else {
+                            // Backward compatibility: raw IrType json object
+                            val rawType = deserializeType(argObj.asJsonObject, context)
+                            IrTypeArgument.invariant(rawType)
+                        }
+                        arguments[IrTypeParameterName(name)] = param to typeArg
                     }
                 }
             }

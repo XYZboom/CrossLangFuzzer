@@ -30,7 +30,9 @@ val concreteTypeArgMapType = org.jetbrains.kotlin.generators.tree.type("kotlin.c
     org.jetbrains.kotlin.generators.tree.type<Pair<*, *>>().withArgs(typeParameter, TreeBuilder.type)
 )
 
+val irTypeArgumentType = type("ir.types", "IrTypeArgument", kind = TypeKind.Class)
+
 val typeArgMapType = org.jetbrains.kotlin.generators.tree.type("kotlin.collections", "MutableMap").withArgs(
     irTypeParameterNameType,
-    org.jetbrains.kotlin.generators.tree.type<Pair<*, *>>().withArgs(typeParameter, TreeBuilder.type.copy(nullable = true))
+    org.jetbrains.kotlin.generators.tree.type<Pair<*, *>>().withArgs(typeParameter, irTypeArgumentType)
 )

@@ -14,6 +14,7 @@ import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.render
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildDefinitelyNotNullType
@@ -162,8 +163,8 @@ class KtIrClassPrinterTest {
         }
         classB.superType = buildParameterizedClassifier {
             classDecl = classA
-            arguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>().apply {
-                put(IrTypeParameterName(t.name), t to classB.type)
+            arguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>().apply {
+                put(IrTypeParameterName(t.name), t to IrTypeArgument.invariant(classB.type))
             }
         }
         classB.allSuperTypeArguments = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>>().apply {

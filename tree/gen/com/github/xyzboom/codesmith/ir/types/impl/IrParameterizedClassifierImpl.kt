@@ -10,7 +10,7 @@ package com.github.xyzboom.codesmith.ir.types.impl
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
-import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
@@ -18,7 +18,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
 internal class IrParameterizedClassifierImpl(
     override var classDecl: IrClassDeclaration,
-    override var arguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>,
+    override var arguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>,
 ) : IrParameterizedClassifier() {
     override val classKind: ClassKind
         get() = classDecl.classKind

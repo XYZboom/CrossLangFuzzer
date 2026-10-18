@@ -90,12 +90,11 @@ internal class ProgramContextForGEDGraph(
                 addEdge(node, classNode)
                 for ((paramName, pair) in type.arguments) {
                     val (_, typeArg) = pair
-                    if (typeArg == null) {
-                        continue
-                    }
-                    val argNode = addOrFindType(typeArg)
+                    val innerType = typeArg.type ?: continue
+                    val argNode = addOrFindType(innerType)
                     addEdge(node, argNode, buildMap {
                         put(KEY_TYPE_ARG, paramName.value)
+                        put("variance", typeArg.variance.name)
                     })
                 }
             }
