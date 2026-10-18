@@ -555,13 +555,7 @@ class IrMutator(
         for (clazz in program.classes) {
             if (clazz.classKind != ClassKind.INTERFACE) continue
             for (func in clazz.functions) {
-                if (func.body != null) {
-                    candidates.add(clazz to func)
-                } else {
-                    if (func.returnType === IrUnit || generator.randomExpression(func.returnType, func) != null) {
-                        candidates.add(clazz to func)
-                    }
-                }
+                candidates.add(clazz to func)
             }
         }
         if (candidates.isEmpty()) return false
@@ -570,15 +564,7 @@ class IrMutator(
         if (oldBody != null) {
             targetFunc.body = null
         } else {
-            val expr = if (targetFunc.returnType !== IrUnit) {
-                generator.randomExpression(targetFunc.returnType, targetFunc)
-            } else null
-            targetFunc.body = buildBlock {
-                parent = targetFunc
-                if (expr != null) {
-                    statements.add(expr)
-                }
-            }
+            targetFunc.body = buildBlock()
         }
         logger.trace {
             "mutateInterfaceMethodDefault in interface ${targetClass.name}, " +
