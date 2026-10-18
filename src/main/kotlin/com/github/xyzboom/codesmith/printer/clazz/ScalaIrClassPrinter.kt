@@ -61,7 +61,13 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
                         val typeArgs = irType.getTypeArguments()
                         for ((index, typeParam) in irType.classDecl.typeParameters.withIndex()) {
                             val typeArg = typeArgs[IrTypeParameterName(typeParam.name)]!!.second
-                            sb.append(printType(typeArg))
+                            val rendered = when (typeArg.variance) {
+                                IrVariance.INVARIANT -> printType(typeArg.type ?: IrAny)
+                                IrVariance.COVARIANT -> "+${printType(typeArg.type ?: IrAny)}"
+                                IrVariance.CONTRAVARIANT -> "-${printType(typeArg.type ?: IrAny)}"
+                                IrVariance.STAR -> "_"
+                            }
+                            sb.append(rendered)
                             if (index != irType.classDecl.typeParameters.lastIndex) {
                                 sb.append(", ")
                             }

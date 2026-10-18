@@ -17,7 +17,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 abstract class IrParameterizedClassifier : IrClassifier() {
     abstract override val classKind: ClassKind
     abstract override var classDecl: IrClassDeclaration
-    abstract var arguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>
+    abstract var arguments: MutableMap<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitParameterizedClassifier(this, data)

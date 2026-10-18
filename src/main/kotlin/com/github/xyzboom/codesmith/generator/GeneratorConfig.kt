@@ -44,6 +44,10 @@ data class GeneratorConfig(
     //<editor-fold desc="Types">
     val allowNothingInParameter: Boolean = false,
     val allowNothingInReturnType: Boolean = false,
+    val enableUseSiteVariance: Boolean = true,
+    val useSiteVarianceProbability: Float = 0.4f,
+    val starProjectionProbability: Float = 0.2f,
+    val covariantProbability: Float = 0.5f,
     /**
      * For now, there are common bugs when Unit appears in type argument, so the default value is false.
      */

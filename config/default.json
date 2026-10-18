@@ -37,6 +37,7 @@
       8
     ],
     "functionParameterNullableProbability": 0.4,
+    "functionParameterPlatformProbability": 0.4,
     "functionReturnTypeNullableProbability": 0.4,
     "functionHasTypeParameterProbability": 0.3,
     "functionTypeParameterNumberRange": [
@@ -45,10 +46,15 @@
     ],
     "allowNothingInParameter": false,
     "allowNothingInReturnType": false,
+    "enableUseSiteVariance": true,
+    "useSiteVarianceProbability": 0.4,
+    "starProjectionProbability": 0.2,
+    "covariantProbability": 0.5,
     "allowUnitInTypeArgument": false,
     "allowNothingInTypeArgument": false,
     "typeParameterUpperboundAlwaysAny": false,
     "typeParameterUpperboundNullableProbability": 0.4,
+    "notNullTypeArgForNullableUpperboundProbability": 0.4,
     "allowFunctionLevelTypeParameterAsUpperbound": true,
     "printJavaNullableAnnotationProbability": 0.4,
     "newExpressionWeight": 1,
@@ -67,8 +73,9 @@
     "mutateGenericArgumentInMemberFunctionParameterWeight": 3,
     "mutateParameterNullabilityWeight": 2,
     "mutateReturnTypeNullabilityWeight": 2,
-    "mutateClassTypeParameterUpperBoundNullabilityWeight": 1,
-    "mutateClassTypeParameterUpperBoundWeight": 3
+    "mutateClassTypeParameterUpperBoundNullabilityWeight": 10,
+    "mutateClassTypeParameterUpperBoundWeight": 10,
+    "mutateInterfaceMethodDefaultWeight": 10
   },
   "langShuffleTimesBeforeMutate": 3,
   "langShuffleTimesAfterMutate": 3,

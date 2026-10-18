@@ -31,7 +31,7 @@ fun computeClassDependencyGraph(classes: Collection<IrClassDeclaration>): Map<Ir
                             add(type.classDecl)
                         }
                         if (type is IrParameterizedClassifier) {
-                            type.arguments.values.forEach { (_, argument) -> collectType(argument) }
+                            type.arguments.values.forEach { (_, argument) -> collectType(argument.type) }
                         }
                     }
                     is IrTypeContainer -> collectType(type.innerType)

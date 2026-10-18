@@ -30,7 +30,13 @@ object IrParameterizedClassifierSerializer: JsonSerializer<IrParameterizedClassi
                 for ((typeParamName, pair) in src.arguments) {
                     val array = JsonArray()
                     array.add(context?.serialize(pair.first, IrTypeParameter::class.java))
-                    array.add(context?.serialize(pair.second, IrType::class.java))
+                    val typeArg = pair.second
+                    val argObj = JsonObject()
+                    argObj.addProperty("variance", typeArg.variance.name)
+                    if (typeArg.type != null) {
+                        argObj.add("type", context?.serialize(typeArg.type, IrType::class.java))
+                    }
+                    array.add(argObj)
                     argsObj.add(typeParamName.value, array)
                 }
                 add(src::arguments.name, argsObj)

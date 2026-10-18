@@ -2,7 +2,6 @@ package com.github.xyzboom.codesmith.minimize
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.copyForOverride
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -23,6 +22,7 @@ import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
+import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.builder.buildSimpleClassifier
@@ -131,16 +131,17 @@ class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
         return newTypeArgs
     }
 
-    fun replaceTypeArgs(oriTypeArgs: Map<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>)
-            : HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>> {
-        val newTypeArgs = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrType?>>()
+    fun replaceTypeArgs(oriTypeArgs: Map<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>)
+            : HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>> {
+        val newTypeArgs = HashMap<IrTypeParameterName, Pair<IrTypeParameter, IrTypeArgument>>()
         for ((typeParamName, pair) in oriTypeArgs) {
             if (typeParamName in typeParameterReplaceWith) {
                 continue
             }
             val (typeParam, typeArg) = pair
             val newTypeParam = replaceType(typeParam.copy()) as IrTypeParameter
-            newTypeArgs[typeParamName] = newTypeParam to typeArg?.let { replaceType(it) }
+            val replacedInner = typeArg.type?.let { replaceType(it) }
+            newTypeArgs[typeParamName] = newTypeParam to IrTypeArgument(typeArg.variance, replacedInner)
         }
         return newTypeArgs
     }
@@ -229,8 +230,10 @@ class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
     ) {
         for ((typeParamName, pair) in after.arguments) {
             val (_, typeArg) = pair
-            if (typeArg is IrTypeParameter && typeParamName in args) {
-                after.arguments[typeParamName] = args[typeParamName]!!
+            val innerType = typeArg.type
+            if (innerType is IrTypeParameter && typeParamName in args) {
+                val replaceWith = args[typeParamName]!!
+                after.arguments[typeParamName] = replaceWith.first to IrTypeArgument(typeArg.variance, replaceWith.second)
             }
         }
     }
