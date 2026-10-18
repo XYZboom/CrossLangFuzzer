@@ -29,6 +29,9 @@ import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
 import com.github.xyzboom.codesmith.validator.isRequiredOverride
+import com.github.xyzboom.codesmith.validator.hasMissingRequiredOverride
+import com.github.xyzboom.codesmith.ir.expressions.IrBlock
+import com.github.xyzboom.codesmith.ir.expressions.IrReturnExpression
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -545,6 +548,47 @@ class IrMutator(
             return@randomTraverseClasses false
         }
         return false
+    }
+
+    @ConfigBy("mutateInterfaceMethodDefaultWeight")
+    fun mutateInterfaceMethodDefault(program: IrProgram): Boolean {
+        val candidates = mutableListOf<Pair<IrClassDeclaration, IrFunctionDeclaration>>()
+        for (clazz in program.classes) {
+            if (clazz.classKind != ClassKind.INTERFACE) continue
+            for (func in clazz.functions) {
+                if (func.body != null) {
+                    candidates.add(clazz to func)
+                } else {
+                    if (func.returnType === IrUnit || generator.randomExpression(func.returnType, func) != null) {
+                        candidates.add(clazz to func)
+                    }
+                }
+            }
+        }
+        if (candidates.isEmpty()) return false
+        val (targetClass, targetFunc) = candidates.random(random)
+        val oldBody = targetFunc.body
+        if (oldBody != null) {
+            targetFunc.body = null
+        } else {
+            val block = IrBlock(targetFunc)
+            if (targetFunc.returnType !== IrUnit) {
+                val returnExpr = IrReturnExpression(block)
+                returnExpr.value = generator.randomExpression(targetFunc.returnType, targetFunc)
+                block.statements.add(returnExpr)
+            }
+            targetFunc.body = block
+        }
+        logger.trace {
+            "mutateInterfaceMethodDefault in interface ${targetClass.name}, " +
+                    "function ${targetFunc.name}: ${if (oldBody != null) "default -> abstract" else "abstract -> default"}"
+        }
+        semanticValidity = if (program.hasMissingRequiredOverride()) {
+            SemanticValidity.INVALID
+        } else {
+            SemanticValidity.VALID
+        }
+        return true
     }
 
     /**

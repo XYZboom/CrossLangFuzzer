@@ -207,6 +207,33 @@ fun IrClassDeclaration.getOverrideCandidates(
     return Triple(mustOverrides, canOverride, stubOverride)
 }
 
+fun IrFunctionDeclaration.implements(candidate: SuperAndIntfFunctions): Boolean {
+    if (isOverrideStub) return false
+    val (superFunction, interfaceFunctions) = candidate
+    return superFunction in override || interfaceFunctions.any { it in override }
+}
+
+fun IrClassDeclaration.hasMissingRequiredOverride(): Boolean {
+    val (mustOverrides, _, _) = getOverrideCandidates(
+        collectFunctionSignatureMap(),
+        doNotEditLanguage = true,
+    )
+    return mustOverrides.any { candidate ->
+        if (functions.any { it.implements(candidate) }) return@any false
+
+        if (classKind == ClassKind.FINAL || classKind == ClassKind.OPEN) {
+            return@any true
+        }
+
+        val (superFunction, interfaceFunctions) = candidate
+        superFunction == null && interfaceFunctions.count { it.body != null } > 1
+    }
+}
+
+fun IrProgram.hasMissingRequiredOverride(): Boolean {
+    return classes.any { it.hasMissingRequiredOverride() }
+}
+
 /**
  * Returns whether [function] is required to resolve an inherited abstract
  * member or an inherited implementation conflict in this class.
@@ -216,29 +243,6 @@ fun IrProgram.isRequiredOverride(
     function: IrFunctionDeclaration,
 ): Boolean {
     require(function.isOverride)
-
-    fun IrFunctionDeclaration.implements(candidate: SuperAndIntfFunctions): Boolean {
-        if (isOverrideStub) return false
-        val (superFunction, interfaceFunctions) = candidate
-        return superFunction in override || interfaceFunctions.any { it in override }
-    }
-
-    fun IrClassDeclaration.hasMissingRequiredOverride(): Boolean {
-        val (mustOverrides, _, _) = getOverrideCandidates(
-            collectFunctionSignatureMap(),
-            doNotEditLanguage = true,
-        )
-        return mustOverrides.any { candidate ->
-            if (functions.any { it.implements(candidate) }) return@any false
-
-            if (classKind == ClassKind.FINAL || classKind == ClassKind.OPEN) {
-                return@any true
-            }
-
-            val (superFunction, interfaceFunctions) = candidate
-            superFunction == null && interfaceFunctions.count { it.body != null } > 1
-        }
-    }
 
     if (containingClass.hasMissingRequiredOverride()) return true
     return classes.any { clazz ->

@@ -8,8 +8,9 @@ data class MutatorConfig(
     val mutateGenericArgumentInMemberFunctionParameterWeight: Int = 3,
     val mutateParameterNullabilityWeight: Int = 2,
     val mutateReturnTypeNullabilityWeight: Int = 2,
-    val mutateClassTypeParameterUpperBoundNullabilityWeight: Int = 1,
-    val mutateClassTypeParameterUpperBoundWeight: Int = 3,
+    var mutateClassTypeParameterUpperBoundNullabilityWeight: Int = 10,
+    var mutateClassTypeParameterUpperBoundWeight: Int = 10,
+    var mutateInterfaceMethodDefaultWeight: Int = 10,
 ) {
     companion object {
         @JvmStatic
