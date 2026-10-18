@@ -6,6 +6,7 @@ import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.functions
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrPlatformType
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeContainer
@@ -18,6 +19,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.types.getTypeArguments
+import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
@@ -110,7 +112,7 @@ class IrMutator(
 
     @ConfigBy("mutateParameterNullabilityWeight")
     fun mutateParameterNullability(program: IrProgram): Boolean {
-        program.randomTraverseMemberFunctions(random) { func, _ ->
+        program.randomTraverseMemberFunctions(random) { func, clazz ->
             val param = func.parameterList.parameters.firstOrNull {
                 if (random.nextBoolean()) {
                     it.type is IrNullableType
@@ -129,10 +131,113 @@ class IrMutator(
             if (func.language == Language.JAVA) {
                 func.printNullableAnnotations = true
             }
-            semanticValidity = SemanticValidity.UNKNOWN
-                return@mutateParameterNullability true
+            semanticValidity = calculateParameterNullabilityValidity(
+                program = program,
+                function = func,
+                containingClass = clazz,
+                parameterIndex = func.parameterList.parameters.indexOf(param),
+            )
+            return@mutateParameterNullability true
         }
         return false
+    }
+
+    /**
+     * Calculates whether changing one parameter's top-level nullability keeps
+     * the declaration valid.
+     *
+     * A declaration with no upstream or downstream overrides remains valid because
+     * nullability does not change its JVM signature. Java and Scala declarations
+     * are unaffected as overriding declarations, but changing them can still
+     * invalidate a Kotlin override downstream. For every Kotlin override edge,
+     * the child and every non-platform parent parameter must have the same
+     * top-level nullability after inherited type arguments are substituted. An
+     * unannotated Java parameter is a platform type and accepts either Kotlin
+     * nullability.
+     */
+    private fun calculateParameterNullabilityValidity(
+        program: IrProgram,
+        function: IrFunctionDeclaration,
+        containingClass: IrClassDeclaration,
+        parameterIndex: Int,
+    ): SemanticValidity {
+        if (function.isOverrideStub) {
+            return SemanticValidity.VALID
+        }
+
+        if (function.language == Language.KOTLIN) {
+            for (overriddenFunction in function.override) {
+                if (!isParameterOverrideCompatible(
+                        childFunction = function,
+                        childClass = containingClass,
+                        parentFunction = overriddenFunction,
+                        parameterIndex = parameterIndex,
+                    )
+                ) {
+                    return SemanticValidity.INVALID
+                }
+            }
+        }
+
+        for (clazz in program.classes) {
+            for (candidate in clazz.functions) {
+                if (candidate === function || candidate.language != Language.KOTLIN || candidate.isOverrideStub) {
+                    continue
+                }
+                if (candidate.overridesTransitively(function) &&
+                    !isParameterOverrideCompatible(
+                        childFunction = candidate,
+                        childClass = clazz,
+                        parentFunction = function,
+                        parameterIndex = parameterIndex,
+                    )
+                ) {
+                    return SemanticValidity.INVALID
+                }
+            }
+        }
+        return SemanticValidity.VALID
+    }
+
+    private fun IrFunctionDeclaration.overridesTransitively(target: IrFunctionDeclaration): Boolean {
+        val visited = mutableSetOf<IrFunctionDeclaration>()
+        fun contains(function: IrFunctionDeclaration): Boolean {
+            if (!visited.add(function)) return false
+            return function.override.any { it === target || contains(it) }
+        }
+        return contains(this)
+    }
+
+    private fun isParameterOverrideCompatible(
+        childFunction: IrFunctionDeclaration,
+        childClass: IrClassDeclaration,
+        parentFunction: IrFunctionDeclaration,
+        parameterIndex: Int,
+    ): Boolean {
+        if (parentFunction.language == Language.JAVA && !parentFunction.printNullableAnnotations) {
+            return true
+        }
+        val childParameter = childFunction.parameterList.parameters.getOrNull(parameterIndex)
+            ?: return false
+        val parentParameter = parentFunction.parameterList.parameters.getOrNull(parameterIndex)
+            ?: return false
+        val childType = getActualTypeFromArguments(
+            childParameter.type,
+            childClass.allSuperTypeArguments,
+            true,
+        )
+        val parentType = getActualTypeFromArguments(
+            parentParameter.type,
+            childClass.allSuperTypeArguments,
+            true,
+        )
+        if (parentType is IrPlatformType) {
+            return true
+        }
+        if (childType is IrPlatformType) {
+            return false
+        }
+        return (childType is IrNullableType) == (parentType is IrNullableType)
     }
 
     @ConfigBy("mutateClassTypeParameterUpperBoundNullabilityWeight")
