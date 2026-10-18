@@ -216,9 +216,6 @@ class IrMutator(
                     this.innerType = type
                 }
             }
-            if (func.language == Language.JAVA) {
-                func.printNullableAnnotations = true
-            }
             semanticValidity = calculateParameterNullabilityValidity(
                 program = program,
                 function = func,
@@ -239,9 +236,11 @@ class IrMutator(
      * are unaffected as overriding declarations, but changing them can still
      * invalidate a Kotlin override downstream. For every Kotlin override edge,
      * the child and every non-platform parent parameter must have the same
-     * top-level nullability after inherited type arguments are substituted. An
-     * unannotated Java parameter is a platform type and accepts either Kotlin
-     * nullability.
+     * top-level nullability after inherited type arguments are substituted. A
+     * Java parameter accepts either Kotlin nullability only when its IR type is
+     * explicitly [IrPlatformType]. The legacy `printNullableAnnotations` flag does
+     * not change the source emitted by the Java printer and therefore must not
+     * affect semantic validity.
      */
     private fun calculateParameterNullabilityValidity(
         program: IrProgram,
@@ -302,9 +301,6 @@ class IrMutator(
         parentFunction: IrFunctionDeclaration,
         parameterIndex: Int,
     ): Boolean {
-        if (parentFunction.language == Language.JAVA && !parentFunction.printNullableAnnotations) {
-            return true
-        }
         val childParameter = childFunction.parameterList.parameters.getOrNull(parameterIndex)
             ?: return false
         val parentParameter = parentFunction.parameterList.parameters.getOrNull(parameterIndex)
@@ -342,9 +338,6 @@ class IrMutator(
                 func.returnType = buildNullableType {
                     this.innerType = returnType
                 }
-            }
-            if (func.language == Language.JAVA) {
-                func.printNullableAnnotations = true
             }
             semanticValidity = calculateReturnTypeNullabilityValidity(
                 program = program,
@@ -409,12 +402,6 @@ class IrMutator(
         childClass: IrClassDeclaration,
         parentFunction: IrFunctionDeclaration,
     ): Boolean {
-        if (parentFunction.language == Language.JAVA && !parentFunction.printNullableAnnotations) {
-            return true
-        }
-        if (childFunction.language == Language.JAVA && !childFunction.printNullableAnnotations) {
-            return true
-        }
         val childReturnType = getActualTypeFromArguments(
             childFunction.returnType,
             childClass.allSuperTypeArguments,

@@ -13,6 +13,7 @@ import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
+import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
@@ -151,7 +152,35 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
-    fun `changing an override of an unannotated Java parameter is valid`() {
+    fun `changing an override of a Java platform parameter is valid`() {
+        val parentFunction = parameterFunction(
+            Language.JAVA,
+            buildPlatformType { innerType = IrAny },
+        )
+        val childFunction = parameterFunction(Language.KOTLIN).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+
+        val mutator = parameterNullabilityMutator()
+        mutator.mutateParameterNullability(program) shouldBe true
+        mutator.semanticValidity shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `legacy Java annotation flag does not make an explicit parameter a platform type`() {
         val parentFunction = parameterFunction(Language.JAVA).apply {
             printNullableAnnotations = false
         }
@@ -172,7 +201,9 @@ class IrMutatorSemanticValidityTest {
             }
         }
 
-        parameterNullabilityMutator().mutate(program) shouldBe SemanticValidity.VALID
+        val mutator = parameterNullabilityMutator()
+        mutator.mutateParameterNullability(program) shouldBe true
+        mutator.semanticValidity shouldBe SemanticValidity.INVALID
     }
 
     @Test
@@ -692,10 +723,11 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
-    fun `changing an override of an unannotated Java return type is valid`() {
-        val parentFunction = returnTypeFunction(Language.JAVA, IrAny).apply {
-            printNullableAnnotations = false
-        }
+    fun `changing an override of a Java platform return type is valid`() {
+        val parentFunction = returnTypeFunction(
+            Language.JAVA,
+            buildPlatformType { innerType = IrAny },
+        )
         val childFunction = returnTypeFunction(Language.KOTLIN, IrAny).apply {
             isOverride = true
             override += parentFunction
@@ -721,7 +753,36 @@ class IrMutatorSemanticValidityTest {
             }
         }
 
-        returnTypeNullabilityMutator().mutate(program) shouldBe SemanticValidity.VALID
+        val mutator = returnTypeNullabilityMutator()
+        mutator.mutateReturnTypeNullability(program) shouldBe true
+        mutator.semanticValidity shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `legacy Java annotation flag does not make an explicit return type a platform type`() {
+        val parentFunction = returnTypeFunction(Language.JAVA, IrAny).apply {
+            printNullableAnnotations = false
+        }
+        val childFunction = returnTypeFunction(Language.KOTLIN, IrAny).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+
+        val mutator = returnTypeNullabilityMutator()
+        mutator.mutateReturnTypeNullability(program) shouldBe true
+        mutator.semanticValidity shouldBe SemanticValidity.INVALID
     }
 
     private fun removeOverrideMutator() = IrMutator(
