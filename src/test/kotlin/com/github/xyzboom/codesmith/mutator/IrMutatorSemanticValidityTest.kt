@@ -11,6 +11,7 @@ import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclara
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildParameter
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
+import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
@@ -206,12 +207,62 @@ class IrMutatorSemanticValidityTest {
         parameterNullabilityMutator().mutate(program) shouldBe SemanticValidity.INVALID
     }
 
+    @Test
+    fun `changing a generic argument in an override parameter is invalid`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val wrapper = buildClassDeclaration {
+            name = "Wrapper"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            typeParameters += typeParameter
+        }
+        val oldArgument = buildClassDeclaration {
+            name = "OldArgument"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+        }
+        fun wrapperOfOldArgument(): IrParameterizedClassifier {
+            return (wrapper.type as IrParameterizedClassifier).apply {
+                putTypeArgument(typeParameter, oldArgument.type)
+            }
+        }
+
+        val parentFunction = parameterFunction(Language.KOTLIN, wrapperOfOldArgument())
+        val childFunction = parameterFunction(Language.KOTLIN, wrapperOfOldArgument()).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+            }
+        }
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(
+                mutateGenericArgumentInMemberFunctionParameterWeight = 1,
+            ),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+        )
+
+        mutator.mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
     private fun parameterNullabilityMutator() = IrMutator(
         config = MutatorConfig.allZero.copy(mutateParameterNullabilityWeight = 1),
         generator = IrDeclGenerator(random = alwaysFalseRandom),
     )
 
-    private fun parameterFunction(language: Language) = buildFunctionDeclaration {
+    private fun parameterFunction(language: Language, parameterType: IrType = IrAny) = buildFunctionDeclaration {
         name = "f"
         this.language = language
         returnType = IrAny
@@ -219,7 +270,7 @@ class IrMutatorSemanticValidityTest {
         parameterList = buildParameterList {
             parameters += buildParameter {
                 name = "value"
-                type = IrAny
+                type = parameterType
             }
         }
     }

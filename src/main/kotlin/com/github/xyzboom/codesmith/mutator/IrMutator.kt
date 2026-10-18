@@ -102,7 +102,15 @@ class IrMutator(
                             "${clazz.name}:${func.name}, " +
                             "change: $typeArg into $replaceArg, new param $param"
                 }
-                semanticValidity = SemanticValidity.UNKNOWN
+                /**
+                 * The operator only mutates a non-stub override. Replacing an
+                 * invariant parameterized argument changes the source-level
+                 * parameter type while preserving only its JVM erasure. The
+                 * declaration therefore no longer overrides its recorded parent
+                 * method (Java reports a name clash; Kotlin reports that there is
+                 * nothing to override).
+                 */
+                semanticValidity = SemanticValidity.INVALID
                 return@mutateGenericArgumentInMemberFunctionParameter true
             }
             false
