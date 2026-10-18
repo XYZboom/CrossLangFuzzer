@@ -325,6 +325,115 @@ class IrMutator(
         return (childType is IrNullableType) == (parentType is IrNullableType)
     }
 
+    @ConfigBy("mutateReturnTypeNullabilityWeight")
+    fun mutateReturnTypeNullability(program: IrProgram): Boolean {
+        program.randomTraverseMemberFunctions(random) { func, clazz ->
+            if (func.isOverrideStub) return@randomTraverseMemberFunctions false
+            val returnType = func.returnType
+            if (returnType === IrUnit || (returnType as? IrNullableType)?.innerType === IrUnit) {
+                return@randomTraverseMemberFunctions false
+            }
+            if (returnType is IrNullableType) {
+                func.returnType = returnType.innerType
+            } else {
+                func.returnType = buildNullableType {
+                    this.innerType = returnType
+                }
+            }
+            if (func.language == Language.JAVA) {
+                func.printNullableAnnotations = true
+            }
+            semanticValidity = calculateReturnTypeNullabilityValidity(
+                program = program,
+                function = func,
+                containingClass = clazz,
+            )
+            return@mutateReturnTypeNullability true
+        }
+        return false
+    }
+
+    /**
+     * Calculates whether changing a member function's return type top-level nullability
+     * keeps the declaration valid.
+     *
+     * In Kotlin and Java, return types in overriding methods are covariant:
+     * a child method may return a subtype of the parent's return type (e.g., non-null
+     * instead of nullable), but may not return a supertype (e.g., nullable instead of
+     * non-null).
+     */
+    private fun calculateReturnTypeNullabilityValidity(
+        program: IrProgram,
+        function: IrFunctionDeclaration,
+        containingClass: IrClassDeclaration,
+    ): SemanticValidity {
+        if (function.isOverrideStub) {
+            return SemanticValidity.VALID
+        }
+
+        for (overriddenFunction in function.override) {
+            if (!isReturnTypeOverrideCompatible(
+                    childFunction = function,
+                    childClass = containingClass,
+                    parentFunction = overriddenFunction,
+                )
+            ) {
+                return SemanticValidity.INVALID
+            }
+        }
+
+        for (clazz in program.classes) {
+            for (candidate in clazz.functions) {
+                if (candidate === function || candidate.isOverrideStub) {
+                    continue
+                }
+                if (candidate.overridesTransitively(function) &&
+                    !isReturnTypeOverrideCompatible(
+                        childFunction = candidate,
+                        childClass = clazz,
+                        parentFunction = function,
+                    )
+                ) {
+                    return SemanticValidity.INVALID
+                }
+            }
+        }
+        return SemanticValidity.VALID
+    }
+
+    private fun isReturnTypeOverrideCompatible(
+        childFunction: IrFunctionDeclaration,
+        childClass: IrClassDeclaration,
+        parentFunction: IrFunctionDeclaration,
+    ): Boolean {
+        if (parentFunction.language == Language.JAVA && !parentFunction.printNullableAnnotations) {
+            return true
+        }
+        if (childFunction.language == Language.JAVA && !childFunction.printNullableAnnotations) {
+            return true
+        }
+        val childReturnType = getActualTypeFromArguments(
+            childFunction.returnType,
+            childClass.allSuperTypeArguments,
+            true,
+        )
+        val parentReturnType = getActualTypeFromArguments(
+            parentFunction.returnType,
+            childClass.allSuperTypeArguments,
+            true,
+        )
+        if (parentReturnType is IrPlatformType) {
+            return true
+        }
+        if (childReturnType is IrPlatformType) {
+            return true
+        }
+        if (childReturnType is IrNullableType && parentReturnType !is IrNullableType) {
+            return false
+        }
+        return true
+    }
+
     @ConfigBy("mutateClassTypeParameterUpperBoundNullabilityWeight")
     fun mutateClassTypeParameterUpperBoundNullability(program: IrProgram): Boolean {
         var applied = false

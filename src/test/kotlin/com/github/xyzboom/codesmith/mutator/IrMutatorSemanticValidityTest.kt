@@ -576,6 +576,154 @@ class IrMutatorSemanticValidityTest {
         generator = IrDeclGenerator(random = alwaysFalseRandom),
     )
 
+    @Test
+    fun `changing a non-override return type nullability is valid`() {
+        val function = returnTypeFunction(Language.KOTLIN, IrAny)
+        val clazz = buildClassDeclaration {
+            name = "C"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += function
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += clazz
+            }
+        }
+
+        returnTypeNullabilityMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `loosening a Kotlin override return type nullability to nullable when parent returns non-null is invalid`() {
+        val parentFunction = returnTypeFunction(Language.KOTLIN, IrAny)
+        val childFunction = returnTypeFunction(Language.KOTLIN, IrAny).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            functions += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = parent.type
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += child
+            }
+        }
+
+        returnTypeNullabilityMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `tightening a Kotlin override return type nullability to non-null when parent returns nullable is valid`() {
+        val nullableAny = buildNullableType { innerType = IrAny }
+        val parentFunction = returnTypeFunction(Language.KOTLIN, nullableAny)
+        val childFunction = returnTypeFunction(Language.KOTLIN, nullableAny).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            functions += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = parent.type
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += child
+            }
+        }
+
+        returnTypeNullabilityMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `tightening a parent return type nullability to non-null breaks a downstream override returning nullable`() {
+        val nullableAny = buildNullableType { innerType = IrAny }
+        val parentFunction = returnTypeFunction(Language.KOTLIN, nullableAny)
+        val childFunction = returnTypeFunction(Language.KOTLIN, nullableAny).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            functions += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = parent.type
+            functions += childFunction
+        }
+        // Mutate parent function first
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+                classes += parent
+            }
+        }
+
+        returnTypeNullabilityMutator().mutate(program) shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `changing an override of an unannotated Java return type is valid`() {
+        val parentFunction = returnTypeFunction(Language.JAVA, IrAny).apply {
+            printNullableAnnotations = false
+        }
+        val childFunction = returnTypeFunction(Language.KOTLIN, IrAny).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            functions += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = parent.type
+            functions += childFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += child
+            }
+        }
+
+        returnTypeNullabilityMutator().mutate(program) shouldBe SemanticValidity.VALID
+    }
+
     private fun removeOverrideMutator() = IrMutator(
         config = MutatorConfig.allZero.copy(removeOverrideMemberFunctionWeight = 1),
         generator = IrDeclGenerator(random = alwaysFalseRandom),
@@ -591,6 +739,11 @@ class IrMutatorSemanticValidityTest {
         generator = IrDeclGenerator(random = alwaysFalseRandom),
     )
 
+    private fun returnTypeNullabilityMutator() = IrMutator(
+        config = MutatorConfig.allZero.copy(mutateReturnTypeNullabilityWeight = 1),
+        generator = IrDeclGenerator(random = alwaysFalseRandom),
+    )
+
     private fun parameterFunction(language: Language, parameterType: IrType = IrAny) = buildFunctionDeclaration {
         name = "f"
         this.language = language
@@ -602,5 +755,13 @@ class IrMutatorSemanticValidityTest {
                 type = parameterType
             }
         }
+    }
+
+    private fun returnTypeFunction(language: Language, returnType: IrType = IrAny) = buildFunctionDeclaration {
+        name = "f"
+        this.language = language
+        this.returnType = returnType
+        body = buildBlock()
+        parameterList = buildParameterList()
     }
 }
