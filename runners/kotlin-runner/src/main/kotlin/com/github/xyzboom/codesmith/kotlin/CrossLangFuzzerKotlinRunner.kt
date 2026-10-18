@@ -262,16 +262,17 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
         logger.info { "start kotlin runner" }
         require(maxRounds >= 0) { "--max-rounds must be non-negative, but was $maxRounds" }
         try {
-        val i = AtomicInteger(0)
-        val parallelSize = 1
-        val inputIRFiles = inputIRFiles
-        if (inputIRFiles != null) {
-            runBlocking(Dispatchers.IO.limitedParallelism(32)) {
-                runOnInputIRFiles()
+            BspServerManager.startServer()
+            val i = AtomicInteger(0)
+            val parallelSize = 1
+            val inputIRFiles = inputIRFiles
+            if (inputIRFiles != null) {
+                runBlocking(Dispatchers.IO.limitedParallelism(32)) {
+                    runOnInputIRFiles()
+                }
+                return
             }
-            return
-        }
-        when (runMode) {
+            when (runMode) {
             RunMode.DifferentialTest -> {
                 runBlocking(Dispatchers.IO.limitedParallelism(parallelSize)) {
                     val jobs = mutableListOf<Job>()
@@ -384,7 +385,7 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
             RunMode.ReduceOnly -> {
                 throw IllegalStateException("No input IR file, cannot run ReduceOnly mode.")
             }
-        }
+            }
         } finally {
             BspServerManager.close()
         }

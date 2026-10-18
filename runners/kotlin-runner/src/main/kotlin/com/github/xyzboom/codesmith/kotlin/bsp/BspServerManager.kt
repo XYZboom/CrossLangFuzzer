@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
 object BspServerManager : AutoCloseable {
-    private const val DEFAULT_REVISION = "6487eec8d9bb0567faad40ee880c54ea84490b4d"
+    private const val DEFAULT_REVISION = "daa8c1481f1a3ef6836cf96e055bc1d684c44c49"
     private val logger = KotlinLogging.logger {}
     private var serverProcess: Process? = null
     private var allocatedPort: Int = -1
