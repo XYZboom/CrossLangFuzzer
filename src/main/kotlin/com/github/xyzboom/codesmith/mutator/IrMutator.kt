@@ -244,14 +244,15 @@ class IrMutator(
      * Calculates whether changing one parameter's top-level nullability keeps
      * the declaration valid.
      *
-     * A declaration with no upstream or downstream overrides remains valid because
-     * nullability does not change its JVM signature. Java and Scala declarations
-     * are unaffected as overriding declarations, but changing them can still
-     * invalidate a Kotlin override downstream. For every Kotlin override edge,
-     * the child and every non-platform parent parameter must have the same
-     * top-level nullability after inherited type arguments are substituted. A
-     * Java parameter accepts either Kotlin nullability only when its IR type is
-     * explicitly [IrPlatformType]. The legacy `printNullableAnnotations` flag does
+     * A declaration with no effective upstream or downstream Kotlin override
+     * remains valid because Java nullability annotations do not change the JVM
+     * signature. Override stubs are absent from the emitted source, so their
+     * parents remain effective; a real Java/Kotlin redeclaration, however,
+     * shields later descendants from older annotations. For a Kotlin override,
+     * a non-platform parent normally requires equal top-level nullability after
+     * inherited type arguments are substituted. The exception is a conflicting
+     * Java annotation when the same child also directly satisfies a compatible
+     * Kotlin parent contract. The legacy `printNullableAnnotations` flag does
      * not change the source emitted by the Java printer and therefore must not
      * affect semantic validity.
      */
@@ -265,18 +266,15 @@ class IrMutator(
             return SemanticValidity.VALID
         }
 
-        if (function.language == Language.KOTLIN) {
-            for (overriddenFunction in function.override) {
-                if (!isParameterOverrideCompatible(
-                        childFunction = function,
-                        childClass = containingClass,
-                        parentFunction = overriddenFunction,
-                        parameterIndex = parameterIndex,
-                    )
-                ) {
-                    return SemanticValidity.INVALID
-                }
-            }
+        if (function.language == Language.KOTLIN &&
+            !areEffectiveParameterOverridesCompatible(
+                childFunction = function,
+                childClass = containingClass,
+                changedParent = null,
+                parameterIndex = parameterIndex,
+            )
+        ) {
+            return SemanticValidity.INVALID
         }
 
         for (clazz in program.classes) {
@@ -284,11 +282,10 @@ class IrMutator(
                 if (candidate === function || candidate.language != Language.KOTLIN || candidate.isOverrideStub) {
                     continue
                 }
-                if (candidate.overridesTransitively(function) &&
-                    !isParameterOverrideCompatible(
+                if (!areEffectiveParameterOverridesCompatible(
                         childFunction = candidate,
                         childClass = clazz,
-                        parentFunction = function,
+                        changedParent = function,
                         parameterIndex = parameterIndex,
                     )
                 ) {
@@ -297,6 +294,67 @@ class IrMutator(
             }
         }
         return SemanticValidity.VALID
+    }
+
+    /**
+     * Returns the declarations whose signatures are actually visible to this
+     * override. Commented-out override stubs do not shield their parents, while
+     * a real redeclaration does.
+     */
+    private fun IrFunctionDeclaration.effectiveOverrideParents(): Set<IrFunctionDeclaration> {
+        val result = linkedSetOf<IrFunctionDeclaration>()
+        val visited = mutableSetOf<IrFunctionDeclaration>()
+
+        fun collect(parent: IrFunctionDeclaration) {
+            if (!visited.add(parent)) return
+            if (parent.isOverrideStub) {
+                parent.override.forEach(::collect)
+            } else {
+                result += parent
+            }
+        }
+
+        override.forEach(::collect)
+        return result
+    }
+
+    /**
+     * When [changedParent] is non-null, only validates the edge affected by that
+     * mutation. A transitive ancestor hidden by a real redeclaration cannot
+     * affect the child. A Java annotation conflict is also harmless when the
+     * child simultaneously overrides a compatible Kotlin declaration.
+     */
+    private fun areEffectiveParameterOverridesCompatible(
+        childFunction: IrFunctionDeclaration,
+        childClass: IrClassDeclaration,
+        changedParent: IrFunctionDeclaration?,
+        parameterIndex: Int,
+    ): Boolean {
+        val effectiveParents = childFunction.effectiveOverrideParents()
+        val parentsToCheck = if (changedParent == null) {
+            effectiveParents
+        } else {
+            if (changedParent !in effectiveParents) return true
+            setOf(changedParent)
+        }
+        val hasCompatibleKotlinParent = effectiveParents.any { parent ->
+            parent.language == Language.KOTLIN &&
+                    isParameterOverrideCompatible(
+                        childFunction = childFunction,
+                        childClass = childClass,
+                        parentFunction = parent,
+                        parameterIndex = parameterIndex,
+                    )
+        }
+
+        return parentsToCheck.all { parent ->
+            isParameterOverrideCompatible(
+                childFunction = childFunction,
+                childClass = childClass,
+                parentFunction = parent,
+                parameterIndex = parameterIndex,
+            ) || (parent.language == Language.JAVA && hasCompatibleKotlinParent)
+        }
     }
 
     private fun IrFunctionDeclaration.overridesTransitively(target: IrFunctionDeclaration): Boolean {
