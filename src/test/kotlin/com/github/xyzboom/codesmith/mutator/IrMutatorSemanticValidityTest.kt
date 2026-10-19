@@ -278,6 +278,120 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
+    fun `a Java redeclaration shields Kotlin descendants from an ancestor annotation change`() {
+        val javaAncestorFunction = parameterFunction(Language.JAVA)
+        val javaRedeclarationFunction = parameterFunction(Language.JAVA).apply {
+            isOverride = true
+            override += javaAncestorFunction
+        }
+        val kotlinChildFunction = parameterFunction(Language.KOTLIN).apply {
+            isOverride = true
+            override += javaRedeclarationFunction
+        }
+        val javaAncestor = buildClassDeclaration {
+            name = "JavaAncestor"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            functions += javaAncestorFunction
+        }
+        val javaRedeclaration = buildClassDeclaration {
+            name = "JavaRedeclaration"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            functions += javaRedeclarationFunction
+        }
+        val kotlinChild = buildClassDeclaration {
+            name = "KotlinChild"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += kotlinChildFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                // With three classes, the deterministic shuffle visits the
+                // declaration at index one first.
+                classes += kotlinChild
+                classes += javaAncestor
+                classes += javaRedeclaration
+            }
+        }
+
+        parameterNullabilityMutator().mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `a compatible Kotlin parent keeps a Java nullable conflict legal`() {
+        val kotlinParentFunction = parameterFunction(Language.KOTLIN)
+        val javaParentFunction = parameterFunction(Language.JAVA)
+        val kotlinChildFunction = parameterFunction(Language.KOTLIN).apply {
+            isOverride = true
+            override += javaParentFunction
+            override += kotlinParentFunction
+        }
+        val kotlinParent = buildClassDeclaration {
+            name = "KotlinParent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            functions += kotlinParentFunction
+        }
+        val javaParent = buildClassDeclaration {
+            name = "JavaParent"
+            language = Language.JAVA
+            classKind = ClassKind.INTERFACE
+            functions += javaParentFunction
+        }
+        val kotlinChild = buildClassDeclaration {
+            name = "KotlinChild"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += kotlinChildFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                // With three classes, the deterministic shuffle visits the
+                // declaration at index one first.
+                classes += kotlinChild
+                classes += javaParent
+                classes += kotlinParent
+            }
+        }
+
+        parameterNullabilityMutator().mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `an incompatible direct Java parent still invalidates a Kotlin override`() {
+        val javaParentFunction = parameterFunction(Language.JAVA)
+        val kotlinChildFunction = parameterFunction(Language.KOTLIN).apply {
+            isOverride = true
+            override += javaParentFunction
+        }
+        val javaParent = buildClassDeclaration {
+            name = "JavaParent"
+            language = Language.JAVA
+            classKind = ClassKind.INTERFACE
+            functions += javaParentFunction
+        }
+        val kotlinChild = buildClassDeclaration {
+            name = "KotlinChild"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += kotlinChildFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += kotlinChild
+                classes += javaParent
+            }
+        }
+
+        parameterNullabilityMutator().mutate(program)?.first shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
     fun `changing a generic argument in an override parameter is invalid`() {
         val typeParameter = buildTypeParameter {
             name = "T"
