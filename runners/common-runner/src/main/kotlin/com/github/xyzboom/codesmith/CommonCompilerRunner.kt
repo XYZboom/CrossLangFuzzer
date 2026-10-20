@@ -43,6 +43,10 @@ data class CompilerTarget(
     val majorLanguage: Language,
 )
 
+/**
+ * Checks a known mutation oracle. [SemanticValidity.UNKNOWN] is a programming
+ * error here: callers must discard that mutation before compiler submission.
+ */
 fun isMutationOracleSatisfied(
     semanticValidity: SemanticValidity,
     compileSuccess: Boolean,
@@ -72,10 +76,11 @@ internal fun classifyCompilation(
 }
 
 internal class CompilationBudget(val maxInvocations: Int) {
+    // Primary compiler-submission budget. A reservation is deliberately consumed
+    // even if the compiler later throws; completedInvocations counts only returns.
     private val reserved = AtomicInteger(0)
     private val completed = AtomicInteger(0)
     val reservedInvocations: Int get() = reserved.get()
-    val submittedInvocations: Int get() = reservedInvocations
     val completedInvocations: Int get() = completed.get()
 
     init {
@@ -249,6 +254,8 @@ abstract class CommonCompilerRunner(
     val minimizeRunner = MinimizeRunner2(this)
     internal lateinit var budget: CompilationBudget
         private set
+    // Lifecycle execution is single-threaded. The shutdown hook only reads the
+    // atomic counters below and does not participate in stop coordination.
     private var stopRequested = false
     private val roundIndex = AtomicInteger(0)
     private val summaryReported = AtomicBoolean(false)
@@ -572,7 +579,7 @@ abstract class CommonCompilerRunner(
                             completed = true
                         } else {
                             val reduced = reduce(program, targets)
-                            if (reduced == null && budget.submittedInvocations >= budget.maxInvocations && budget.maxInvocations > 0) {
+                            if (reduced == null && budget.reservedInvocations >= budget.maxInvocations && budget.maxInvocations > 0) {
                                 return@measureTime
                             }
                             if (useCache && reduced != null) {

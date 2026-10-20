@@ -19,6 +19,8 @@ dependencies {
     runtimeOnly(project(":runners:kotlin-runner"))
     runtimeOnly(project(":runners:scala-runner"))
     runtimeOnly(project(":runners:groovy-runner"))
+    // These jars are inputs to Kotlin's compiler test framework at runner runtime,
+    // not dependencies of CommonCompilerRunner's own tests. installDist must carry them.
     runtimeOnly(kotlin("stdlib"))
     runtimeOnly(kotlin("stdlib-jdk8"))
     runtimeOnly(kotlin("reflect"))
@@ -74,11 +76,19 @@ tasks.withType<JavaExec> {
 }
 
 fun JavaForkOptions.setLibraryProperty(propName: String, jarName: String) {
-    val path = project.configurations
+    val prefix = "$jarName-"
+    val candidates = project.configurations
         .runtimeClasspath.get()
         .files
-        .find { """$jarName-\d.*jar""".toRegex().matches(it.name) }
-        ?.absolutePath
-        ?: return
-    systemProperty(propName, path)
+        .filter { file ->
+            file.extension == "jar" &&
+                    file.name.startsWith(prefix) &&
+                    file.name.removePrefix(prefix).firstOrNull()?.isDigit() == true &&
+                    !file.name.endsWith("-sources.jar") &&
+                    !file.name.endsWith("-javadoc.jar")
+        }
+    require(candidates.size == 1) {
+        "Expected exactly one runtime jar for $jarName, found: ${candidates.joinToString { it.name }}"
+    }
+    systemProperty(propName, candidates.single().absolutePath)
 }
