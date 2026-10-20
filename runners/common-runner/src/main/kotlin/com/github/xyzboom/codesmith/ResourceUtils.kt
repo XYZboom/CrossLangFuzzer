@@ -6,14 +6,19 @@ import java.util.jar.JarFile
 
 
 fun listResourceFiles(folderPath: String): List<String> {
-    val resourceUrl = ClassLoader.getSystemClassLoader().getResource(folderPath)
+    val cleanFolderPath = folderPath.trim('/')
+    val classLoader = Thread.currentThread().contextClassLoader
+        ?: CommonCompilerRunner::class.java.classLoader
+        ?: ClassLoader.getSystemClassLoader()
+    val resourceUrl = classLoader.getResource(cleanFolderPath)
+        ?: ClassLoader.getSystemClassLoader().getResource(cleanFolderPath)
         ?: return emptyList()
 
     return when (resourceUrl.protocol) {
         "file" -> handleFileSystem(resourceUrl)
-        "jar" -> handleJarFile(resourceUrl, folderPath)
+        "jar" -> handleJarFile(resourceUrl, cleanFolderPath)
         else -> emptyList()
-    }.map { "${folderPath}/${it}" }
+    }.map { "${cleanFolderPath}/${it}" }
 }
 
 private fun handleFileSystem(resourceUrl: java.net.URL): List<String> {
@@ -34,7 +39,7 @@ private fun handleJarFile(resourceUrl: java.net.URL, folderPath: String): List<S
         jar.entries()
             .asSequence()
             .filter { !it.isDirectory && it.name.startsWith(prefix) }
-            .map { it.name }
+            .map { it.name.removePrefix(prefix) }
             .toList()
     }
 }

@@ -83,6 +83,18 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
                 "${irType.name} <: ${printType(irType.upperbound)}"
             }
 
+            is IrPlatformType -> printTypeDirectly(
+                irType.innerType,
+                typeContext,
+                noNullabilityAnnotation
+            )
+
+            is IrDefinitelyNotNullType -> printTypeDirectly(
+                irType.innerType,
+                typeContext,
+                noNullabilityAnnotation
+            )
+
             else -> throw NoWhenBranchMatchedException()
         }
         return typeStr

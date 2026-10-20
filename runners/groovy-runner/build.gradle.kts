@@ -27,6 +27,10 @@ kotlin {
     jvmToolchain(11)
 }
 
+application {
+    mainClass.set("com.github.xyzboom.codesmith.groovy.CodeSmithGroovyRunnerKt")
+}
+
 tasks.named<JavaExec>("run") {
     workingDir = rootDir
     javaLauncher = javaToolchains.launcherFor {

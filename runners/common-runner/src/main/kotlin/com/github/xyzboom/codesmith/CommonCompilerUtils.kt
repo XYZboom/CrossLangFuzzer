@@ -16,8 +16,7 @@ import kotlin.io.path.pathString
 @OptIn(ExperimentalStdlibApi::class)
 val tempDir = System.getProperty("java.io.tmpdir")!! + "/" + System.nanoTime().toHexString()
 val logFile = File(
-    System.getProperty("codesmith.logger.outdir")
-        ?: throw NullPointerException("System property codesmith.logger.outdir must be set")
+    System.getProperty("codesmith.logger.outdir") ?: "./out/raw"
 ).also {
     if (!it.exists()) it.mkdirs()
 }
@@ -103,14 +102,17 @@ fun recordCompileResult(
     outDir: File = logFile,
     metadata: Map<String, String> = emptyMap(),
     forceRecord: Boolean = false,
-) {
+): File? {
     val resultSet = compileResults.toSet()
-    require(compileResults.size == 1 || resultSet.size != 1)
+    require(forceRecord || compileResults.size == 1 || resultSet.size != 1)
     if (!forceRecord && shouldNotRecord(resultSet)) {
-        return
+        return null
     }
-    val dir = File(outDir, System.currentTimeMillis().toHexString()).mkdirsIfNotExists()
-    File("codesmith-trace.log").copyTo(File(dir, "codesmith-trace.log"))
+    val dir = File(outDir, System.nanoTime().toHexString()).mkdirsIfNotExists()
+    val traceLog = File("codesmith-trace.log")
+    if (traceLog.exists()) {
+        traceLog.copyTo(File(dir, "codesmith-trace.log"), overwrite = true)
+    }
     for (compileResult in compileResults) {
         val (majorResult, javaResult) = compileResult
         if (majorResult != null) {
@@ -139,12 +141,11 @@ fun recordCompileResult(
     for ((fileName, content) in metadata) {
         File(dir, fileName).writeText(content)
     }
+    return dir
 }
 
 fun recordCompileResult(
     majorLanguage: Language,
     program: IrProgram,
     compileResult: CompileResult,
-) {
-    recordCompileResult(majorLanguage, program, listOf(compileResult))
-}
+): File? = recordCompileResult(majorLanguage, program, listOf(compileResult))
