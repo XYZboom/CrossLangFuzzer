@@ -15,6 +15,22 @@ import org.jetbrains.kotlin.test.services.KotlinTestInfo
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.File
 
+private fun findRuntimeJar(classpathJars: List<File>, jarName: String): File {
+    val prefix = "$jarName-"
+    val candidates = classpathJars.filter { file ->
+        file.isFile &&
+                file.extension == "jar" &&
+                file.name.startsWith(prefix) &&
+                file.name.removePrefix(prefix).firstOrNull()?.isDigit() == true &&
+                !file.name.endsWith("-sources.jar") &&
+                !file.name.endsWith("-javadoc.jar")
+    }
+    require(candidates.size == 1) {
+        "Expected exactly one runtime jar for $jarName, found: ${candidates.joinToString { it.name }}"
+    }
+    return candidates.single()
+}
+
 val testInfo = run {
     if (System.getProperty("JDK_17_0") == null && System.getenv("JDK_17_0") == null &&
         System.getProperty("JDK_17") == null && System.getenv("JDK_17") == null
@@ -44,8 +60,7 @@ val testInfo = run {
         "org.jetbrains.kotlin.test.kotlin-annotations-jvm" to "kotlin-annotations-jvm",
     ).forEach { (property, jarName) ->
         if (System.getProperty(property) == null) {
-            classpathJars.find { """$jarName-\d.*jar""".toRegex().matches(it.name) }
-                ?.let { System.setProperty(property, it.absolutePath) }
+            System.setProperty(property, findRuntimeJar(classpathJars, jarName).absolutePath)
         }
     }
     // make sure the JDK used by the active compiler matrix is available

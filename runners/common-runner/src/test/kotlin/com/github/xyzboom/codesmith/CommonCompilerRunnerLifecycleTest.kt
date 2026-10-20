@@ -17,6 +17,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 
 class FakeTestCompiler(
     val name: String,
@@ -106,6 +109,30 @@ class CommonCompilerRunnerLifecycleTest {
         assertThrows<IllegalStateException> {
             isMutationOracleSatisfied(SemanticValidity.UNKNOWN, compileSuccess = true)
         }
+    }
+
+    @Test
+    fun `compiler budget reserves atomically and supports unlimited mode`() {
+        val limited = CompilationBudget(50)
+        val start = CountDownLatch(1)
+        val reservations = AtomicInteger(0)
+        val workers = List(100) {
+            thread(start = true) {
+                start.await()
+                if (limited.reserveCompleteGroup(1)) reservations.incrementAndGet()
+            }
+        }
+        start.countDown()
+        workers.forEach(Thread::join)
+
+        assertEquals(50, reservations.get())
+        assertEquals(50, limited.reservedInvocations)
+        assertFalse(limited.hasCapacityFor(1))
+
+        val unlimited = CompilationBudget(0)
+        repeat(100) { assertTrue(unlimited.reserveCompleteGroup(2)) }
+        assertEquals(200, unlimited.reservedInvocations)
+        assertTrue(unlimited.hasCapacityFor(100))
     }
 
     @Test
@@ -209,7 +236,7 @@ class CommonCompilerRunnerLifecycleTest {
         assertEquals(4, c1.invocations.size + c2.invocations.size)
         assertEquals(2, c1.invocations.size)
         assertEquals(2, c2.invocations.size)
-        assertEquals(4, runner.budget.submittedInvocations)
+        assertEquals(4, runner.budget.reservedInvocations)
         assertEquals(4, runner.budget.completedInvocations)
     }
 
@@ -284,7 +311,7 @@ class CommonCompilerRunnerLifecycleTest {
 
         runner.compile(buildProgram { }, listOf(compiler))
 
-        assertEquals(1, runner.budget.submittedInvocations)
+        assertEquals(1, runner.budget.reservedInvocations)
         assertEquals(2, runner.budget.completedInvocations)
         assertEquals(2, runner.recorder.getCompileTimes())
         assertEquals(2, compiler.invocations.size)
@@ -301,7 +328,7 @@ class CommonCompilerRunnerLifecycleTest {
         assertThrows<IllegalStateException> {
             runner.runWithArgs("-m", "normal", "--max-rounds", "1")
         }
-        assertEquals(1, runner.budget.submittedInvocations)
+        assertEquals(1, runner.budget.reservedInvocations)
         assertEquals(0, runner.budget.completedInvocations)
         assertTrue(runner.reportedSummary!!.contains("compiler invocations=0"))
     }
