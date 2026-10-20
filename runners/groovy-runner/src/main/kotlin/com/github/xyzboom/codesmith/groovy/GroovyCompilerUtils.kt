@@ -31,7 +31,27 @@ class GroovyCompilerWrapper internal constructor(
     val language = if (isGroovy5) Language.GROOVY5 else Language.GROOVY4
     private val versionStr = "groovy-${version}"
 
-    private val jarUrl: URL = ClassLoader.getSystemClassLoader().getResource(groovyJarsWithVersion[version]!!)!!
+    private val jarUrl: URL = run {
+        val jarPath = groovyJarsWithVersion[version]
+            ?: throw IllegalArgumentException("Cannot find groovy jar resource for version '$version'. Available: ${groovyJarsWithVersion.keys}")
+        val url = GroovyCompilerWrapper::class.java.classLoader.getResource(jarPath)
+            ?: Thread.currentThread().contextClassLoader?.getResource(jarPath)
+            ?: ClassLoader.getSystemClassLoader().getResource(jarPath)
+            ?: throw IllegalStateException("Cannot find resource '$jarPath' for groovy version '$version'")
+        if (url.protocol == "file") {
+            url
+        } else {
+            val tempFile = File.createTempFile("groovy-$version-", ".jar").apply {
+                deleteOnExit()
+            }
+            url.openStream().use { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            tempFile.toURI().toURL()
+        }
+    }
     private val classLoader = URLClassLoader(arrayOf(jarUrl), ClassLoader.getSystemClassLoader())
     private val javaAwareCompilationUnitClass =
         classLoader.loadClass("org.codehaus.groovy.tools.javac.JavaAwareCompilationUnit")

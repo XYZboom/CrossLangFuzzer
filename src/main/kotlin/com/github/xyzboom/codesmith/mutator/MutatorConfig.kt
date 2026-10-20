@@ -2,6 +2,12 @@ package com.github.xyzboom.codesmith.mutator
 
 import kotlin.Int
 
+enum class MutatorLanguageSemantics {
+    KOTLIN,
+    SCALA,
+    GROOVY,
+}
+
 data class MutatorConfig(
     val mutateGenericArgumentInParentWeight: Int = 1,
     val removeOverrideMemberFunctionWeight: Int = 1,

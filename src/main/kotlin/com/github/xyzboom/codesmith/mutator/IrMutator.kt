@@ -36,11 +36,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.random.Random
-import kotlin.reflect.full.memberProperties
 
 class IrMutator(
     private val config: MutatorConfig = MutatorConfig.default,
     private val generator: IrDeclGenerator,
+    private val languageSemantics: MutatorLanguageSemantics = MutatorLanguageSemantics.KOTLIN,
 ) {
     private val logger = KotlinLogging.logger {}
     private val random: Random = generator.random
@@ -228,12 +228,16 @@ class IrMutator(
             val desc = "mutateParameterNullability at: ${clazz.name}.${func.name}, " +
                     "parameter ${param.name}, before: ${type.render()}, after: ${param.type.render()}"
             logger.trace { desc }
-            val validity = calculateParameterNullabilityValidity(
-                program = program,
-                function = func,
-                containingClass = clazz,
-                parameterIndex = func.parameterList.parameters.indexOf(param),
-            )
+            val validity = if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
+                SemanticValidity.UNKNOWN
+            } else {
+                calculateParameterNullabilityValidity(
+                    program = program,
+                    function = func,
+                    containingClass = clazz,
+                    parameterIndex = func.parameterList.parameters.indexOf(param),
+                )
+            }
             result = validity to desc
             return@randomTraverseMemberFunctions true
         }
@@ -413,11 +417,15 @@ class IrMutator(
             val desc = "mutateReturnTypeNullability at: ${clazz.name}.${func.name}, " +
                     "before: ${returnType.render()}, after: ${func.returnType.render()}"
             logger.trace { desc }
-            val validity = calculateReturnTypeNullabilityValidity(
-                program = program,
-                function = func,
-                containingClass = clazz,
-            )
+            val validity = if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
+                SemanticValidity.UNKNOWN
+            } else {
+                calculateReturnTypeNullabilityValidity(
+                    program = program,
+                    function = func,
+                    containingClass = clazz,
+                )
+            }
             result = validity to desc
             return@randomTraverseMemberFunctions true
         }
@@ -501,12 +509,20 @@ class IrMutator(
                 val upperbound = typeParameter.upperbound
                 val validity = if (upperbound is IrNullableType) {
                     typeParameter.upperbound = upperbound.innerType
-                    calculateUpperBoundValidity(program, clazz, typeParameter)
+                    if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
+                        SemanticValidity.UNKNOWN
+                    } else {
+                        calculateUpperBoundValidity(program, clazz, typeParameter)
+                    }
                 } else {
                     typeParameter.upperbound = buildNullableType { innerType = upperbound }
                     // U -> U? relaxes the bound. Every type argument accepted before
                     // the mutation remains accepted in the current body-free IR model.
-                    SemanticValidity.VALID
+                    if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
+                        SemanticValidity.UNKNOWN
+                    } else {
+                        SemanticValidity.VALID
+                    }
                 }
                 val desc = "mutateClassTypeParameterUpperBoundNullability in class ${clazz.name}, " +
                         "typeParam ${typeParameter.name}, before: ${upperbound.render()}, after: ${typeParameter.upperbound.render()}"
@@ -646,27 +662,73 @@ class IrMutator(
         return validity to desc
     }
 
-    private val mutatorMethods = listOf(
-        this::mutateGenericArgumentInParent,
-        this::removeOverrideMemberFunction,
-        this::mutateGenericArgumentInMemberFunctionParameter,
-        this::mutateParameterNullability,
-        this::mutateReturnTypeNullability,
-        this::mutateClassTypeParameterUpperBoundNullability,
-        this::mutateClassTypeParameterUpperBound,
-        this::mutateInterfaceMethodDefault,
+    private data class OperatorDescriptor(
+        val mutate: (IrProgram) -> Pair<SemanticValidity, String?>?,
+        val weight: (MutatorConfig) -> Int,
+        val supportedSemantics: Set<MutatorLanguageSemantics>,
     )
+
+    private val operatorDescriptors = listOf(
+        OperatorDescriptor(
+            this::mutateGenericArgumentInParent,
+            { it.mutateGenericArgumentInParentWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN),
+        ),
+        OperatorDescriptor(
+            this::removeOverrideMemberFunction,
+            { it.removeOverrideMemberFunctionWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN),
+        ),
+        OperatorDescriptor(
+            this::mutateGenericArgumentInMemberFunctionParameter,
+            { it.mutateGenericArgumentInMemberFunctionParameterWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN, MutatorLanguageSemantics.SCALA),
+        ),
+        OperatorDescriptor(
+            this::mutateParameterNullability,
+            { it.mutateParameterNullabilityWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN, MutatorLanguageSemantics.GROOVY),
+        ),
+        OperatorDescriptor(
+            this::mutateReturnTypeNullability,
+            { it.mutateReturnTypeNullabilityWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN, MutatorLanguageSemantics.GROOVY),
+        ),
+        OperatorDescriptor(
+            this::mutateClassTypeParameterUpperBoundNullability,
+            { it.mutateClassTypeParameterUpperBoundNullabilityWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN, MutatorLanguageSemantics.GROOVY),
+        ),
+        OperatorDescriptor(
+            this::mutateClassTypeParameterUpperBound,
+            { it.mutateClassTypeParameterUpperBoundWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN),
+        ),
+        OperatorDescriptor(
+            this::mutateInterfaceMethodDefault,
+            { it.mutateInterfaceMethodDefaultWeight },
+            setOf(MutatorLanguageSemantics.KOTLIN),
+        ),
+    )
+
+    private val enabledOperators = operatorDescriptors.mapNotNull { descriptor ->
+        val weight = descriptor.weight(config)
+        if (languageSemantics in descriptor.supportedSemantics && weight > 0) {
+            descriptor.mutate to weight
+        } else {
+            null
+        }
+    }
+    private val enabledMutations = enabledOperators.map { it.first }
+    private val enabledWeights = enabledOperators.map { it.second }
 
     /**
      * @return a pair of the calculated semantic validity and description when a mutation was applied, or
      * `null` when the selected operator could not mutate this program.
      */
     fun mutate(program: IrProgram): Pair<SemanticValidity, String?>? {
-        val weights = mutatorMethods.map { method ->
-            val configProperty = MutatorConfig::class.memberProperties.single { it.name == "${method.name}Weight" }
-            configProperty.get(config) as Int
-        }
-        val mutatorMethod = rouletteSelection(mutatorMethods, weights, random)
+        if (enabledMutations.isEmpty()) return null
+        val mutatorMethod = rouletteSelection(enabledMutations, enabledWeights, random)
         return mutatorMethod(program)
     }
 }

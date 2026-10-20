@@ -19,10 +19,19 @@ val IrProgram.properties: List<IrPropertyDeclaration>
 
 fun IrProgram.setMajorLanguage(language: Language) {
     for (clazz in classes) {
-        clazz.language = language
+        if (clazz.language != Language.JAVA) {
+            clazz.language = language
+        }
     }
     for (func in functions) {
-        func.language = language
+        if (func.language != Language.JAVA) {
+            func.language = language
+        }
+    }
+    for (property in properties) {
+        if (property.language != Language.JAVA) {
+            property.language = language
+        }
     }
 }
 

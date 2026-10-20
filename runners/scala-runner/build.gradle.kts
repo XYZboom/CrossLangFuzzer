@@ -28,6 +28,10 @@ kotlin {
     jvmToolchain(11)
 }
 
+application {
+    mainClass.set("com.github.xyzboom.codesmith.scala.CrossLangFuzzerScalaRunnerKt")
+}
+
 tasks.withType<JavaExec> {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(11)

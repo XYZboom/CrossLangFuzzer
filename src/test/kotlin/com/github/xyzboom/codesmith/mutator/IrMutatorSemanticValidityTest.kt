@@ -2,11 +2,13 @@ package com.github.xyzboom.codesmith.mutator
 
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildParameter
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
@@ -1470,6 +1472,217 @@ class IrMutatorSemanticValidityTest {
 
         interfaceDefaultMutator().mutate(program)?.first shouldBe SemanticValidity.INVALID
     }
+
+    @Test
+    fun `Scala filters unsupported positive-weight operators before mutation`() {
+        val function = parameterFunction(Language.KOTLIN)
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += buildClassDeclaration {
+                    name = "C"
+                    language = Language.KOTLIN
+                    classKind = ClassKind.FINAL
+                    functions += function
+                }
+            }
+        }
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(mutateParameterNullabilityWeight = 1),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+            languageSemantics = MutatorLanguageSemantics.SCALA,
+        )
+
+        mutator.mutate(program) shouldBe null
+        function.parameterList.parameters.single().type shouldBe IrAny
+    }
+
+    @Test
+    fun `Scala keeps generic override parameter mutation enabled`() {
+        val (program, _) = genericOverrideParameterProgram()
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(
+                mutateGenericArgumentInMemberFunctionParameterWeight = 1,
+                mutateParameterNullabilityWeight = 100,
+            ),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+            languageSemantics = MutatorLanguageSemantics.SCALA,
+        )
+
+        mutator.mutate(program)?.first shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `Groovy filters non-annotation operators before mutation`() {
+        val (program, childFunction) = genericOverrideParameterProgram(Language.GROOVY4)
+        val before = childFunction.parameterList.parameters.single().type
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(
+                mutateGenericArgumentInMemberFunctionParameterWeight = 1,
+            ),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+            languageSemantics = MutatorLanguageSemantics.GROOVY,
+        )
+
+        mutator.mutate(program) shouldBe null
+        childFunction.parameterList.parameters.single().type shouldBe before
+    }
+
+    @Test
+    fun `Groovy parameter nullability mutation has unknown validity`() {
+        val parentFunction = parameterFunction(Language.GROOVY4)
+        val childFunction = parameterFunction(Language.GROOVY4).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += buildClassDeclaration {
+                    name = "Child"
+                    language = Language.GROOVY4
+                    classKind = ClassKind.FINAL
+                    functions += childFunction
+                }
+            }
+        }
+
+        groovyMutator(mutateParameterNullabilityWeight = 1)
+            .mutate(program)?.first shouldBe SemanticValidity.UNKNOWN
+    }
+
+    @Test
+    fun `Groovy return nullability mutation has unknown validity`() {
+        val parentFunction = returnTypeFunction(Language.GROOVY4, IrAny)
+        val childFunction = returnTypeFunction(Language.GROOVY4, IrAny).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += buildClassDeclaration {
+                    name = "Child"
+                    language = Language.GROOVY4
+                    classKind = ClassKind.FINAL
+                    functions += childFunction
+                }
+            }
+        }
+
+        groovyMutator(mutateReturnTypeNullabilityWeight = 1)
+            .mutate(program)?.first shouldBe SemanticValidity.UNKNOWN
+    }
+
+    @Test
+    fun `Groovy upper bound nullability mutation has unknown validity`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = buildNullableType { innerType = IrAny }
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.GROOVY4
+            classKind = ClassKind.OPEN
+            typeParameters += typeParameter
+        }
+        val targetOfNullableAny = target.type as IrParameterizedClassifier
+        targetOfNullableAny.putTypeArgument(
+            typeParameter,
+            buildNullableType { innerType = IrAny },
+        )
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += target
+                classes += buildClassDeclaration {
+                    name = "User"
+                    language = Language.GROOVY4
+                    classKind = ClassKind.FINAL
+                    implementedTypes += targetOfNullableAny
+                }
+            }
+        }
+
+        groovyMutator(mutateClassTypeParameterUpperBoundNullabilityWeight = 1)
+            .mutate(program)?.first shouldBe SemanticValidity.UNKNOWN
+    }
+
+    @Test
+    fun `Groovy non-null to nullable upper bound mutation has unknown validity`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += buildClassDeclaration {
+                    name = "Target"
+                    language = Language.GROOVY4
+                    classKind = ClassKind.OPEN
+                    typeParameters += typeParameter
+                }
+            }
+        }
+
+        groovyMutator(mutateClassTypeParameterUpperBoundNullabilityWeight = 1)
+            .mutate(program)?.first shouldBe SemanticValidity.UNKNOWN
+    }
+
+    private fun genericOverrideParameterProgram(
+        language: Language = Language.KOTLIN,
+    ): Pair<IrProgram, IrFunctionDeclaration> {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val wrapper = buildClassDeclaration {
+            name = "Wrapper"
+            this.language = language
+            classKind = ClassKind.FINAL
+            typeParameters += typeParameter
+        }
+        val oldArgument = buildClassDeclaration {
+            name = "OldArgument"
+            this.language = language
+            classKind = ClassKind.FINAL
+        }
+        fun wrapperOfOldArgument() = (wrapper.type as IrParameterizedClassifier).apply {
+            putTypeArgument(typeParameter, oldArgument.type)
+        }
+        val parentFunction = parameterFunction(language, wrapperOfOldArgument())
+        val childFunction = parameterFunction(language, wrapperOfOldArgument()).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += buildClassDeclaration {
+                    name = "Child"
+                    this.language = language
+                    classKind = ClassKind.FINAL
+                    functions += childFunction
+                }
+            }
+        }
+        return program to childFunction
+    }
+
+    private fun groovyMutator(
+        mutateParameterNullabilityWeight: Int = 0,
+        mutateReturnTypeNullabilityWeight: Int = 0,
+        mutateClassTypeParameterUpperBoundNullabilityWeight: Int = 0,
+    ) = IrMutator(
+        config = MutatorConfig.allZero.copy(
+            mutateParameterNullabilityWeight = mutateParameterNullabilityWeight,
+            mutateReturnTypeNullabilityWeight = mutateReturnTypeNullabilityWeight,
+            mutateClassTypeParameterUpperBoundNullabilityWeight = mutateClassTypeParameterUpperBoundNullabilityWeight,
+        ),
+        generator = IrDeclGenerator(random = alwaysFalseRandom),
+        languageSemantics = MutatorLanguageSemantics.GROOVY,
+    )
 
     private fun interfaceDefaultMutator() = IrMutator(
         config = MutatorConfig.allZero.copy(mutateInterfaceMethodDefaultWeight = 1),
