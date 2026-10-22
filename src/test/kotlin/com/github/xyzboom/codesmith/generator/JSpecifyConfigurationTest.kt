@@ -100,18 +100,20 @@ class JSpecifyConfigurationTest {
     }
 
     @Test
-    fun `unknown serialized provider fails with a clear parse error`() {
-        val exception = assertThrows<JsonParseException> {
-            gson.fromJson(
-                """{
-                    "@type": "IrProgram",
-                    "nullabilityAnnotationProvider": "UNKNOWN",
-                    "modules": []
-                }""",
-                com.github.xyzboom.codesmith.ir.IrProgram::class.java,
-            )
-        }
+    fun `unknown serialized providers fail with a clear parse error`() {
+        for (providerName in listOf("UNKNOWN", "JSPECIFY ")) {
+            val exception = assertThrows<JsonParseException> {
+                gson.fromJson(
+                    """{
+                        "@type": "IrProgram",
+                        "nullabilityAnnotationProvider": "$providerName",
+                        "modules": []
+                    }""",
+                    com.github.xyzboom.codesmith.ir.IrProgram::class.java,
+                )
+            }
 
-        assertTrue(exception.message!!.contains("UNKNOWN"))
+            assertTrue(exception.message!!.contains(providerName))
+        }
     }
 }
