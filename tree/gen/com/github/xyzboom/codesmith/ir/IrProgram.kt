@@ -13,6 +13,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
  */
 interface IrProgram : IrElement {
     var modules: MutableList<IrModule>
+    var nullabilityAnnotationProvider: NullabilityAnnotationProvider
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitProgram(this, data)
@@ -22,4 +23,6 @@ interface IrProgram : IrElement {
         transformer.transformProgram(this, data) as E
 
     fun <D> transformModules(transformer: IrTransformer<D>, data: D): IrProgram
+
+    fun <D> transformNullabilityAnnotationProvider(transformer: IrTransformer<D>, data: D): IrProgram
 }

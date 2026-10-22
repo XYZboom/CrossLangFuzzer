@@ -230,12 +230,15 @@ open class IrDeclGenerator(
         logger.trace { "start gen program" }
         val program = buildProgram {
             modules += buildModule { name = "main" }
+            nullabilityAnnotationProvider = config.nullabilityAnnotationProvider
         }
         repeat(config.topLevelDeclRange.random(random)) {
             genClass(context = program, randomName(true), randomLanguage())
         }
         logger.trace { "finish gen program" }
-        return partitionClassesToModules(program.classes, config.moduleNumRange, random)
+        return partitionClassesToModules(program.classes, config.moduleNumRange, random).also {
+            it.nullabilityAnnotationProvider = program.nullabilityAnnotationProvider
+        }
     }
 
     fun IrTypeParameterContainer.genTypeParameter(

@@ -65,7 +65,8 @@
     "moduleNumRange": [
       3,
       5
-    ]
+    ],
+    "nullabilityAnnotationProvider": "JETBRAINS"
   },
   "mutatorConfig": {
     "mutateGenericArgumentInParentWeight": 1,

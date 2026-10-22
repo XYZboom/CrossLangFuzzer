@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
+import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.Language.*
@@ -24,7 +25,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 
 class JavaIrClassPrinter(
     private val majorLanguage: Language = KOTLIN,
-    printStub: Boolean = true
+    printStub: Boolean = true,
+    private val nullabilityAnnotationProvider: NullabilityAnnotationProvider = NullabilityAnnotationProvider.JETBRAINS
 ) : AbstractIrClassPrinter(printStub = printStub) {
     private val builtInNamesInTypeArgument = buildMap {
         put(IrAny, "Object")
@@ -48,7 +50,12 @@ class JavaIrClassPrinter(
         Unit
     }
 
-    private val imports = NULLABILITY_ANNOTATION_IMPORTS +
+    private val nullabilityImports = when (nullabilityAnnotationProvider) {
+        NullabilityAnnotationProvider.JETBRAINS -> JETBRAINS_NULLABILITY_ANNOTATION_IMPORTS
+        NullabilityAnnotationProvider.JSPECIFY -> JSPECIFY_NULLABILITY_ANNOTATION_IMPORTS
+    }
+
+    private val imports = nullabilityImports +
             when (majorLanguage) {
                 KOTLIN, GROOVY4, GROOVY5 -> ""
                 SCALA -> SCALA_RUNTIME_IMPORTS
@@ -62,9 +69,13 @@ class JavaIrClassPrinter(
             put(IrNothing, "Void")
             put(IrUnit, "void")
         }
-        const val NULLABILITY_ANNOTATION_IMPORTS =
+        const val JETBRAINS_NULLABILITY_ANNOTATION_IMPORTS =
             "import org.jetbrains.annotations.NotNull;\n" +
                     "import org.jetbrains.annotations.Nullable;\n"
+        const val JSPECIFY_NULLABILITY_ANNOTATION_IMPORTS =
+            "import org.jspecify.annotations.NonNull;\n" +
+                    "import org.jspecify.annotations.Nullable;\n"
+        const val NULLABILITY_ANNOTATION_IMPORTS = JETBRAINS_NULLABILITY_ANNOTATION_IMPORTS
         const val SCALA_RUNTIME_IMPORTS =
             "import scala.runtime.BoxedUnit;\n"
         const val TOP_LEVEL_CONTAINER_CLASS_NAME = "JavaTopLevelContainer"
@@ -191,7 +202,10 @@ class JavaIrClassPrinter(
         val annotationStr = if (irType is IrNullableType) {
             "@Nullable"
         } else {
-            "@NotNull"
+            when (nullabilityAnnotationProvider) {
+                NullabilityAnnotationProvider.JETBRAINS -> "@NotNull"
+                NullabilityAnnotationProvider.JSPECIFY -> "@NonNull"
+            }
         }
         val finalAnnotationStr =
             if (noNullabilityAnnotation || typeStr == "void" ||

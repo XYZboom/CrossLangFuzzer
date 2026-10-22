@@ -19,6 +19,7 @@ object IrProgramSerializer : JsonSerializer<IrProgram> {
         if (p0 == null) return JsonNull.INSTANCE
         val result = JsonObject()
         result.addProperty(SERDE_TYPE_NAME, IrProgram::class.simpleName)
+        result.addProperty("nullabilityAnnotationProvider", p0.nullabilityAnnotationProvider.name)
         val modulesObj = JsonArray()
         for (module in p0.modules) {
             val modObj = JsonObject()

@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.ir.serde
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
@@ -321,6 +322,10 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
         }
 
         fun deserialize(map: Map<String, JsonElement>): IrProgram {
+            val nullabilityAnnotationProvider = map["nullabilityAnnotationProvider"]
+                ?.asString
+                ?.let(NullabilityAnnotationProvider::valueOf)
+                ?: NullabilityAnnotationProvider.JETBRAINS
             val modulesObj = map["modules"]
             if (modulesObj != null) {
                 if (!modulesObj.isJsonArray) {
@@ -369,6 +374,7 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                     }
                 }
                 return buildProgram {
+                    this.nullabilityAnnotationProvider = nullabilityAnnotationProvider
                     modules.addAll(moduleMap.values)
                 }
             }
@@ -388,6 +394,7 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                     classes.add(clazz)
                 }
                 return buildProgram {
+                    this.nullabilityAnnotationProvider = nullabilityAnnotationProvider
                     modules += buildModule {
                         name = "main"
                         this.classes.addAll(classes)

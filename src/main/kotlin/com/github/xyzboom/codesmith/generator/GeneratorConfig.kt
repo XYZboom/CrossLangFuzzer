@@ -1,5 +1,6 @@
 package com.github.xyzboom.codesmith.generator
 
+import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import org.jetbrains.annotations.TestOnly
 
 data class GeneratorConfig(
@@ -72,6 +73,7 @@ data class GeneratorConfig(
     val overrideOnlyMustOnes: Boolean = false,
     val noFinalFunction: Boolean = false,
     val noFinalProperties: Boolean = false,
+    val nullabilityAnnotationProvider: NullabilityAnnotationProvider = NullabilityAnnotationProvider.JETBRAINS,
     /**
      * Range of module counts used when partitioning the generated program.
      * Strongly connected class components remain in the same module, and modules
