@@ -9,9 +9,11 @@ import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.serde.configGson
 import com.github.xyzboom.codesmith.serde.gson
+import com.google.gson.JsonParseException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.random.Random
 
 class JSpecifyConfigurationTest {
@@ -95,5 +97,21 @@ class JSpecifyConfigurationTest {
             NullabilityAnnotationProvider.JETBRAINS,
             deserialized.nullabilityAnnotationProvider,
         )
+    }
+
+    @Test
+    fun `unknown serialized provider fails with a clear parse error`() {
+        val exception = assertThrows<JsonParseException> {
+            gson.fromJson(
+                """{
+                    "@type": "IrProgram",
+                    "nullabilityAnnotationProvider": "UNKNOWN",
+                    "modules": []
+                }""",
+                com.github.xyzboom.codesmith.ir.IrProgram::class.java,
+            )
+        }
+
+        assertTrue(exception.message!!.contains("UNKNOWN"))
     }
 }

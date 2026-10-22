@@ -322,10 +322,19 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
         }
 
         fun deserialize(map: Map<String, JsonElement>): IrProgram {
-            val nullabilityAnnotationProvider = map["nullabilityAnnotationProvider"]
-                ?.asString
-                ?.let(NullabilityAnnotationProvider::valueOf)
-                ?: NullabilityAnnotationProvider.JETBRAINS
+            val providerName = map["nullabilityAnnotationProvider"]?.asString
+            val nullabilityAnnotationProvider = if (providerName == null) {
+                NullabilityAnnotationProvider.JETBRAINS
+            } else {
+                try {
+                    NullabilityAnnotationProvider.valueOf(providerName)
+                } catch (exception: IllegalArgumentException) {
+                    throw JsonParseException(
+                        "Unknown nullability annotation provider '$providerName'",
+                        exception,
+                    )
+                }
+            }
             val modulesObj = map["modules"]
             if (modulesObj != null) {
                 if (!modulesObj.isJsonArray) {

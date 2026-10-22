@@ -11,6 +11,7 @@ import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclara
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildParameter
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -30,7 +31,17 @@ class JSpecifyPrinterTest {
         }
 
         val output = IrProgramPrinter().printToSingle(program)
+        val annotationFiles = IrProgramPrinter().print(program).keys
+            .filter { it.startsWith("org/") && "/annotations/" in it }
+            .toSet()
 
+        assertEquals(
+            setOf(
+                "org/jspecify/annotations/NonNull.java",
+                "org/jspecify/annotations/Nullable.java",
+            ),
+            annotationFiles,
+        )
         assertTrue(output.contains("import org.jspecify.annotations.NonNull;"))
         assertTrue(output.contains("import org.jspecify.annotations.Nullable;"))
         assertTrue(output.contains("// FILE: org/jspecify/annotations/NonNull.java"))
@@ -53,7 +64,17 @@ class JSpecifyPrinterTest {
         }
 
         val output = IrProgramPrinter().printToSingle(program)
+        val annotationFiles = IrProgramPrinter().print(program).keys
+            .filter { it.startsWith("org/") && "/annotations/" in it }
+            .toSet()
 
+        assertEquals(
+            setOf(
+                "org/jetbrains/annotations/NotNull.java",
+                "org/jetbrains/annotations/Nullable.java",
+            ),
+            annotationFiles,
+        )
         assertTrue(output.contains("import org.jetbrains.annotations.NotNull;"))
         assertTrue(output.contains("// FILE: org/jetbrains/annotations/NotNull.java"))
         assertTrue(output.contains("@NotNull Object value"))
