@@ -59,6 +59,9 @@ class IrProgramPrinter(
                         "}"
             )
         }
+        // CLF currently models nullability at each type-use position, so only the type-use
+        // JSpecify annotations are emitted. Add NullMarked/NullUnmarked here if scope-level
+        // default nullness becomes part of the IR and mutation model.
         private val jspecifyExtraJavaFile = buildMap {
             put(
                 "org/jspecify/annotations/NonNull.java",

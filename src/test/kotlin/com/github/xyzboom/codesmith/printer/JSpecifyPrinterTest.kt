@@ -42,6 +42,10 @@ class JSpecifyPrinterTest {
             ),
             annotationFiles,
         )
+        assertEquals(
+            2,
+            output.lines().count { it.startsWith("// FILE: org/jspecify/annotations/") },
+        )
         assertTrue(output.contains("import org.jspecify.annotations.NonNull;"))
         assertTrue(output.contains("import org.jspecify.annotations.Nullable;"))
         assertTrue(output.contains("// FILE: org/jspecify/annotations/NonNull.java"))
@@ -74,6 +78,10 @@ class JSpecifyPrinterTest {
                 "org/jetbrains/annotations/Nullable.java",
             ),
             annotationFiles,
+        )
+        assertEquals(
+            2,
+            output.lines().count { it.startsWith("// FILE: org/jetbrains/annotations/") },
         )
         assertTrue(output.contains("import org.jetbrains.annotations.NotNull;"))
         assertTrue(output.contains("// FILE: org/jetbrains/annotations/NotNull.java"))
