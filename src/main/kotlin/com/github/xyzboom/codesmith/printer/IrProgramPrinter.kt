@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.printer
 import com.github.xyzboom.codesmith.ir.IrModule
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -28,7 +29,7 @@ class IrProgramPrinter(
     private val scalaClassPrinter = ScalaIrClassPrinter(printStub = printStub)
 
     companion object {
-        private val extraJavaFile = buildMap {
+        private val jetbrainsExtraJavaFile = buildMap {
             put(
                 "org/jetbrains/annotations/NotNull.java",
                 "package org.jetbrains.annotations;\n" +
@@ -58,16 +59,54 @@ class IrProgramPrinter(
                         "}"
             )
         }
+        private val jspecifyExtraJavaFile = buildMap {
+            put(
+                "org/jspecify/annotations/NonNull.java",
+                "package org.jspecify.annotations;\n" +
+                        "\n" +
+                        "import java.lang.annotation.*;\n" +
+                        "\n" +
+                        "@Documented\n" +
+                        "@Retention(RetentionPolicy.RUNTIME)\n" +
+                        "@Target({ElementType.TYPE_USE})\n" +
+                        "public @interface NonNull {\n" +
+                        "}"
+            )
+            put(
+                "org/jspecify/annotations/Nullable.java",
+                "package org.jspecify.annotations;\n" +
+                        "\n" +
+                        "import java.lang.annotation.*;\n" +
+                        "\n" +
+                        "@Documented\n" +
+                        "@Retention(RetentionPolicy.RUNTIME)\n" +
+                        "@Target({ElementType.TYPE_USE})\n" +
+                        "public @interface Nullable {\n" +
+                        "}"
+            )
+        }
         const val ANNOTATIONS_MODULE_NAME = "annotations"
         const val MAIN_KT_NAME = "main.kt"
         val extraSourceFileNames = listOf(
-            MAIN_KT_NAME, *extraJavaFile.keys.toTypedArray()
+            MAIN_KT_NAME,
+            *jetbrainsExtraJavaFile.keys.toTypedArray(),
+            *jspecifyExtraJavaFile.keys.toTypedArray(),
         )
     }
 
+    private fun extraJavaFile(provider: NullabilityAnnotationProvider): Map<String, String> =
+        when (provider) {
+            NullabilityAnnotationProvider.JETBRAINS -> jetbrainsExtraJavaFile
+            NullabilityAnnotationProvider.JSPECIFY -> jspecifyExtraJavaFile
+        }
+
     override fun print(element: IrProgram): Map<String, String> {
         val result = mutableMapOf<String, String>()
-        javaClassPrinter = JavaIrClassPrinter(majorLanguage, printStub = printStub)
+        javaClassPrinter = JavaIrClassPrinter(
+            majorLanguage,
+            printStub = printStub,
+            nullabilityAnnotationProvider = element.nullabilityAnnotationProvider,
+        )
         for (clazz in element.classes) {
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
@@ -81,7 +120,7 @@ class IrProgramPrinter(
         val ktTopLevelContent = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
         if (element.classes.any { it.language == Language.JAVA }) {
             result["${JavaIrClassPrinter.TOP_LEVEL_CONTAINER_CLASS_NAME}.java"] = javaTopLevelContent
-            result.putAll(extraJavaFile)
+            result.putAll(extraJavaFile(element.nullabilityAnnotationProvider))
         }
         if (majorLanguage == Language.KOTLIN) {
             result[MAIN_KT_NAME] = "${ktTopLevelContent}\n" +
@@ -134,7 +173,7 @@ class IrProgramPrinter(
         }
 
         sb.append("// MODULE: $ANNOTATIONS_MODULE_NAME\n")
-        appendFiles(sb, extraJavaFile)
+        appendFiles(sb, extraJavaFile(element.nullabilityAnnotationProvider))
 
         for (module in effectiveModules) {
             val depNames = listOf(ANNOTATIONS_MODULE_NAME) + module.dependencies.map { it.name }

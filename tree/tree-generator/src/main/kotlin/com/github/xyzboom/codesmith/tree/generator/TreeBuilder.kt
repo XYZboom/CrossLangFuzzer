@@ -32,6 +32,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
 
     val program: Element by element(Element.Kind.Other, name = "Program") {
         +listField("modules", module)
+        +field("nullabilityAnnotationProvider", nullabilityAnnotationProviderType, isChild = false)
         kind = ImplementationKind.Interface
     }
 

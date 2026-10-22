@@ -10,17 +10,20 @@ package com.github.xyzboom.codesmith.ir.builder
 import com.github.xyzboom.codesmith.ir.IrImplementationDetail
 import com.github.xyzboom.codesmith.ir.IrModule
 import com.github.xyzboom.codesmith.ir.IrProgram
+import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import com.github.xyzboom.codesmith.ir.impl.IrProgramImpl
 import kotlin.contracts.*
 
 @BuilderDsl
 class IrProgramBuilder {
     val modules: MutableList<IrModule> = mutableListOf()
+    var nullabilityAnnotationProvider: NullabilityAnnotationProvider = NullabilityAnnotationProvider.JETBRAINS
 
     @OptIn(IrImplementationDetail::class)
     fun build(): IrProgram {
         return IrProgramImpl(
             modules,
+            nullabilityAnnotationProvider,
         )
     }
 }

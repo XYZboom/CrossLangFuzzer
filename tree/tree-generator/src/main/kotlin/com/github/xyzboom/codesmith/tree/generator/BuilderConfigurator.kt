@@ -36,6 +36,10 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
         builder(module) {
             parents += funcContainerBuilder
         }
+        builder(program) {
+            additionalImports(nullabilityAnnotationProviderType)
+            default("nullabilityAnnotationProvider", "NullabilityAnnotationProvider.JETBRAINS")
+        }
         builder(classDecl) {
             parents += funcContainerBuilder
             additionalImports(languageType)

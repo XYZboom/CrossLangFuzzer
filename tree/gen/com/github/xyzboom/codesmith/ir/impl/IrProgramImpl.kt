@@ -7,16 +7,14 @@
 
 package com.github.xyzboom.codesmith.ir.impl
 
-import com.github.xyzboom.codesmith.ir.IrImplementationDetail
-import com.github.xyzboom.codesmith.ir.IrModule
-import com.github.xyzboom.codesmith.ir.IrProgram
-import com.github.xyzboom.codesmith.ir.IrPureAbstractElement
+import com.github.xyzboom.codesmith.ir.*
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 
 class IrProgramImpl @IrImplementationDetail constructor(
     override var modules: MutableList<IrModule>,
+    override var nullabilityAnnotationProvider: NullabilityAnnotationProvider,
 ) : IrPureAbstractElement(), IrProgram {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
@@ -30,6 +28,10 @@ class IrProgramImpl @IrImplementationDetail constructor(
 
     override fun <D> transformModules(transformer: IrTransformer<D>, data: D): IrProgramImpl {
         modules.transformInplace(transformer, data)
+        return this
+    }
+
+    override fun <D> transformNullabilityAnnotationProvider(transformer: IrTransformer<D>, data: D): IrProgramImpl {
         return this
     }
 }
