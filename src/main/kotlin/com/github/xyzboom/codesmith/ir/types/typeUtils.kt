@@ -399,7 +399,7 @@ fun IrType.isSubTypeOf(other: IrType): Boolean {
     if (this === IrNothing) {
         return true
     }
-    if (other is IrNullableType && this !is IrNullableType) {
+    if (other is IrNullableType && this !is IrNullableType && this !is IrTypeParameter) {
         return this.isSubTypeOf(other.innerType)
     }
     return when (this) {
@@ -432,7 +432,12 @@ fun IrType.isSubTypeOf(other: IrType): Boolean {
         is IrNullableType -> if (other !is IrNullableType) {
             false
         } else {
-            this.innerType.isSubTypeOf(other.innerType)
+            val thisInner = this.innerType
+            if (thisInner is IrTypeParameter) {
+                thisInner.upperbound.isSubTypeOf(other)
+            } else {
+                thisInner.isSubTypeOf(other.innerType)
+            }
         }
         else -> false
     }

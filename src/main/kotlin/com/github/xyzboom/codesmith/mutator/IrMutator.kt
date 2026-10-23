@@ -9,9 +9,11 @@ import com.github.xyzboom.codesmith.ir.functions
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrPlatformType
+import com.github.xyzboom.codesmith.ir.types.IrSimpleClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeContainer
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.IrNullableType
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.areEqualTypes
@@ -20,17 +22,21 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir.types.containsTypeParameter
+import com.github.xyzboom.codesmith.ir.types.deepUpperboundNullable
 import com.github.xyzboom.codesmith.ir.types.dependsOnTypeParameter
 import com.github.xyzboom.codesmith.ir.types.getTypeArguments
 import com.github.xyzboom.codesmith.ir.types.getConcreteTypeArguments
 import com.github.xyzboom.codesmith.ir.types.getActualTypeFromArguments
 import com.github.xyzboom.codesmith.ir.types.isSubClassOf
 import com.github.xyzboom.codesmith.ir.types.isSubTypeOf
+import com.github.xyzboom.codesmith.ir.types.notNullType
 import com.github.xyzboom.codesmith.ir.types.putTypeArgument
 import com.github.xyzboom.codesmith.ir.types.render
 import com.github.xyzboom.codesmith.utils.rouletteSelection
-import com.github.xyzboom.codesmith.validator.isRequiredOverride
 import com.github.xyzboom.codesmith.validator.hasMissingRequiredOverride
+import com.github.xyzboom.codesmith.validator.collectFunctionSignatureMap
+import com.github.xyzboom.codesmith.validator.getOverrideCandidates
+import com.github.xyzboom.codesmith.validator.implements
 import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.collections.component1
@@ -56,8 +62,9 @@ class IrMutator(
                     if (entries.isEmpty()) continue
                     val (_, pair) = entries.random(random)
                     val (typeParam, typeArg) = pair
+                    val visibleClasses = program.visibleClassesFor(clazz)
                     val replaceArg = generator.randomType(
-                        program.classes, clazz.typeParameters, false
+                        visibleClasses, clazz.typeParameters, false
                     ) { type ->
                         type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
                     } ?: continue
@@ -96,6 +103,24 @@ class IrMutator(
         changedTypeParameter: IrTypeParameter,
     ): SemanticValidity {
         val typeArguments = parentType.getTypeArguments()
+        val targetModule = program.modules.firstOrNull { targetClass in it.classes }
+        if (targetModule != null) {
+            val visibleClasses = (targetModule.dependencies + targetModule).flatMap { it.classes }.toSet()
+            fun IrType.containsAnyClassNotIn(allowedClasses: Set<IrClassDeclaration>): Boolean = when (this) {
+                is IrSimpleClassifier -> classDecl !in allowedClasses
+                is IrParameterizedClassifier -> classDecl !in allowedClasses || arguments.values.any { (_, arg) ->
+                    arg.type?.containsAnyClassNotIn(allowedClasses) == true
+                }
+                is IrTypeContainer -> innerType.containsAnyClassNotIn(allowedClasses)
+                else -> false
+            }
+            for ((_, pair) in typeArguments) {
+                val innerType = pair.second.type ?: continue
+                if (innerType.containsAnyClassNotIn(visibleClasses)) {
+                    return SemanticValidity.INVALID
+                }
+            }
+        }
         for ((_, pair) in typeArguments) {
             val (typeParameter, typeArgument) = pair
             val innerType = typeArgument.type ?: continue
@@ -148,10 +173,33 @@ class IrMutator(
         var result: Pair<SemanticValidity, String?>? = null
         program.randomTraverseMemberFunctions(random) { func, clazz ->
             if (func.isOverride && !func.isOverrideStub) {
+                fun hasConcreteFallback(
+                    function: IrFunctionDeclaration,
+                    visited: MutableSet<IrFunctionDeclaration> = mutableSetOf(),
+                ): Boolean {
+                    if (!visited.add(function)) return false
+                    return function.override.any { parent ->
+                        (!parent.isOverrideStub && parent.body != null) ||
+                                hasConcreteFallback(parent, visited)
+                    }
+                }
+                val affectedClasses = program.classes.filter { candidate ->
+                    candidate === clazz || candidate.isSubClassOf(clazz)
+                }
+                val hasConcreteFallback = hasConcreteFallback(func)
                 func.isOverrideStub = true
                 val desc = "removeOverrideMemberFunction in class ${clazz.name}, function ${func.name}"
                 logger.trace { desc }
-                val validity = if (program.isRequiredOverride(clazz, func)) {
+                val concreteDescendantNeedsFunction = affectedClasses.any { candidate ->
+                    (candidate.classKind == ClassKind.FINAL || candidate.classKind == ClassKind.OPEN) &&
+                            program.classes.none { provider ->
+                                candidate.isSubClassOf(provider) &&
+                                        provider.functions.any {
+                                            !it.isOverrideStub && it.body != null && it.overridesTransitively(func)
+                                        }
+                            }
+                }
+                val validity = if (!hasConcreteFallback && concreteDescendantNeedsFunction) {
                     SemanticValidity.INVALID
                 } else {
                     SemanticValidity.VALID
@@ -184,8 +232,9 @@ class IrMutator(
             val (param, paramType, entries) = candidates.random(random)
             val (_, pair) = entries.random(random)
             val (typeParam, typeArg) = pair
+            val visibleClasses = program.visibleClassesFor(clazz)
             val replaceArg = generator.randomType(
-                program.classes, clazz.typeParameters + func.typeParameters, false
+                visibleClasses, clazz.typeParameters + func.typeParameters, false
             ) { type ->
                 type !is IrParameterizedClassifier && !areEqualTypes(type, typeArg.type)
             } ?: return@randomTraverseMemberFunctions false
@@ -485,6 +534,9 @@ class IrMutator(
         childClass: IrClassDeclaration,
         parentFunction: IrFunctionDeclaration,
     ): Boolean {
+        if (childFunction.language == Language.JAVA) {
+            return true
+        }
         val childReturnType = getActualTypeFromArguments(
             childFunction.returnType,
             childClass.allSuperTypeArguments,
@@ -495,7 +547,10 @@ class IrMutator(
             childClass.allSuperTypeArguments,
             true,
         )
-        if (parentReturnType is IrPlatformType || childReturnType is IrPlatformType) {
+        val parentIsPlatform = parentReturnType is IrPlatformType ||
+                (parentFunction.language == Language.JAVA &&
+                        (parentFunction.returnType as? IrTypeParameter)?.deepUpperboundNullable() == true)
+        if (parentIsPlatform || childReturnType is IrPlatformType) {
             return true
         }
         return childReturnType.isSubTypeOf(parentReturnType)
@@ -512,17 +567,29 @@ class IrMutator(
                     if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
                         SemanticValidity.UNKNOWN
                     } else {
-                        calculateUpperBoundValidity(program, clazz, typeParameter)
+                        calculateUpperBoundValidity(
+                            program,
+                            clazz,
+                            typeParameter,
+                            previousUpperBound = upperbound,
+                            ignoreJavaNullabilityAnnotations = true,
+                        )
                     }
                 } else {
                     typeParameter.upperbound = buildNullableType { innerType = upperbound }
-                    // U -> U? relaxes the bound. Every type argument accepted before
-                    // the mutation remains accepted in the current body-free IR model.
-                    if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
+                    val validity = if (languageSemantics == MutatorLanguageSemantics.GROOVY) {
                         SemanticValidity.UNKNOWN
                     } else {
-                        SemanticValidity.VALID
+                        calculateUpperBoundValidity(
+                            program,
+                            clazz,
+                            typeParameter,
+                            previousUpperBound = upperbound,
+                            ignoreJavaNullabilityAnnotations = true,
+                            validateSelectedArgument = false,
+                        )
                     }
+                    validity
                 }
                 val desc = "mutateClassTypeParameterUpperBoundNullability in class ${clazz.name}, " +
                         "typeParam ${typeParameter.name}, before: ${upperbound.render()}, after: ${typeParameter.upperbound.render()}"
@@ -536,63 +603,164 @@ class IrMutator(
     }
 
     /**
-     * Calculates validity after changing a class type parameter's upper bound.
+     * Calculates validity after changing one class type parameter's upper bound.
      *
-     * Every occurrence of `Target<Argument>` must satisfy `Argument <: U`.
-     * Platform and nested parameterized arguments are handled by the shared
-     * subtype checker in the IR type utilities.
+     * Only occurrences of [targetClass] and the argument corresponding to
+     * [targetTypeParameter] are relevant. Java nullability annotations are not
+     * javac generic constraints, so nullability-only mutations ignore such
+     * mismatches in Java source positions while still checking Kotlin positions.
      */
     private fun calculateUpperBoundValidity(
         program: IrProgram,
         targetClass: IrClassDeclaration,
         targetTypeParameter: IrTypeParameter,
+        previousUpperBound: IrType,
+        ignoreJavaNullabilityAnnotations: Boolean = false,
+        validateSelectedArgument: Boolean = true,
     ): SemanticValidity {
         var result = SemanticValidity.VALID
 
-        fun inspect(type: IrType?) {
+        fun isTargetReference(typeParameter: IrTypeParameter): Boolean =
+            typeParameter === targetTypeParameter ||
+                    (typeParameter.name == targetTypeParameter.name &&
+                            areEqualTypes(typeParameter.upperbound, previousUpperBound))
+
+        fun dependsOnTarget(type: IrType?): Boolean = when (type) {
+            null -> false
+            is IrTypeParameter -> isTargetReference(type) ||
+                    dependsOnTarget(type.upperbound)
+            is IrTypeContainer -> dependsOnTarget(type.innerType)
+            is IrParameterizedClassifier -> type.arguments.values.any { (_, argument) ->
+                dependsOnTarget(argument.type)
+            }
+            else -> false
+        }
+
+        fun resolveDependentTypeParameter(type: IrType): IrType {
+            var current = type
+            val visited = mutableSetOf<IrTypeParameter>()
+            while (current is IrTypeParameter &&
+                !isTargetReference(current) &&
+                dependsOnTarget(current) &&
+                visited.add(current)
+            ) {
+                current = current.upperbound
+            }
+            return if (current is IrTypeParameter && isTargetReference(current)) {
+                targetTypeParameter
+            } else {
+                current
+            }
+        }
+
+        fun inspect(
+            type: IrType?,
+            ownerLanguage: Language,
+            allowDependentReferences: Boolean,
+        ) {
             when (type) {
                 null -> Unit
                 is IrParameterizedClassifier -> {
-                    for ((paramName, pair) in type.arguments) {
-                        val (param, arg) = pair
-                        if (arg.isStar) continue
-                        val innerType = arg.type ?: continue
-                        val declParam = type.classDecl.typeParameters.firstOrNull {
-                            it.name == paramName.value
-                        } ?: param
+                    val concreteArguments = type.getConcreteTypeArguments()
+                    for (declarationParameter in type.classDecl.typeParameters) {
+                        val argument = type.arguments.entries.firstOrNull {
+                            it.key.value == declarationParameter.name
+                        }?.value?.second
+                        val innerType = argument?.type
+                        val selectedArgument = type.classDecl.name == targetClass.name &&
+                                declarationParameter.name == targetTypeParameter.name
+                        val declarationSelfArgument = allowDependentReferences &&
+                                innerType is IrTypeParameter &&
+                                innerType.name == declarationParameter.name &&
+                                areEqualTypes(innerType.upperbound, declarationParameter.upperbound)
+                        if (selectedArgument) {
+                            if (!validateSelectedArgument) continue
+                        } else if (declarationSelfArgument) {
+                            continue
+                        } else if (!allowDependentReferences || !dependsOnTarget(innerType)) continue
+                        if (argument == null || argument.isStar ||
+                            (ignoreJavaNullabilityAnnotations && ownerLanguage == Language.JAVA)
+                        ) continue
+                        if (innerType == null) continue
+                        val declaredUpperBound = if (selectedArgument) {
+                            targetTypeParameter.upperbound
+                        } else {
+                            declarationParameter.upperbound
+                        }
+                        if (ownerLanguage == Language.JAVA && argument.isInvariant) {
+                            val dependsOnCovariantOrStar = type.classDecl.typeParameters.any { otherParam ->
+                                otherParam !== declarationParameter &&
+                                        declaredUpperBound.dependsOnTypeParameter(otherParam) &&
+                                        type.arguments.entries.any {
+                                            it.key.value == otherParam.name &&
+                                                    (it.value.second.isCovariant || it.value.second.isStar)
+                                        }
+                            }
+                            if (dependsOnCovariantOrStar) {
+                                result = SemanticValidity.INVALID
+                            }
+                        }
                         val actualUpperBound = getActualTypeFromArguments(
-                            declParam.upperbound,
-                            type.getConcreteTypeArguments(),
+                            declaredUpperBound,
+                            concreteArguments,
                             true,
                         )
-                        if (!innerType.isSubTypeOf(actualUpperBound)) {
+                        val substitutedInnerType = getActualTypeFromArguments(
+                            innerType,
+                            mapOf(
+                                IrTypeParameterName(targetTypeParameter.name) to
+                                        (targetTypeParameter to targetTypeParameter),
+                            ),
+                            true,
+                        )
+                        val effectiveInnerType = if (!selectedArgument) {
+                            resolveDependentTypeParameter(substitutedInnerType)
+                        } else {
+                            substitutedInnerType
+                        }
+                        val javaAnnotationOnlyMismatch = ownerLanguage == Language.JAVA &&
+                                effectiveInnerType.notNullType.isSubTypeOf(actualUpperBound.notNullType)
+                        if (!effectiveInnerType.isSubTypeOf(actualUpperBound) &&
+                            !javaAnnotationOnlyMismatch
+                        ) {
                             result = SemanticValidity.INVALID
                         }
                     }
-                    type.arguments.values.forEach { (_, argument) -> inspect(argument.type) }
+                    type.arguments.values.forEach { (_, argument) ->
+                        inspect(argument.type, ownerLanguage, allowDependentReferences)
+                    }
                 }
-                is IrTypeContainer -> inspect(type.innerType)
-                is IrTypeParameter -> inspect(type.upperbound)
+                is IrTypeContainer -> inspect(type.innerType, ownerLanguage, allowDependentReferences)
+                is IrTypeParameter -> inspect(type.upperbound, ownerLanguage, allowDependentReferences)
             }
         }
 
         fun inspectClass(clazz: IrClassDeclaration) {
-            inspect(clazz.superType)
-            clazz.implementedTypes.forEach(::inspect)
-            clazz.allSuperTypeArguments.values.forEach { (_, type) -> inspect(type) }
-            clazz.typeParameters.forEach { inspect(it.upperbound) }
+            val ownerLanguage = clazz.language
+            val allowDependentReferences = clazz.name == targetClass.name
+            inspect(clazz.superType, ownerLanguage, allowDependentReferences)
+            clazz.implementedTypes.forEach { inspect(it, ownerLanguage, allowDependentReferences) }
+            clazz.typeParameters.forEach {
+                inspect(it.upperbound, ownerLanguage, allowDependentReferences)
+            }
             clazz.functions.forEach { function ->
-                inspect(function.returnType)
-                function.parameterList.parameters.forEach { inspect(it.type) }
-                function.typeParameters.forEach { inspect(it.upperbound) }
+                if (function.isOverrideStub) return@forEach
+                inspect(function.returnType, ownerLanguage, allowDependentReferences)
+                function.parameterList.parameters.forEach {
+                    inspect(it.type, ownerLanguage, allowDependentReferences)
+                }
+                function.typeParameters.forEach {
+                    inspect(it.upperbound, ownerLanguage, allowDependentReferences)
+                }
             }
         }
 
         program.classes.forEach(::inspectClass)
         program.functions.forEach { function ->
-            inspect(function.returnType)
-            function.parameterList.parameters.forEach { inspect(it.type) }
-            function.typeParameters.forEach { inspect(it.upperbound) }
+            if (function.isOverrideStub) return@forEach
+            inspect(function.returnType, function.language, false)
+            function.parameterList.parameters.forEach { inspect(it.type, function.language, false) }
+            function.typeParameters.forEach { inspect(it.upperbound, function.language, false) }
         }
         return result
     }
@@ -608,8 +776,9 @@ class IrMutator(
                 } else {
                     oldUpperBound
                 }
+                val visibleClasses = program.visibleClassesFor(clazz)
                 val replace = generator.randomType(
-                    program.classes, clazz.typeParameters, false
+                    visibleClasses, clazz.typeParameters, false
                 ) { type ->
                     type !is IrParameterizedClassifier && !areEqualTypes(type, typeParameter)
                             && !areEqualTypes(type, oldInnerBound)
@@ -625,13 +794,45 @@ class IrMutator(
                 val desc = "mutateClassTypeParameterUpperBound in class ${clazz.name}, " +
                         "typeParam ${typeParameter.name}, before: ${oldUpperBound.render()}, after: ${typeParameter.upperbound.render()}"
                 logger.trace { desc }
-                val validity = calculateUpperBoundValidity(program, clazz, typeParameter)
+                val validity = calculateUpperBoundValidity(
+                    program,
+                    clazz,
+                    typeParameter,
+                    previousUpperBound = oldUpperBound,
+                )
                 result = validity to desc
                 return@randomTraverseClasses true
             }
             return@randomTraverseClasses false
         }
         return result
+    }
+
+    private fun hasMissingRequiredOverrideRelatedTo(
+        program: IrProgram,
+        targetFunction: IrFunctionDeclaration,
+    ): Boolean {
+        fun isRelated(function: IrFunctionDeclaration): Boolean =
+            function === targetFunction ||
+                    function.overridesTransitively(targetFunction)
+
+        return program.classes.any { clazz ->
+            val (mustOverrides, _, _) = clazz.getOverrideCandidates(
+                clazz.collectFunctionSignatureMap(exactSignatures = true),
+                doNotEditLanguage = true,
+            )
+            mustOverrides.any { candidate ->
+                val (superFunction, interfaceFunctions) = candidate
+                val related = superFunction?.let(::isRelated) == true || interfaceFunctions.any(::isRelated)
+                if (!related || clazz.functions.any { it.implements(candidate) }) {
+                    return@any false
+                }
+                if (clazz.classKind == ClassKind.FINAL || clazz.classKind == ClassKind.OPEN) {
+                    return@any true
+                }
+                superFunction == null && interfaceFunctions.count { it.body != null } > 1
+            }
+        }
     }
 
     fun mutateInterfaceMethodDefault(program: IrProgram): Pair<SemanticValidity, String?>? {
@@ -654,7 +855,7 @@ class IrMutator(
         val desc = "mutateInterfaceMethodDefault in interface ${targetClass.name}, " +
                 "function ${targetFunc.name}: ${if (oldBody != null) "default -> abstract" else "abstract -> default"}"
         logger.trace { desc }
-        val validity = if (program.hasMissingRequiredOverride()) {
+        val validity = if (hasMissingRequiredOverrideRelatedTo(program, targetFunc)) {
             SemanticValidity.INVALID
         } else {
             SemanticValidity.VALID
@@ -730,6 +931,11 @@ class IrMutator(
         if (enabledMutations.isEmpty()) return null
         val mutatorMethod = rouletteSelection(enabledMutations, enabledWeights, random)
         return mutatorMethod(program)
+    }
+
+    private fun IrProgram.visibleClassesFor(clazz: IrClassDeclaration): List<IrClassDeclaration> {
+        val targetModule = modules.firstOrNull { clazz in it.classes } ?: return classes
+        return (targetModule.dependencies + targetModule).flatMap { it.classes }
     }
 }
 

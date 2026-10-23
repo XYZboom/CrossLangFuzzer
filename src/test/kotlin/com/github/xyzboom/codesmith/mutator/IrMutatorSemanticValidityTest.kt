@@ -7,6 +7,7 @@ import com.github.xyzboom.codesmith.ir.Language
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
+import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
@@ -15,6 +16,8 @@ import com.github.xyzboom.codesmith.ir.expressions.builder.buildBlock
 import com.github.xyzboom.codesmith.ir.types.IrParameterizedClassifier
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeArgument
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
+import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
 import com.github.xyzboom.codesmith.ir.types.IrVariance
 import com.github.xyzboom.codesmith.ir.types.builder.buildNullableType
 import com.github.xyzboom.codesmith.ir.types.builder.buildPlatformType
@@ -663,6 +666,59 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
+    fun `parent generic argument referencing class from inaccessible module is invalid`() {
+        val typeParameter = buildTypeParameter {
+            name = "T"
+            upperbound = IrAny
+        }
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.JAVA
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParameter
+        }
+        val invisibleClass = buildClassDeclaration {
+            name = "InvisibleClass"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+        }
+        val parentType = (parent.type as IrParameterizedClassifier).apply {
+            putTypeArgument(typeParameter, child.type)
+        }
+        child.implementedTypes += parentType
+        val m0 = buildModule {
+            name = "m0"
+            classes += parent
+        }
+        val m1 = buildModule {
+            name = "m1"
+            dependencies += m0
+            classes += child
+        }
+        val m2 = buildModule {
+            name = "m2"
+            dependencies += m1
+            classes += invisibleClass
+        }
+        val program = buildProgram {
+            modules += m0
+            modules += m1
+            modules += m2
+        }
+
+        // Since parent and child are the only visible classes to child (child is already the argument, parent is interface),
+        // invisibleClass from m2 cannot be picked as replacement argument for child in m1.
+        val result = parentGenericArgumentMutator().mutate(program)
+        // Either no mutation can be performed or if performed it cannot pick invisibleClass
+        (result?.second?.contains("InvisibleClass") == true) shouldBe false
+    }
+
+    @Test
     fun `changing a parent argument used only by an inherited member is valid`() {
         val typeParameter = buildTypeParameter {
             name = "T"
@@ -939,6 +995,118 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
+    fun `removing an override is valid when a stub ancestor hides a concrete fallback`() {
+        val rootFunction = parameterFunction(Language.JAVA).apply { body = null }
+        val root = buildClassDeclaration {
+            name = "Root"
+            language = Language.JAVA
+            classKind = ClassKind.INTERFACE
+            functions += rootFunction
+        }
+        val concreteFunction = parameterFunction(Language.KOTLIN)
+        val concreteAncestor = buildClassDeclaration {
+            name = "ConcreteAncestor"
+            language = Language.KOTLIN
+            classKind = ClassKind.ABSTRACT
+            implementedTypes += root.type
+            functions += concreteFunction
+        }
+        val stubFunction = parameterFunction(Language.JAVA).apply {
+            isOverride = true
+            isOverrideStub = true
+            override += rootFunction
+            override += concreteFunction
+        }
+        val middle = buildClassDeclaration {
+            name = "Middle"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            superType = concreteAncestor.type
+            implementedTypes += root.type
+            functions += stubFunction
+        }
+        val targetFunction = parameterFunction(Language.JAVA).apply {
+            isOverride = true
+            override += rootFunction
+            override += stubFunction
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            superType = middle.type
+            implementedTypes += root.type
+            functions += targetFunction
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += target
+                classes += middle
+                classes += concreteAncestor
+                classes += root
+            }
+        }
+
+        removeOverrideMutator().mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `removing an override from interface is valid when concrete descendant inherits implementation from intermediate ancestor`() {
+        val grandParentFunction = parameterFunction(Language.KOTLIN).apply { body = null }
+        val grandParent = buildClassDeclaration {
+            name = "GrandParent"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            functions += grandParentFunction
+        }
+        val parentFunction = parameterFunction(Language.JAVA).apply {
+            isOverride = true
+            override += grandParentFunction
+        }
+        val parentInterface = buildClassDeclaration {
+            name = "ParentInterface"
+            language = Language.JAVA
+            classKind = ClassKind.INTERFACE
+            implementedTypes += grandParent.type
+            functions += parentFunction
+        }
+        val ancestorFunction = parameterFunction(Language.JAVA).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val abstractAncestor = buildClassDeclaration {
+            name = "AbstractAncestor"
+            language = Language.JAVA
+            classKind = ClassKind.ABSTRACT
+            implementedTypes += parentInterface.type
+            functions += ancestorFunction
+        }
+        val concreteDescendant = buildClassDeclaration {
+            name = "ConcreteDescendant"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            superType = abstractAncestor.type
+            implementedTypes += grandParent.type
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += grandParent
+                classes += parentInterface
+                classes += abstractAncestor
+                classes += concreteDescendant
+            }
+        }
+
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(removeOverrideMemberFunctionWeight = 1),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+        )
+        mutator.mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
     fun `changing a class type parameter upper bound without uses is valid`() {
         val bound = buildClassDeclaration {
             name = "Bound"
@@ -1044,6 +1212,245 @@ class IrMutatorSemanticValidityTest {
         }
 
         upperBoundMutator().mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `changing upper bound to depend on a type parameter projected as wildcard in Java usage is invalid`() {
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            superType = parent.type
+        }
+        val tB = buildTypeParameter {
+            name = "TB"
+            upperbound = parent.type
+        }
+        val tA = buildTypeParameter {
+            name = "TA"
+            upperbound = parent.type
+        }
+        val box = buildClassDeclaration {
+            name = "Box"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            typeParameters += tA
+            typeParameters += tB
+        }
+        val boxUsage = (box.type as IrParameterizedClassifier).apply {
+            putTypeArgument(tA, child.type)
+            putTypeArgument(tB, IrTypeArgument(IrVariance.COVARIANT, parent.type))
+        }
+        val javaUser = buildClassDeclaration {
+            name = "JavaUser"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            functions += buildFunctionDeclaration {
+                name = "foo"
+                language = Language.JAVA
+                returnType = IrAny
+                parameterList = buildParameterList {
+                    parameters += buildParameter {
+                        name = "p"
+                        type = boxUsage
+                    }
+                }
+                body = buildBlock()
+            }
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += parent
+                classes += child
+                classes += box
+                classes += javaUser
+            }
+        }
+
+        val customGenerator = object : IrDeclGenerator(random = alwaysFalseRandom) {
+            override fun randomType(
+                fromClasses: List<IrClassDeclaration>,
+                fromTypeParameters: List<IrTypeParameter>,
+                finishTypeArguments: Boolean,
+                filter: (IrType) -> Boolean
+            ): IrType? {
+                return tB
+            }
+        }
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(mutateClassTypeParameterUpperBoundWeight = 1),
+            generator = customGenerator,
+        )
+        val res = mutator.mutate(program)
+        res?.first shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `tightening upper bound nullability ignores override stub functions`() {
+        val bound = buildClassDeclaration {
+            name = "Bound"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val tParam = buildTypeParameter {
+            name = "T"
+            upperbound = buildNullableType { innerType = bound.type }
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            typeParameters += tParam
+        }
+        val targetUsage = (target.type as IrParameterizedClassifier).apply {
+            putTypeArgument(tParam, buildNullableType { innerType = bound.type })
+        }
+        val stubFunc = buildFunctionDeclaration {
+            name = "stubFoo"
+            language = Language.KOTLIN
+            returnType = IrAny
+            isOverride = true
+            isOverrideStub = true
+            parameterList = buildParameterList {
+                parameters += buildParameter {
+                    name = "p"
+                    type = targetUsage
+                }
+            }
+            body = buildBlock()
+        }
+        val user = buildClassDeclaration {
+            name = "User"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            functions += stubFunc
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += bound
+                classes += target
+                classes += user
+            }
+        }
+
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(mutateClassTypeParameterUpperBoundNullabilityWeight = 1),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+        )
+        mutator.mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `relaxing upper bound nullability preserves dependent type parameter self usage`() {
+        val bound = buildClassDeclaration {
+            name = "Bound"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val targetParameter = buildTypeParameter {
+            name = "T"
+            upperbound = bound.type
+        }
+        val dependentParameter = buildTypeParameter {
+            name = "U"
+            upperbound = targetParameter
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            typeParameters += targetParameter
+            typeParameters += dependentParameter
+        }
+        val selfUsage = (target.type as IrParameterizedClassifier).apply {
+            putTypeArgument(targetParameter, dependentParameter)
+            putTypeArgument(
+                dependentParameter,
+                IrTypeArgument(IrVariance.CONTRAVARIANT, dependentParameter),
+            )
+        }
+        target.functions += buildFunctionDeclaration {
+            name = "foo"
+            language = Language.KOTLIN
+            returnType = selfUsage
+            parameterList = buildParameterList()
+            body = buildBlock()
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += bound
+                classes += target
+            }
+        }
+
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(mutateClassTypeParameterUpperBoundNullabilityWeight = 1),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+        )
+        mutator.mutate(program)?.first shouldBe SemanticValidity.VALID
+    }
+
+    @Test
+    fun `relaxing upper bound nullability when used as argument for generic class with nullable upper bound is valid`() {
+        val bound = buildClassDeclaration {
+            name = "Bound"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+        }
+        val tOther = buildTypeParameter {
+            name = "TOther"
+            upperbound = buildNullableType { innerType = bound.type }
+        }
+        val otherGeneric = buildClassDeclaration {
+            name = "OtherGeneric"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            typeParameters += tOther
+        }
+        val tParam = buildTypeParameter {
+            name = "T"
+            upperbound = bound.type
+        }
+        val otherGenericUsage = (otherGeneric.type as IrParameterizedClassifier).apply {
+            putTypeArgument(tOther, buildNullableType { innerType = tParam })
+        }
+        val func = buildFunctionDeclaration {
+            name = "foo"
+            language = Language.KOTLIN
+            returnType = otherGenericUsage
+            parameterList = buildParameterList()
+            body = buildBlock()
+        }
+        val target = buildClassDeclaration {
+            name = "Target"
+            language = Language.KOTLIN
+            classKind = ClassKind.OPEN
+            typeParameters += tParam
+            functions += func
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += bound
+                classes += target
+                classes += otherGeneric
+            }
+        }
+
+        val mutator = IrMutator(
+            config = MutatorConfig.allZero.copy(mutateClassTypeParameterUpperBoundNullabilityWeight = 1),
+            generator = IrDeclGenerator(random = alwaysFalseRandom),
+        )
+        val res = mutator.mutate(program)
+        res?.first shouldBe SemanticValidity.VALID
     }
 
     private fun upperBoundMutator() = IrMutator(
@@ -1275,6 +1682,53 @@ class IrMutatorSemanticValidityTest {
 
         val mutator = returnTypeNullabilityMutator()
         mutator.mutateReturnTypeNullability(program)?.first shouldBe SemanticValidity.INVALID
+    }
+
+    @Test
+    fun `Java return type parameter with nullable upper bound is platform type for Kotlin override`() {
+        val typeParam = buildTypeParameter {
+            name = "T0"
+            upperbound = buildNullableType { innerType = IrAny }
+        }
+        val parentFunction = returnTypeFunction(
+            Language.JAVA,
+            buildNullableType { innerType = typeParam },
+        )
+        val parent = buildClassDeclaration {
+            name = "Parent"
+            language = Language.JAVA
+            classKind = ClassKind.INTERFACE
+            typeParameters += typeParam
+            functions += parentFunction
+        }
+        val childFunction = returnTypeFunction(
+            Language.KOTLIN,
+            buildNullableType { innerType = IrAny },
+        ).apply {
+            isOverride = true
+            override += parentFunction
+        }
+        val child = buildClassDeclaration {
+            name = "Child"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            implementedTypes += (parent.type as IrParameterizedClassifier).apply {
+                putTypeArgument(typeParam, IrAny)
+            }
+            functions += childFunction
+        }.apply {
+            allSuperTypeArguments[IrTypeParameterName(typeParam.name)] = typeParam to IrAny
+        }
+        val program = buildProgram {
+            modules += buildModule {
+                name = "main"
+                classes += child
+                classes += parent
+            }
+        }
+
+        val mutator = returnTypeNullabilityMutator()
+        mutator.mutateReturnTypeNullability(program)?.first shouldBe SemanticValidity.VALID
     }
 
     @Test
