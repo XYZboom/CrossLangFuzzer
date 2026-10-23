@@ -9,4 +9,5 @@ data class RunConfig(
     val langShuffleTimesBeforeMutate: Int = 3,
     val langShuffleTimesAfterMutate: Int = 3,
     val mutateTimes: Int = 5,
+    val seed: Long = 0L,
 )

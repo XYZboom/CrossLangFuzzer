@@ -7,7 +7,7 @@ data class GeneratorConfig(
     val nameLengthRange: IntRange = 3..8,
     val javaRatio: Float = 0.5f,
     //<editor-fold desc="Top Level">
-    val topLevelDeclRange: IntRange = 8..15,
+    val topLevelDeclRange: IntRange = 12..20,
     val topLevelClassWeight: Int = 3,
     val topLevelFunctionWeight: Int = 1,
     val topLevelPropertyWeight: Int = 1,
@@ -18,8 +18,8 @@ data class GeneratorConfig(
      */
     val classHasSuperProbability: Float = 0.3f,
     val classImplNumRange: IntRange = 0..3,
-    val classMemberNumRange: IntRange = 1..3,
-    val classMemberIsFunctionWeight: Int = 3,
+    val classMemberNumRange: IntRange = 3..6,
+    val classMemberIsFunctionWeight: Int = 4,
     val classMemberIsPropertyWeight: Int = 2,
     val classHasTypeParameterProbability: Float = 0.3f,
     val classTypeParameterNumberRange: IntRange = 1..3,

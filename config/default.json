@@ -6,8 +6,8 @@
     ],
     "javaRatio": 0.5,
     "topLevelDeclRange": [
-      8,
-      15
+      12,
+      20
     ],
     "topLevelClassWeight": 3,
     "topLevelFunctionWeight": 1,
@@ -18,10 +18,10 @@
       3
     ],
     "classMemberNumRange": [
-      1,
-      3
+      3,
+      6
     ],
-    "classMemberIsFunctionWeight": 3,
+    "classMemberIsFunctionWeight": 4,
     "classMemberIsPropertyWeight": 2,
     "classHasTypeParameterProbability": 0.3,
     "classTypeParameterNumberRange": [
@@ -80,5 +80,6 @@
   },
   "langShuffleTimesBeforeMutate": 3,
   "langShuffleTimesAfterMutate": 3,
-  "mutateTimes": 5
+  "mutateTimes": 5,
+  "seed": 0
 }

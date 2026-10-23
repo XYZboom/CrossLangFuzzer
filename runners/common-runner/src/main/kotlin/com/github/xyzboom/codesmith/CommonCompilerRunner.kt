@@ -11,6 +11,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.long
 import com.github.xyzboom.codesmith.RunMode.DifferentialTest
 import com.github.xyzboom.codesmith.RunMode.GenerateIROnly
 import com.github.xyzboom.codesmith.RunMode.NormalTest
@@ -33,6 +34,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 import kotlin.math.max
 import kotlin.time.Duration
 import kotlin.time.measureTime
@@ -183,6 +185,9 @@ abstract class CommonCompilerRunner(
     protected val maxRounds by option("--max-rounds")
         .int()
         .default(0)
+    private val seedOption by option("--seed")
+        .long()
+        .help("Initial seed; each generated program uses this seed plus its zero-based program index.")
 
     protected lateinit var runConfig: RunConfig
     protected val outDir by run<OptionWithValues<File, File, File>> {
@@ -231,10 +236,32 @@ abstract class CommonCompilerRunner(
     protected open fun validateOptions() {}
 
     protected open fun createGenerator(majorLanguage: Language = runnerLanguage): IrDeclGenerator =
-        IrDeclGenerator(runConfig.generatorConfig, majorLanguage = majorLanguage)
+        IrDeclGenerator(
+            runConfig.generatorConfig,
+            random = Random(currentProgramSeed ?: initialSeed),
+            majorLanguage = majorLanguage,
+        )
 
     protected open fun generateProgram(generator: IrDeclGenerator): IrProgram =
         generator.genProgram()
+
+    private fun createSeededProgram(majorLanguage: Language = runnerLanguage): Pair<IrDeclGenerator, IrProgram> {
+        val programIndex = generatedProgramCount
+        currentProgramIndex = programIndex
+        currentProgramSeed = Math.addExact(initialSeed, programIndex)
+        val generator = createGenerator(majorLanguage)
+        val program = generateProgram(generator)
+        generatedProgramCount = Math.addExact(programIndex, 1L)
+        return generator to program
+    }
+
+    private fun currentSeedMetadata(): Map<String, String> {
+        val seed = currentProgramSeed ?: return emptyMap()
+        val index = currentProgramIndex ?: return emptyMap()
+        return mapOf(
+            "seed.txt" to "initial_seed=$initialSeed\nprogram_index=$index\nprogram_seed=$seed\n",
+        )
+    }
 
     protected open fun prepareProgramForTarget(program: IrProgram, target: CompilerTarget) {
         program.setMajorLanguage(target.majorLanguage)
@@ -262,6 +289,10 @@ abstract class CommonCompilerRunner(
     private val rawReportCount = AtomicInteger(0)
     private val differentialReportCount = AtomicInteger(0)
     private val generatedIRCount = AtomicInteger(0)
+    private var initialSeed = 0L
+    private var generatedProgramCount = 0L
+    private var currentProgramIndex: Long? = null
+    private var currentProgramSeed: Long? = null
     internal var reportedSummary: String? = null
         private set
 
@@ -314,6 +345,7 @@ abstract class CommonCompilerRunner(
         program: IrProgram,
         targets: List<CompilerTarget>,
         results: List<CompileResult>,
+        metadata: Map<String, String> = emptyMap(),
     ): Boolean {
         var foundError = false
         for ((index, result) in results.withIndex()) {
@@ -329,6 +361,7 @@ abstract class CommonCompilerRunner(
                 minimized,
                 minimizedResults,
                 outDir = outDir,
+                metadata = metadata,
             )
             if (report != null) rawReportCount.incrementAndGet()
         }
@@ -360,6 +393,7 @@ abstract class CommonCompilerRunner(
         program: IrProgram,
         targets: List<CompilerTarget>,
         differential: Boolean,
+        metadata: Map<String, String> = emptyMap(),
     ): Boolean? {
         var succeeded: Boolean? = null
         val duration = measureTime {
@@ -367,11 +401,11 @@ abstract class CommonCompilerRunner(
             val classification = classifyCompilation(null, results, differential)
             val foundError = if (differential) {
                 if (classification.differentialDisagreement) {
-                    recordDifferentialDisagreement(program, targets, results)
+                    recordDifferentialDisagreement(program, targets, results, metadata)
                     true
                 } else false
             } else {
-                recordNormalBaselineFailures(program, targets, results)
+                recordNormalBaselineFailures(program, targets, results, metadata)
             }
             if (foundError && stopOnErrors) stopRequested = true
             succeeded = results.all { it.success }
@@ -401,6 +435,7 @@ abstract class CommonCompilerRunner(
         generator: IrDeclGenerator,
         targets: List<CompilerTarget>,
         differential: Boolean,
+        programMetadata: Map<String, String>,
     ): Boolean {
         val mutatedProgram = baselineProgram.deepCopy()
         val descriptions = mutableListOf<String>()
@@ -420,6 +455,7 @@ abstract class CommonCompilerRunner(
                     val classification = classifyCompilation(expected, actualResults, differential)
                     if (classification.oracleMismatch || classification.differentialDisagreement) {
                         val metadata = buildMap {
+                            putAll(programMetadata)
                             if (classification.oracleMismatch) {
                                 put("mutation-oracle.txt", mutationMetadata(expected, targets, actualResults, descriptions))
                                 put("mutation-summary.txt", mutationMetadata(expected, targets, actualResults, descriptions))
@@ -480,17 +516,18 @@ abstract class CommonCompilerRunner(
         program: IrProgram,
         targets: List<CompilerTarget>,
         differential: Boolean,
+        metadata: Map<String, String>,
     ): Boolean {
         val baselineVariants = if (differential) max(1, runConfig.langShuffleTimesBeforeMutate) else 1
         var allBaselinesSucceeded = true
         repeat(baselineVariants) { variantIndex ->
-            val succeeded = baseline(program, targets, differential) ?: return false
+            val succeeded = baseline(program, targets, differential, metadata) ?: return false
             if (!succeeded) allBaselinesSucceeded = false
             if (stopRequested) return true
             if (differential && variantIndex + 1 < baselineVariants) generator.shuffleLanguage(program)
         }
         if (allBaselinesSucceeded && runConfig.mutateTimes > 0) {
-            return runMutationChain(program, generator, targets, differential)
+            return runMutationChain(program, generator, targets, differential, metadata)
         }
         return true
     }
@@ -499,15 +536,13 @@ abstract class CommonCompilerRunner(
         while (!stopRequested) {
             if (differential) {
                 if (!budget.hasCapacityFor(targets.size)) return
-                val generator = createGenerator()
-                val program = generateProgram(generator)
-                if (!processGeneratedProgram(generator, program, targets, differential = true)) return
+                val (generator, program) = createSeededProgram()
+                if (!processGeneratedProgram(generator, program, targets, differential = true, metadata = currentSeedMetadata())) return
             } else {
                 for (target in targets) {
                     if (!budget.hasCapacityFor(1)) return
-                    val generator = createGenerator(target.majorLanguage)
-                    val program = generateProgram(generator)
-                    if (!processGeneratedProgram(generator, program, listOf(target), differential = false)) return
+                    val (generator, program) = createSeededProgram(target.majorLanguage)
+                    if (!processGeneratedProgram(generator, program, listOf(target), differential = false, metadata = currentSeedMetadata())) return
                     if (stopRequested) return
                 }
             }
@@ -519,10 +554,10 @@ abstract class CommonCompilerRunner(
         while (!stopRequested) {
             if (maxRounds in 1..generated) break
             val duration = measureTime {
-                val generator = createGenerator()
-                val program = generateProgram(generator)
+                val (_, program) = createSeededProgram()
                 val outDir = File(generateIROnlyOutDir, System.nanoTime().toHexString()).mkdirsIfNotExists()
                 File(outDir, "main.json").writer().use { gson.toJson(program, it) }
+                File(outDir, "seed.txt").writeText(currentSeedMetadata().getValue("seed.txt"))
             }
             generated++
             generatedIRCount.incrementAndGet()
@@ -630,10 +665,14 @@ abstract class CommonCompilerRunner(
         rawReportCount.set(0)
         differentialReportCount.set(0)
         generatedIRCount.set(0)
+        generatedProgramCount = 0L
+        currentProgramIndex = null
+        currentProgramSeed = null
         reportedSummary = null
         runConfig = if (!configFile.exists()) RunConfig() else {
             configFile.reader().use { configGson.fromJson(it, RunConfig::class.java) }
         }
+        initialSeed = seedOption ?: runConfig.seed
         budget = CompilationBudget(maxRounds)
         validateOptions()
 

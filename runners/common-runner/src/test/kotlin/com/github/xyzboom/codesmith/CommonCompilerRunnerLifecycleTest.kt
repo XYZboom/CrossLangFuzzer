@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith
 
 import com.github.ajalt.clikt.parsers.CommandLineParser
+import com.github.xyzboom.codesmith.config.RunConfig
+import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
@@ -10,6 +12,7 @@ import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
 import com.github.xyzboom.codesmith.mutator.MutatorLanguageSemantics
 import com.github.xyzboom.codesmith.mutator.SemanticValidity
+import com.github.xyzboom.codesmith.serde.configGson
 import com.github.xyzboom.codesmith.serde.gson
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeAll
@@ -219,6 +222,76 @@ class CommonCompilerRunnerLifecycleTest {
         assertTrue(outDir.exists())
         val generatedDirs = outDir.listFiles() ?: emptyArray()
         assertEquals(2, generatedDirs.size)
+    }
+
+    @Test
+    fun `generated programs use consecutive seeds from CLI override or config`(@TempDir tempDir: File) {
+        val configFile = File(tempDir, "config.json").apply {
+            writeText(configGson.toJson(RunConfig(seed = 100L, mutateTimes = 0)))
+        }
+
+        fun collectSeeds(name: String, vararg extraArgs: String): List<String> {
+            val output = File(tempDir, name).apply { mkdirs() }
+            val runner = TestableRunner(customProgram = buildProgram { })
+            runner.runWithArgs(
+                "-m", "ironly",
+                "--max-rounds", "2",
+                "--config-file", configFile.absolutePath,
+                "-iro", output.absolutePath,
+                *extraArgs,
+            )
+            return output.walkTopDown()
+                .filter { it.isFile && it.name == "seed.txt" }
+                .map { it.readText() }
+                .toList()
+                .sorted()
+        }
+
+        assertEquals(
+            listOf(
+                "initial_seed=700\nprogram_index=0\nprogram_seed=700\n",
+                "initial_seed=700\nprogram_index=1\nprogram_seed=701\n",
+            ),
+            collectSeeds("cli-seed", "--seed", "700"),
+        )
+        assertEquals(
+            listOf(
+                "initial_seed=100\nprogram_index=0\nprogram_seed=100\n",
+                "initial_seed=100\nprogram_index=1\nprogram_seed=101\n",
+            ),
+            collectSeeds("config-seed"),
+        )
+    }
+
+    @Test
+    fun `compiler failure report includes the exact program seed`(@TempDir tempDir: File) {
+        val configFile = File(tempDir, "config.json").apply {
+            writeText(configGson.toJson(RunConfig(seed = 100L, mutateTimes = 0)))
+        }
+        val output = File(tempDir, "reports").apply { mkdirs() }
+        val compiler = FakeTestCompiler("failing") { CompileResult("failing", "expected test failure", null) }
+        val runner = TestableRunner(
+            normalList = listOf(CompilerTarget("failing", compiler, Language.KOTLIN)),
+            customProgram = buildProgram { },
+        )
+
+        runner.runWithArgs(
+            "-m", "normal",
+            "--max-rounds", "1",
+            "--config-file", configFile.absolutePath,
+            "--seed", "42",
+            "-o", output.absolutePath,
+        )
+
+        val report = output.listFiles()!!.single { it.isDirectory }
+        assertEquals("initial_seed=42\nprogram_index=0\nprogram_seed=42\n", File(report, "seed.txt").readText())
+    }
+
+    @Test
+    fun `default generator configuration increases class and method counts`() {
+        assertEquals(12..20, GeneratorConfig.default.topLevelDeclRange)
+        assertEquals(3..6, GeneratorConfig.default.classMemberNumRange)
+        assertEquals(4, GeneratorConfig.default.classMemberIsFunctionWeight)
     }
 
     @Test
