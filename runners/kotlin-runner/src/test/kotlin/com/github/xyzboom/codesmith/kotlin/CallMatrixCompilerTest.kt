@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 
 /** Real-K2 execution proof for the complete inherited receiver matrix. */
 class CallMatrixCompilerTest {
+    /** Exercises parent-instance, child-instance, and child-as-parent static receiver shapes. */
     @Test
     fun `concrete Kotlin parent and child execute all three parent receiver shapes`() {
         val parent = clazz("MatrixParent", Language.KOTLIN, ClassKind.OPEN, "parentFun")

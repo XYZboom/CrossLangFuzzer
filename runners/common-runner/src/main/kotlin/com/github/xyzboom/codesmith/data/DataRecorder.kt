@@ -96,7 +96,7 @@ open class DataRecorder {
         program.accept(ProgramDataVisitor(), data)
         val sourceFiles = IrProgramPrinter(printStub = false).print(program)
         data.lineOfCode = sourceFiles
-            .filterKeys { it !in IrProgramPrinter.Companion.extraSourceFileNames }
+            .filterKeys { it !in extraSourceFileNames }
             .values
             .sumOf { it.lines().count() }
         return data
