@@ -31,7 +31,7 @@ import kotlin.test.assertEquals
 
 class JavaIrClassPrinterTest {
     companion object {
-        private val todoFunctionBody = "${" ".repeat(8)}throw new RuntimeException();\n"
+        private val todoFunctionBody = "${" ".repeat(8)}throw new UnsupportedOperationException();\n"
     }
 
     @Test

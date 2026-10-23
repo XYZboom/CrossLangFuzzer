@@ -94,10 +94,11 @@ open class DataRecorder {
     protected fun processProgram(program: IrProgram): ProgramData {
         val data = ProgramData(programCount = 1)
         program.accept(ProgramDataVisitor(), data)
-        data.lineOfCode = IrProgramPrinter(printStub = false).print(program).values
-            .filter {
-                it !in extraSourceFileNames
-            }.sumOf { it.lines().count() }
+        val sourceFiles = IrProgramPrinter(printStub = false).print(program)
+        data.lineOfCode = sourceFiles
+            .filterKeys { it !in IrProgramPrinter.Companion.extraSourceFileNames }
+            .values
+            .sumOf { it.lines().count() }
         return data
     }
 }

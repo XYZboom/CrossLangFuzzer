@@ -15,10 +15,18 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import com.github.xyzboom.codesmith.printer.clazz.DefaultValueSupport.classDeclarationOrNull
 import com.github.xyzboom.codesmith.printer.TypeContext
 import com.github.xyzboom.codesmith.printer.TypeContext.TypeParameterDeclaration
 
-class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(printStub = printStub) {
+class KtIrClassPrinter(
+    printStub: Boolean = true,
+    /** When `true`, a generated function body returns a real value instead of throwing, so that
+     * the call site in `box()` really executes and the returned type takes part in the
+     * compiler's type checking.
+     */
+    val emitExecutableDefaults: Boolean = false,
+) : AbstractIrClassPrinter(printStub = printStub) {
 
     companion object {
         private val builtInNames = buildMap {
@@ -27,12 +35,9 @@ class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(print
             put(IrUnit, "Unit")
         }
 
-        /**
-         * For java interaction
-         */
+        /** For java interaction */
         const val TOP_LEVEL_CONTAINER_CLASS_NAME = "MainKt"
     }
-
 
     override fun print(element: IrClassDeclaration): String {
         val data = StringBuilder()
@@ -56,7 +61,7 @@ class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(print
     override fun printTypeDirectly(
         irType: IrType,
         typeContext: TypeContext,
-        noNullabilityAnnotation: Boolean
+        noNullabilityAnnotation: Boolean,
     ): String {
         return when (irType) {
             is IrNullableType -> return "${printType(irType.innerType)}?"
@@ -95,8 +100,7 @@ class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(print
                 "${irType.name} : ${printType(irType.upperbound)}"
             }
 
-            /**
-             * ```kt
+            /** ```kt
              * class A<T: Any?> {
              *     fun foo(t: T!)
              * }
@@ -284,7 +288,12 @@ class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(print
         val function = elementStack.peek() as IrFunctionDeclaration
         if (block.expressions.isEmpty()) {
             data.append(indent)
-            data.append("throw RuntimeException()\n")
+            if (emitExecutableDefaults) {
+                data.append(executableReturnStatement(function))
+                data.append("\n")
+            } else {
+                data.append("throw UnsupportedOperationException()\n")
+            }
         } else {
             require(function.returnType === IrUnit /*|| block.expressions.last() is IrReturnExpression*/)
         }
@@ -329,4 +338,193 @@ class KtIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(print
     override fun visitDefaultImplExpression(defaultImpl: IrDefaultImpl, data: StringBuilder) {
         data.append("TODO()")
     }*/
+
+    /**
+     * An anonymous subclass of an abstract class or an interface, overriding every abstract
+     * member with its default value.
+     *
+     * An abstract class needs its constructor called (`object : Abs() { }`), an interface must
+     * not have one (`object : Iface { }`). Getting this wrong reports
+     * `SUPERTYPE_NOT_INITIALIZED: This type has a constructor, so it must be initialized here`.
+     *
+     * @param baseIndent the indentation of the line the expression starts on.
+     * @param depth the current nesting depth of anonymous subclasses.
+     */
+    fun printAnonymousSubclass(
+        default: DefaultValue.AnonymousSubclass,
+        baseIndent: String,
+        depth: Int = 0,
+    ): String {
+        if (depth >= DefaultValueSupport.MAX_ANONYMOUS_SUBCLASS_DEPTH) {
+            return "throw ${DefaultValueSupport.UNAVAILABLE_EXCEPTION}()"
+        }
+        val superType = anonymousSuperType(default)
+        if (default.members.isEmpty()) {
+            return "object : $superType {}"
+        }
+        val body = default.members.joinToString("\n") { member ->
+            printMemberOverride(member, default, depth + 1)
+        }
+        val indentedBody = body.lines().joinToString("\n") { "$baseIndent    $it" }
+        return "object : $superType {\n$indentedBody\n$baseIndent}"
+    }
+
+    /**
+     * The supertype of the anonymous subclass, with its type arguments.
+     */
+    private fun anonymousSuperType(default: DefaultValue.AnonymousSubclass): String {
+        val typeArguments = if (default.typeArguments.isEmpty()) {
+            ""
+        } else {
+            "<" + default.typeArguments.joinToString(", ") { printType(it) } + ">"
+        }
+        val name = "${default.classDecl.name}$typeArguments"
+        return if (default.hasConstructor) "$name()" else name
+    }
+
+    /**
+     * Renders one member of an anonymous subclass, overriding it with its default value.
+     *
+     * The type parameter bounds must be repeated, because an override with different bounds does
+     * not implement the abstract member.
+     *
+     * If the member belongs to the supertype class (which has type parameters),
+     * we can't safely override it because its signature references those type parameters.
+     * Just throw the exception.
+     */
+    fun printMemberOverride(
+        member: IrFunctionDeclaration,
+        default: DefaultValue.AnonymousSubclass,
+        depth: Int,
+    ): String {
+        // If the member belongs to the supertype class (which has type parameters),
+        // we can't safely override it because its signature references those type parameters.
+        // Just throw the exception.
+        val typeArgMap = buildMap<IrTypeParameterName, Pair<IrTypeParameter, IrType>> {
+            default.typeArguments.forEachIndexed { index, typeArg ->
+                val typeParameter = default.classDecl.typeParameters[index]
+                put(IrTypeParameterName(typeParameter.name), typeParameter to typeArg)
+            }
+        }
+
+        if (member.containingClassName == default.classDecl.name) {
+            val returnType = getActualTypeFromArguments(member.returnType, typeArgMap, true)
+            val paramTypes = member.parameterList.parameters.map { p ->
+                getActualTypeFromArguments(p.type, typeArgMap, true)
+            }
+            if (returnType !is IrTypeParameter && paramTypes.any { p -> p.containsTypeParameter() }) {
+                return buildString {
+                    append("override fun ")
+                    if (member.typeParameters.isNotEmpty()) {
+                        append(member.typeParameters.joinToString(prefix = "<", postfix = ">") { tp ->
+                            "${tp.name}: ${printType(tp.upperbound)}"
+                        })
+                    }
+                    append("${member.name}(")
+                    append(member.parameterList.parameters.joinToString(", ") { p ->
+                        "${p.name}: ${printType(p.type, typeContext = TypeContext.Parameter)}"
+                    })
+                    append("): ${printType(returnType, typeContext = TypeContext.ReturnType)} = ")
+                    append("throw ${DefaultValueSupport.UNAVAILABLE_EXCEPTION}()")
+                }
+            }
+        }
+
+        // Also skip if the member's class is a supertype of the anonymous subclass.
+        // The member's signature may reference the supertype's type parameters,
+        // which are not in scope in the anonymous subclass.
+        val supertypeNames = mutableSetOf<String>()
+        default.classDecl.superType?.let { it.classDeclarationOrNull()?.name?.also { supertypeNames.add(it) } }
+        default.classDecl.implementedTypes
+            .mapNotNull { it.classDeclarationOrNull()?.name }
+            .forEach { supertypeNames.add(it) }
+        if (member.containingClassName in supertypeNames) {
+            val returnType = getActualTypeFromArguments(member.returnType, typeArgMap, true)
+            val paramTypes = member.parameterList.parameters.map { p ->
+                getActualTypeFromArguments(p.type, typeArgMap, true)
+            }
+            if (returnType !is IrTypeParameter && paramTypes.any { p -> p.containsTypeParameter() }) {
+                return buildString {
+                    append("override fun ")
+                    if (member.typeParameters.isNotEmpty()) {
+                        append(member.typeParameters.joinToString(prefix = "<", postfix = ">") { tp ->
+                            "${tp.name}: ${printType(tp.upperbound)}"
+                        })
+                    }
+                    append("${member.name}(")
+                    append(member.parameterList.parameters.joinToString(", ") { p ->
+                        "${p.name}: ${printType(p.type, typeContext = TypeContext.Parameter)}"
+                    })
+                    append("): ${printType(returnType, typeContext = TypeContext.ReturnType)} = ")
+                    append("throw ${DefaultValueSupport.UNAVAILABLE_EXCEPTION}()")
+                }
+            }
+        }
+
+        // Safe case: member is from a different class (e.g., a mixin/interface not equal to supertype)
+        // or we're not dealing with the supertype's type parameters directly.
+        val typeParameters = if (member.typeParameters.isEmpty()) {
+            ""
+        } else {
+            member.typeParameters.joinToString(prefix = "<", postfix = ">") { typeParameter ->
+                "${typeParameter.name}: ${printType(typeParameter.upperbound)}"
+            }
+        }
+        val parameters = member.parameterList.parameters.joinToString(", ") { parameter ->
+            "${parameter.name}: ${printType(parameter.type, typeContext = TypeContext.Parameter)}"
+        }
+        val returnTypeResolved = getActualTypeFromArguments(member.returnType, typeArgMap, true)
+        val paramTypesResolved = member.parameterList.parameters.map { p ->
+            getActualTypeFromArguments(p.type, typeArgMap, true)
+        }
+        val returnType = if (returnTypeResolved is IrTypeParameter || paramTypesResolved.any { p -> p.containsTypeParameter() }) {
+            printType(member.returnType, typeContext = TypeContext.ReturnType)
+        } else {
+            printType(returnTypeResolved, typeContext = TypeContext.ReturnType)
+        }
+        val value = executableValueExpression(
+            returnTypeResolved,
+            default.classDecl,
+            member,
+            depth,
+        )
+        return "override fun $typeParameters${member.name}($parameters): $returnType = $value"
+    }
+
+    /** The statement that returns a value of the function's declared return type. */
+    private fun executableReturnStatement(function: IrFunctionDeclaration): String {
+        val value = DefaultValueSupport.defaultValue(function.returnType, lastClass, function)
+        return when (value) {
+            is DefaultValue.Unavailable -> "throw ${DefaultValueSupport.UNAVAILABLE_EXCEPTION}()"
+            is DefaultValue.Null -> "return null"
+            is DefaultValue.UnitValue -> "return Unit"
+            is DefaultValue.AnyValue -> "return Any()"
+            is DefaultValue.Constructor -> "return ${constructorCallExpression(value)}"
+            is DefaultValue.AnonymousSubclass -> "return ${printAnonymousSubclass(value, indent)}"
+        }
+    }
+
+    /** The expression that creates an instance of a concrete class. */
+    private fun constructorCallExpression(value: DefaultValue.Constructor): String {
+        if (value.typeArguments.isEmpty()) return "${value.classDecl.name}()"
+        val typeArguments = value.typeArguments.joinToString(", ") { typeArgument ->
+            printType(typeArgument, typeContext = TypeContext.TypeArgument)
+        }
+        return "${value.classDecl.name}<$typeArguments>()"
+    }
+
+    /** A value expression for an anonymous-subclass member body. */
+    private fun executableValueExpression(
+        type: IrType,
+        owner: IrClassDeclaration?,
+        function: IrFunctionDeclaration?,
+        depth: Int,
+    ): String = when (val value = DefaultValueSupport.defaultValue(type, owner, function, depth)) {
+        is DefaultValue.Unavailable -> "throw ${DefaultValueSupport.UNAVAILABLE_EXCEPTION}()"
+        is DefaultValue.Null -> "null"
+        is DefaultValue.UnitValue -> "Unit"
+        is DefaultValue.AnyValue -> "Any()"
+        is DefaultValue.Constructor -> constructorCallExpression(value)
+        is DefaultValue.AnonymousSubclass -> printAnonymousSubclass(value, indent, depth)
+    }
 }
