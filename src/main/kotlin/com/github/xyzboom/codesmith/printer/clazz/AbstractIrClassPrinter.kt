@@ -30,7 +30,9 @@ abstract class AbstractIrClassPrinter(
     val IrFunctionDeclaration.topLevel: Boolean
         get() {
             require(elementStack.peek() === this)
-            return elementStack.size > 1 && elementStack[1] is IrProgram
+            // The direct container of the function decides whether it is a top level one: the
+            // program for a top level declaration, the class for a member declaration.
+            return elementStack.size > 1 && elementStack[elementStack.size - 2] is IrProgram
         }
 
     val lastClass: IrClassDeclaration?

@@ -32,7 +32,7 @@ import kotlin.test.assertEquals
 
 class KtIrClassPrinterTest {
     companion object {
-        private val todoFunctionBody = "${" ".repeat(8)}throw RuntimeException()\n"
+        private val todoFunctionBody = "${" ".repeat(8)}throw UnsupportedOperationException()\n"
         private val todoPropertyInitExpr = "TODO()"
     }
 
