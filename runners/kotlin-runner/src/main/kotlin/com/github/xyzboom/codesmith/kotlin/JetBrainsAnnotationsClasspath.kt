@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull
 import java.io.File
 import java.lang.annotation.ElementType
 import java.lang.annotation.Target
+import java.net.URL
 
 /** Returns the pinned JetBrains annotations artifact used by generated-source compiles. */
 internal fun jetbrainsAnnotationsJar(): File {
@@ -13,9 +14,20 @@ internal fun jetbrainsAnnotationsJar(): File {
         "Resolved org.jetbrains.annotations.NotNull does not support TYPE_USE"
     }
 
-    val location = annotationClass.protectionDomain.codeSource?.location
-        ?: error("Cannot locate the resolved org.jetbrains:annotations artifact")
-    val jar = File(location.toURI())
+    return annotationsJarFromCodeSource(
+        location = annotationClass.protectionDomain.codeSource?.location,
+        classLoader = annotationClass.classLoader,
+        classpath = System.getProperty("java.class.path") ?: "<unset>",
+    )
+}
+
+internal fun annotationsJarFromCodeSource(location: URL?, classLoader: ClassLoader?, classpath: String): File {
+    val resolvedLocation = location
+        ?: error(
+            "Cannot locate the resolved org.jetbrains:annotations artifact " +
+                "(classLoader=${classLoader ?: "bootstrap"}, java.class.path=$classpath)"
+        )
+    val jar = File(resolvedLocation.toURI())
     require(jar.isFile) { "Resolved JetBrains annotations location is not a file: $jar" }
     return jar
 }

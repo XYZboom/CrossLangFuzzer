@@ -9,8 +9,10 @@ data class SccClassBatch(
     val classes: List<IrClassDeclaration>,
 )
 
+/** Identifies a function whose parameter list is temporarily changed in a snapshot. */
 data class SccFunctionKey(val className: String, val functionIndex: Int)
 
+/** Replayable source-state edit; SCC additions are atomic and parameter edits are separate. */
 sealed interface SccIncrementalEdit {
     val componentIndex: Int
 
@@ -34,6 +36,7 @@ sealed interface SccIncrementalEdit {
     ) : SccIncrementalEdit
 }
 
+/** One materializable compiler state in the planned incremental edit sequence. */
 data class SccIncrementalSnapshot(
     val includedClassNames: List<String>,
     /** Only functions whose parameter lists are temporarily truncated. */
@@ -68,6 +71,8 @@ data class SccIncrementalPartitionPlan(
         return List(stageCount) { stageIndex ->
             val start = stageIndex * sccBatches.size / stageCount
             val end = (stageIndex + 1) * sccBatches.size / stageCount
+            // stageCount <= batch count, so integer partition boundaries must leave each stage nonempty.
+            check(start < end) { "SCC stage partition unexpectedly produced an empty stage" }
             sccBatches.subList(start, end)
         }
     }

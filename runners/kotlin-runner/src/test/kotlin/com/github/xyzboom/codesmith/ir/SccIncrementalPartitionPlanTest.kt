@@ -6,6 +6,19 @@ import org.junit.jupiter.api.Test
 
 class SccIncrementalPartitionPlanTest {
     @Test
+    fun `empty class snapshot is a valid baseline and leaves the source program unchanged`() {
+        val program = generatedSccTestProgram().program
+        val originalClassNames = program.classes.map { it.name }.toSet()
+
+        val emptySnapshot = program.materializeClassSnapshot(emptyList())
+
+        assertTrue(emptySnapshot.classes.isEmpty())
+        assertEquals(originalClassNames, program.classes.map { it.name }.toSet())
+        val emptyPlan = emptySnapshot.sccIncrementalPartitionPlan(seed = 19)
+        assertTrue(emptyPlan.sccStages(requestedStageCount = 3).isEmpty())
+    }
+
+    @Test
     fun `SCC atomic and refined plans preserve dependency components and reach full program`() {
         val generated = generatedSccTestProgram()
         val program = generated.program

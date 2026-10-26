@@ -143,7 +143,7 @@ abstract class CommonCompilerRunner(
                         DifferentialTest -> "[diff]: Generate IR automatically. Test compiler(s) differentially.\u0085"
                         GenerateIROnly -> "[ironly]: Generate and save IR automatically only. Do no tests.\u0085"
                         ReduceOnly -> "[reduce]: Reduce the input IR only.\u0085"
-                        IncrementalTest -> "[incremental]: Generate single-module mixed Kotlin/Java IR, run bounded source/signature/declaration/file/output mutations plus staged SCC schedules, and compare every state with a clean compilation.\u0085"
+                        IncrementalTest -> "[incremental]: Generate single-module mixed Kotlin/Java IR (does not accept --input/-i), run bounded source/signature/declaration/file/output mutations plus staged SCC schedules, and compare every state with a clean compilation.\u0085"
                     }
                     sb.append(modeHelpString)
                 }
@@ -706,7 +706,7 @@ abstract class CommonCompilerRunner(
                 "No input IR file, cannot run ReduceOnly mode."
             }
             require(!(files != null && runMode == IncrementalTest)) {
-                "Incremental mode currently generates new single-module Kotlin programs; input IR is not supported."
+                "Incremental mode currently generates new single-module mixed Kotlin/Java programs; input IR is not supported."
             }
 
             val targets = when (runMode) {
