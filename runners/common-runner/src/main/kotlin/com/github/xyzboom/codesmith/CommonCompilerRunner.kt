@@ -14,6 +14,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import com.github.xyzboom.codesmith.RunMode.DifferentialTest
 import com.github.xyzboom.codesmith.RunMode.GenerateIROnly
+import com.github.xyzboom.codesmith.RunMode.IncrementalTest
 import com.github.xyzboom.codesmith.RunMode.NormalTest
 import com.github.xyzboom.codesmith.RunMode.ReduceOnly
 import com.github.xyzboom.codesmith.config.RunConfig
@@ -130,6 +131,7 @@ abstract class CommonCompilerRunner(
                     DifferentialTest -> "diff"
                     GenerateIROnly -> "ironly"
                     ReduceOnly -> "reduce"
+                    IncrementalTest -> "incremental"
                 }
             }
             .default(DifferentialTest, "diff")
@@ -141,6 +143,7 @@ abstract class CommonCompilerRunner(
                         DifferentialTest -> "[diff]: Generate IR automatically. Test compiler(s) differentially.\u0085"
                         GenerateIROnly -> "[ironly]: Generate and save IR automatically only. Do no tests.\u0085"
                         ReduceOnly -> "[reduce]: Reduce the input IR only.\u0085"
+                        IncrementalTest -> "[incremental]: Generate single-module mixed Kotlin/Java IR, run bounded source/signature/declaration/file/output mutations plus staged SCC schedules, and compare every state with a clean compilation.\u0085"
                     }
                     sb.append(modeHelpString)
                 }
@@ -190,6 +193,7 @@ abstract class CommonCompilerRunner(
         .help("Initial seed; each generated program uses this seed plus its zero-based program index.")
 
     protected lateinit var runConfig: RunConfig
+    protected val campaignSeed: Long get() = initialSeed
     protected val outDir by run<OptionWithValues<File, File, File>> {
         option("-o", "--out").file(
             mustExist = false,
@@ -234,6 +238,18 @@ abstract class CommonCompilerRunner(
     protected abstract fun differentialTargets(): List<CompilerTarget>
 
     protected open fun validateOptions() {}
+
+    /** Kotlin Runner overrides this for the isolated incremental-vs-clean fuzzing mode. */
+    protected open fun runIncrementalFuzzing() {
+        error("Incremental fuzzing is not supported by this runner")
+    }
+
+    protected fun reserveExternalCompilerGroup(size: Int): Boolean = budget.reserveCompleteGroup(size)
+    protected fun recordExternalCompilerInvocation() = budget.recordCompletedInvocation()
+    protected fun reportExternalCompilerRound(duration: Duration) {
+        println("${roundIndex.incrementAndGet()}:$duration\t\t")
+    }
+    protected fun recordExternalReport() = rawReportCount.incrementAndGet()
 
     protected open fun createGenerator(majorLanguage: Language = runnerLanguage): IrDeclGenerator =
         IrDeclGenerator(
@@ -627,6 +643,7 @@ abstract class CommonCompilerRunner(
                     println("${roundIndex.incrementAndGet()}:$duration\t\t")
                 }
                 GenerateIROnly -> error("Using input IR file, cannot run GenerateIROnly mode.")
+                IncrementalTest -> error("Incremental mode does not accept input IR.")
             }
             logStatistics()
         }
@@ -688,13 +705,18 @@ abstract class CommonCompilerRunner(
             require(!(files == null && runMode == ReduceOnly)) {
                 "No input IR file, cannot run ReduceOnly mode."
             }
+            require(!(files != null && runMode == IncrementalTest)) {
+                "Incremental mode currently generates new single-module Kotlin programs; input IR is not supported."
+            }
 
             val targets = when (runMode) {
                 NormalTest -> normalTargets()
                 DifferentialTest, ReduceOnly -> differentialTargets()
-                GenerateIROnly -> emptyList()
+                GenerateIROnly, IncrementalTest -> emptyList()
             }
-            if (runMode != GenerateIROnly) require(targets.isNotEmpty()) { "No compiler targets configured." }
+            if (runMode != GenerateIROnly && runMode != IncrementalTest) {
+                require(targets.isNotEmpty()) { "No compiler targets configured." }
+            }
 
             if (files != null) {
                 runOnInputIRFiles(files, targets, runMode == DifferentialTest)
@@ -704,6 +726,7 @@ abstract class CommonCompilerRunner(
                     DifferentialTest -> runGenerated(targets, differential = true)
                     GenerateIROnly -> runGenerateIROnly()
                     ReduceOnly -> error("No input IR file, cannot run ReduceOnly mode.")
+                    IncrementalTest -> runIncrementalFuzzing()
                 }
             }
             logStatistics()

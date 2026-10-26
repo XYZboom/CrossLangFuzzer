@@ -46,6 +46,7 @@ class TestableRunner(
     var normalTargetsCalled = false
     var diffTargetsCalled = false
     var generateCalls = 0
+    var incrementalModeCalls = 0
     val generatorLanguages = mutableListOf<Language>()
     val mutatedPrograms = mutableListOf<IrProgram>()
     val prepareTargetsCalled = mutableListOf<CompilerTarget>()
@@ -82,6 +83,10 @@ class TestableRunner(
     override fun prepareProgramForTarget(program: IrProgram, target: CompilerTarget) {
         prepareTargetsCalled.add(target)
         super.prepareProgramForTarget(program, target)
+    }
+
+    override fun runIncrementalFuzzing() {
+        incrementalModeCalls++
     }
 }
 
@@ -164,6 +169,15 @@ class CommonCompilerRunnerLifecycleTest {
         diffRunner.runWithArgs("-m", "diff", "--max-rounds", "2")
         assertFalse(diffRunner.normalTargetsCalled)
         assertTrue(diffRunner.diffTargetsCalled)
+    }
+
+    @Test
+    fun `incremental mode dispatches to runner hook`() {
+        val runner = TestableRunner()
+        runner.runWithArgs("-m", "incremental", "--max-rounds", "2")
+        assertEquals(1, runner.incrementalModeCalls)
+        assertFalse(runner.normalTargetsCalled)
+        assertFalse(runner.diffTargetsCalled)
     }
 
     @Test

@@ -1,6 +1,10 @@
 package com.github.xyzboom.codesmith.kotlin
 
 import com.github.ajalt.clikt.core.main
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.help
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.int
 import com.github.xyzboom.codesmith.CommonCompilerRunner
 import com.github.xyzboom.codesmith.CompilerTarget
 import com.github.xyzboom.codesmith.ir.Language
@@ -113,6 +117,43 @@ class CrossLangFuzzerKotlinRunner : CommonCompilerRunner("kotlin") {
     override fun differentialTargets(): List<CompilerTarget> = listOf(
         CompilerTarget("k2-jdk17", K2Jdk17Compiler, Language.KOTLIN)
     )
+
+    private val scheduleRepeats by option("--schedule-repeats")
+        .int()
+        .default(3)
+        .help("Number of independent schedule runs per generated program in incremental mode.")
+
+    private val sccStageCount by option("--scc-stage-count")
+        .int()
+        .default(3)
+        .help("Number of automatic dependency-first SCC stages per incremental validity schedule (SCCs remain atomic).")
+
+    private val stateChangeSteps by option("--state-change-steps")
+        .int()
+        .default(8)
+        .help("Maximum local source/file/output state mutations per generated program schedule in incremental mode.")
+
+    private val incrementalCompilesPerRound by option("--incremental-compiles-per-round")
+        .int()
+        .default(4)
+        .help("Number of consecutive retained-state incremental compilations in one test round; each snapshot is checked against a clean build.")
+
+    override fun runIncrementalFuzzing() {
+        K2IncrementalFuzzer(
+            generatorConfig = runConfig.generatorConfig,
+            baseSeed = campaignSeed,
+            maxCompilerSubmissions = maxRounds,
+            scheduleRepeatCount = scheduleRepeats,
+            outputDirectory = outDir,
+            reserveCompilerGroup = ::reserveExternalCompilerGroup,
+            recordCompilerReturn = ::recordExternalCompilerInvocation,
+            reportRound = ::reportExternalCompilerRound,
+            reportMismatch = ::recordExternalReport,
+            sccStageCount = sccStageCount,
+            stateChangeSteps = stateChangeSteps,
+            incrementalCompilesPerRound = incrementalCompilesPerRound,
+        ).run()
+    }
 }
 
 fun isMutationOracleSatisfied(

@@ -22,6 +22,7 @@ dependencies {
     implementation(project(":runners:common-runner"))
     implementation(kotlin("compiler-internal-test-framework", kotlinVersion))
     implementation(kotlin("compiler", kotlinVersion))
+    implementation("org.jetbrains:annotations:26.1.0")
     runtimeOnly(kotlin("test-junit5"))
     runtimeOnly("junit:junit:4.13.2")
     runtimeOnly(kotlin("reflect"))
