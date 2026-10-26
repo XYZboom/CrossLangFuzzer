@@ -73,6 +73,22 @@ Once a bug is detected, the output will be shown in `CrossLangFuzzer/out/min`
 Run `./gradlew :runners:kotlin-runner:run --args="-s" -Dorg.gradle.java.home=/path/to/jdk_greater_11`
 for full command line usage.
 
+### Incremental K2 Testing
+
+The incremental mode compares retained-state K2 compilations with clean compilations of the same source snapshots.
+Set `JDK_17_0` to an installed JDK 17 home for the compiler test harness (unless the Gradle JVM itself is JDK 17), then run a bounded smoke test:
+
+```bash
+mkdir -p out
+export JDK_17_0=/path/to/jdk-17
+set -o pipefail
+./gradlew -Dorg.gradle.java.home=/path/to/jdk-11-or-newer :runners:kotlin-runner:run --args="--mode incremental --config-file config/default-kotlin-bytecode.json --max-rounds 64 --seed 20261400 --schedule-repeats 1 --scc-stage-count 3 --state-change-steps 11 --incremental-compiles-per-round 4 --out out/incremental-smoke" 2>&1 | tee out/incremental-smoke.log
+```
+
+`--max-rounds` is the compiler-submission budget, not the number of logical test rounds. A full logical round has four retained-state incremental compilations, each paired with a clean compile (eight submissions total); the final budget can leave a partial round. Omit `--stop-on-errors` for a bounded campaign that should continue collecting outcomes. Snapshot sources, compiler results/diagnostics, binary comparisons, and IR are written under the selected `--out` directory, in `incremental/run-<timestamp>-seed-<seed>/`; `tee` above saves the console log separately.
+
+The differential oracle treats two failed builds as provisionally equivalent while retaining their diagnostics; one success and one failure is a mismatch; two successful builds are compared by class inventory and bytecode. For larger campaigns, increase `--max-rounds`, use a fresh `--out` directory, and preserve the seed and configuration for replay.
+
 ### Groovy Runner
 ```bash
 # in CrossLangFuzzer

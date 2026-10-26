@@ -5,4 +5,5 @@ enum class RunMode {
     DifferentialTest,
     GenerateIROnly,
     ReduceOnly,
+    IncrementalTest,
 }
