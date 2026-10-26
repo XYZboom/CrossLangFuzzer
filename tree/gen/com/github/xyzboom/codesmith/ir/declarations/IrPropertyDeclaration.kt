@@ -7,6 +7,7 @@ package com.github.xyzboom.codesmith.ir.declarations
 
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 
@@ -16,6 +17,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 abstract class IrPropertyDeclaration : IrDeclaration() {
     abstract override var name: String
     abstract override var language: Language
+    abstract override var visibility: Visibility
 
     override fun <R, D> accept(visitor: IrVisitor<R, D>, data: D): R =
         visitor.visitPropertyDeclaration(this, data)
@@ -27,4 +29,6 @@ abstract class IrPropertyDeclaration : IrDeclaration() {
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrPropertyDeclaration
 
     abstract override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrPropertyDeclaration
+
+    abstract override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrPropertyDeclaration
 }

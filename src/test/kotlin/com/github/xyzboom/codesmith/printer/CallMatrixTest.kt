@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
@@ -22,6 +23,7 @@ import com.github.xyzboom.codesmith.ir.types.builder.buildTypeParameter
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrNothing
 import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -63,6 +65,117 @@ class CallMatrixTest {
 
         // Child-direct and Child-as-Root. The two inheritance paths must not duplicate either.
         assertTrue(rootCalls == 2, "expected 2 root calls, got $rootCalls")
+    }
+
+    @Test
+    fun `the separate harness matrix only invokes public declarations`() {
+        val kotlinPublic = function("kotlinPublic", Language.KOTLIN)
+        val kotlinProtected = function("kotlinProtected", Language.KOTLIN).apply { visibility = Visibility.PROTECTED }
+        val kotlinInternal = function("kotlinInternal", Language.KOTLIN).apply { visibility = Visibility.INTERNAL }
+        val kotlinPrivate = function("kotlinPrivate", Language.KOTLIN).apply { visibility = Visibility.PRIVATE }
+        val kotlinOwner = buildClassDeclaration {
+            name = "KotlinOwner"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+            functions += listOf(kotlinPublic, kotlinProtected, kotlinInternal, kotlinPrivate)
+        }
+
+        val javaPublic = function("javaPublic", Language.JAVA)
+        val javaProtected = function("javaProtected", Language.JAVA).apply { visibility = Visibility.PROTECTED }
+        val javaPackagePrivate = function("javaPackagePrivate", Language.JAVA).apply {
+            visibility = Visibility.PACKAGE_PRIVATE
+        }
+        val javaPrivate = function("javaPrivate", Language.JAVA).apply { visibility = Visibility.PRIVATE }
+        val javaOwner = buildClassDeclaration {
+            name = "JavaOwner"
+            language = Language.JAVA
+            classKind = ClassKind.FINAL
+            functions += listOf(javaPublic, javaProtected, javaPackagePrivate, javaPrivate)
+        }
+
+        val calls = CallMatrix.receivers(listOf(kotlinOwner, javaOwner))
+            .flatMap { it.calls }
+            .map { it.function }
+            .toSet()
+
+        assertEquals(setOf(kotlinPublic, javaPublic), calls)
+    }
+
+    @Test
+    fun `public nested Java and Kotlin classes are invoked through qualified types`() {
+        val kotlinNested = buildClassDeclaration {
+            name = "KotlinNested"
+            language = Language.KOTLIN
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.FINAL
+            functions += function("kotlinNestedFun", Language.KOTLIN)
+        }
+        val privateNested = buildClassDeclaration {
+            name = "PrivateNested"
+            language = Language.KOTLIN
+            visibility = Visibility.PRIVATE
+            classKind = ClassKind.FINAL
+            functions += function("privateNestedFun", Language.KOTLIN)
+        }
+        val kotlinOuter = buildClassDeclaration {
+            name = "KotlinOuter"
+            language = Language.KOTLIN
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.FINAL
+            classes += kotlinNested
+            classes += privateNested
+        }
+        val javaNested = buildClassDeclaration {
+            name = "JavaNested"
+            language = Language.JAVA
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.FINAL
+            functions += function("javaNestedFun", Language.JAVA)
+        }
+        val javaOuter = buildClassDeclaration {
+            name = "JavaOuter"
+            language = Language.JAVA
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.FINAL
+            classes += javaNested
+        }
+        val program = buildProgram {
+            classes += kotlinOuter
+            classes += javaOuter
+        }
+
+        val source = IrProgramPrinter().printToSingle(program)
+
+        assertTrue("val KotlinNestedReceiver = KotlinOuter.KotlinNested()" in source, source)
+        assertTrue("KotlinNestedReceiver.kotlinNestedFun()" in source, source)
+        assertTrue("val JavaNestedReceiver = JavaOuter.JavaNested()" in source, source)
+        assertTrue("JavaNestedReceiver.javaNestedFun()" in source, source)
+        assertFalse("PrivateNestedReceiver" in source, source)
+    }
+
+    @Test
+    fun `non-public top-level classes do not become harness receiver types`() {
+        val hiddenParent = buildClassDeclaration {
+            name = "HiddenParent"
+            language = Language.KOTLIN
+            visibility = Visibility.INTERNAL
+            classKind = ClassKind.OPEN
+            functions += function("inheritedFun", Language.KOTLIN)
+        }
+        val publicChild = buildClassDeclaration {
+            name = "PublicChild"
+            language = Language.KOTLIN
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.FINAL
+            superType = buildSimpleClassifier { classDecl = hiddenParent }
+        }
+
+        val receivers = CallMatrix.receivers(listOf(hiddenParent, publicChild))
+
+        assertFalse(receivers.any { it.receiverClass === hiddenParent })
+        assertFalse(receivers.any {
+            com.github.xyzboom.codesmith.ir.types.areEqualTypes(it.staticType, hiddenParent.type)
+        })
     }
 
     @Test

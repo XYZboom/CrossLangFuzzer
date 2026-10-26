@@ -1,6 +1,7 @@
 package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -132,7 +133,9 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
     }
 
     override fun visitClassDeclaration(clazz: IrClassDeclaration, data: StringBuilder) {
+        val topLevel = elementStack.none { it is IrClassDeclaration }
         data.append(indent)
+        data.append(scalaVisibility(clazz.visibility, topLevel))
         data.append(printIrClassType(clazz.classKind))
         data.append(clazz.name)
         val typeParameters = clazz.typeParameters
@@ -147,16 +150,23 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
             data.append("]")
         }
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
-        if (clazz.functions.isNotEmpty()) {
+        val hasMembers = clazz.functions.isNotEmpty() || clazz.classes.isNotEmpty()
+        if (hasMembers) {
             data.append(" {\n")
-
-            indentCount++
             super.visitClassDeclaration(clazz, data)
-            indentCount--
-
             data.append(indent)
             data.append("}\n")
+        } else {
+            data.append("\n")
         }
+    }
+
+    private fun scalaVisibility(visibility: Visibility, topLevel: Boolean): String = when (visibility) {
+        Visibility.PUBLIC -> ""
+        Visibility.PROTECTED -> if (topLevel) error("Top-level Scala declarations cannot be protected") else "protected "
+        Visibility.PRIVATE -> if (topLevel) error("Top-level Scala declarations cannot be private") else "private "
+        Visibility.PACKAGE_PRIVATE -> error("Scala package-private visibility needs package context")
+        Visibility.INTERNAL -> error("Scala has no Kotlin internal visibility")
     }
 
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
@@ -175,6 +185,7 @@ class ScalaIrClassPrinter(printStub: Boolean = true) : AbstractIrClassPrinter(pr
             data.append("/*\n")
         }
         data.append(indent)
+        data.append(scalaVisibility(function.visibility, function.topLevel))
         if (function.isOverride) {
             data.append("override ")
         }

@@ -8,6 +8,7 @@
 package com.github.xyzboom.codesmith.ir.declarations.impl
 
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.visitors.IrTransformer
 import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
@@ -15,6 +16,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 internal class IrPropertyDeclarationImpl(
     override var name: String,
     override var language: Language,
+    override var visibility: Visibility,
 ) : IrPropertyDeclaration() {
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {}
@@ -28,6 +30,10 @@ internal class IrPropertyDeclarationImpl(
     }
 
     override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrPropertyDeclarationImpl {
+        return this
+    }
+
+    override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrPropertyDeclarationImpl {
         return this
     }
 }

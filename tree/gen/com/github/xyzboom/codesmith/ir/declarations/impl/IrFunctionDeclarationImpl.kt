@@ -9,6 +9,7 @@ package com.github.xyzboom.codesmith.ir.declarations.impl
 
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -20,6 +21,7 @@ import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 internal class IrFunctionDeclarationImpl(
     override var name: String,
     override var language: Language,
+    override var visibility: Visibility,
     override var typeParameters: MutableList<IrTypeParameter>,
     override var printNullableAnnotations: Boolean,
     override var body: IrBlock?,
@@ -46,6 +48,10 @@ internal class IrFunctionDeclarationImpl(
     }
 
     override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
+        return this
+    }
+
+    override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
         return this
     }
 

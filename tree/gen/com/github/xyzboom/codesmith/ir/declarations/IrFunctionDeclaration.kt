@@ -8,6 +8,7 @@ package com.github.xyzboom.codesmith.ir.declarations
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -21,6 +22,7 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer {
     abstract override var name: String
     abstract override var language: Language
+    abstract override var visibility: Visibility
     abstract override var typeParameters: MutableList<IrTypeParameter>
     abstract var printNullableAnnotations: Boolean
     abstract var body: IrBlock?
@@ -42,6 +44,8 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
     abstract override fun <D> transformName(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 
     abstract override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
+
+    abstract override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 
     abstract override fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 

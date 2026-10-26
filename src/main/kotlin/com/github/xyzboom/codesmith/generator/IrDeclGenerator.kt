@@ -1,8 +1,10 @@
 package com.github.xyzboom.codesmith.generator
 
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.IrModule
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
 import com.github.xyzboom.codesmith.ir.builder.buildProgram
@@ -209,6 +211,69 @@ open class IrDeclGenerator(
         return majorLanguage
     }
 
+    private fun randomVisibility(language: Language, topLevel: Boolean): Visibility {
+        // Top-level types are used as cross-file and cross-language signature types throughout
+        // the graph. Keep them public so no generated public API leaks a less-visible type.
+        if (topLevel) return Visibility.PUBLIC
+        val choices = when (language) {
+            Language.JAVA -> listOf(Visibility.PUBLIC, Visibility.PROTECTED, Visibility.PACKAGE_PRIVATE, Visibility.PRIVATE)
+            Language.KOTLIN -> listOf(Visibility.PUBLIC, Visibility.PROTECTED, Visibility.INTERNAL, Visibility.PRIVATE)
+            else -> listOf(Visibility.PUBLIC)
+        }
+        return choices.random(random)
+    }
+
+    private fun randomMethodVisibility(language: Language): Visibility {
+        val choices = when (language) {
+            Language.JAVA -> listOf(
+                Visibility.PUBLIC to config.functionPublicVisibilityWeight,
+                Visibility.PROTECTED to config.functionProtectedVisibilityWeight,
+                Visibility.PACKAGE_PRIVATE to config.functionPackagePrivateVisibilityWeight,
+                Visibility.PRIVATE to config.functionPrivateVisibilityWeight,
+            )
+            Language.KOTLIN -> listOf(
+                Visibility.PUBLIC to config.functionPublicVisibilityWeight,
+                Visibility.PROTECTED to config.functionProtectedVisibilityWeight,
+                Visibility.INTERNAL to config.functionInternalVisibilityWeight,
+                Visibility.PRIVATE to config.functionPrivateVisibilityWeight,
+            )
+            else -> listOf(Visibility.PUBLIC to 1)
+        }
+        val totalWeight = choices.sumOf { (_, weight) -> weight }
+        require(totalWeight > 0) { "Method visibility weights for $language must sum to a positive value" }
+        var selection = random.nextInt(totalWeight)
+        for ((visibility, weight) in choices) {
+            if (selection < weight) return visibility
+            selection -= weight
+        }
+        error("Unreachable method visibility selection for $language")
+    }
+
+    private fun overrideVisibility(
+        overridden: List<IrFunctionDeclaration>,
+        language: Language,
+    ): Visibility {
+        val inheritedVisibilities = overridden.map { it.visibility }.distinct()
+        val preserved = when (inheritedVisibilities.singleOrNull()) {
+            Visibility.PUBLIC -> Visibility.PUBLIC
+            Visibility.PROTECTED -> Visibility.PROTECTED
+            Visibility.PACKAGE_PRIVATE -> if (language == Language.JAVA) Visibility.PACKAGE_PRIVATE else Visibility.PUBLIC
+            Visibility.INTERNAL -> if (language == Language.KOTLIN) Visibility.INTERNAL else Visibility.PUBLIC
+            Visibility.PRIVATE, null -> Visibility.PUBLIC
+        }
+        return if (preserved != Visibility.PUBLIC &&
+            random.nextBoolean(config.overrideVisibilityWidenProbability)
+        ) {
+            when {
+                inheritedVisibilities.singleOrNull() == Visibility.PACKAGE_PRIVATE && language == Language.JAVA ->
+                    if (random.nextBoolean()) Visibility.PROTECTED else Visibility.PUBLIC
+                else -> Visibility.PUBLIC
+            }
+        } else {
+            preserved
+        }
+    }
+
     fun shuffleLanguage(prog: IrProgram) {
         for (clazz in prog.classes) {
             clazz.language = randomLanguage()
@@ -235,9 +300,135 @@ open class IrDeclGenerator(
         repeat(config.topLevelDeclRange.random(random)) {
             genClass(context = program, randomName(true), randomLanguage())
         }
+        // Nested declarations retain the enclosing language. Random class kinds make some
+        // visible nested types usable as class or interface supertypes.
+        val nestedDeclarations = mutableListOf<Pair<IrClassDeclaration, IrClassDeclaration>>()
+        for (outer in program.classes.toList()) {
+            if (random.nextBoolean(config.nestedClassProbability)) {
+                repeat(config.nestedClassNumRange.random(random)) {
+                    val kind = randomClassKind()
+                    val nested = buildClassDeclaration {
+                        name = randomName(true)
+                        language = outer.language
+                        // Keep nested declarations inside interfaces public; otherwise vary visibility
+                        // independently of whether the nested type is final, open, or abstract.
+                        visibility = if (outer.classKind == ClassKind.INTERFACE) {
+                            Visibility.PUBLIC
+                        } else {
+                            randomVisibility(outer.language, topLevel = false)
+                        }
+                        classKind = kind
+                        allSuperTypeArguments = mutableMapOf()
+                    }
+                    outer.classes += nested
+                    nestedDeclarations += outer to nested
+                }
+            }
+        }
+        addNestedSupertypes(program, nestedDeclarations)
         logger.trace { "finish gen program" }
-        return partitionClassesToModules(program.classes, config.moduleNumRange, random).also {
-            it.nullabilityAnnotationProvider = program.nullabilityAnnotationProvider
+        return partitionClassesToModules(program.classes, config.moduleNumRange, random).also { generated ->
+            generated.nullabilityAnnotationProvider = program.nullabilityAnnotationProvider
+            if (generated.modules.size > 1) {
+                val classToModule = mutableMapOf<IrClassDeclaration, IrModule>()
+                val functionOwners = mutableMapOf<IrFunctionDeclaration, IrClassDeclaration>()
+                fun register(clazz: IrClassDeclaration, module: IrModule) {
+                    classToModule[clazz] = module
+                    clazz.functions.forEach { functionOwners[it] = clazz }
+                    clazz.classes.forEach { register(it, module) }
+                }
+                for (module in generated.modules) {
+                    for (clazz in module.classes) register(clazz, module)
+                }
+                // Kotlin internal members are module-scoped. Widen internal declarations
+                // crossing module boundaries, then propagate public visibility through override
+                // descendants so a later widening cannot leave an earlier override narrowed.
+                val forcedPublic = mutableSetOf<IrFunctionDeclaration>()
+                var changed: Boolean
+                do {
+                    changed = false
+                    for ((function, childClass) in functionOwners) {
+                        if (function.language != Language.KOTLIN) continue
+                        for (parent in function.override) {
+                            if (parent.language != Language.KOTLIN) continue
+                            val parentClass = functionOwners[parent] ?: continue
+                            val crossesModule = classToModule[childClass] !== classToModule[parentClass]
+                            val widensInternalAcrossModules =
+                                parent.visibility == Visibility.INTERNAL && crossesModule
+                            if (parent.visibility == Visibility.PUBLIC || widensInternalAcrossModules || parent in forcedPublic) {
+                                if (forcedPublic.add(function)) changed = true
+                                if (widensInternalAcrossModules && forcedPublic.add(parent)) changed = true
+                            }
+                        }
+                    }
+                } while (changed)
+                forcedPublic.forEach { it.visibility = Visibility.PUBLIC }
+            }
+        }
+    }
+
+    private fun addNestedSupertypes(
+        program: IrProgram,
+        nestedDeclarations: List<Pair<IrClassDeclaration, IrClassDeclaration>>,
+    ) {
+        val rootClasses = program.classes.toList()
+        val rootIndex = rootClasses.withIndex().associate { it.value to it.index }
+        val nestedInheritanceLanguages = setOf(Language.JAVA, Language.KOTLIN)
+
+        fun addNestedInterface(
+            target: IrClassDeclaration,
+            owner: IrClassDeclaration?,
+            candidates: List<Pair<IrClassDeclaration, IrClassDeclaration>>,
+        ) {
+            if (target.language !in nestedInheritanceLanguages) return
+            val interfaces = candidates.filter { (nestedOwner, nested) ->
+                nestedOwner !== owner && nested.language in nestedInheritanceLanguages &&
+                    nested.visibility == Visibility.PUBLIC && nested.classKind == ClassKind.INTERFACE &&
+                    target.implementedTypes.none { it is IrClassifier && it.classDecl === nested }
+            }
+            if (interfaces.isEmpty() || !random.nextBoolean(config.nestedTypeAsSuperProbability)) return
+            val nestedInterface = interfaces.random(random).second
+            target.implementedTypes += nestedInterface.type
+            subClassMap.getOrPut(nestedInterface) { mutableListOf() }.add(target)
+        }
+
+        for ((targetIndex, target) in rootClasses.withIndex()) {
+            // Only point from a later top-level declaration to an earlier owner. This preserves
+            // the generator's dependency-first acyclic inheritance construction.
+            val eligibleNested = nestedDeclarations.filter { (owner, _) ->
+                rootIndex[owner]?.let { it < targetIndex } == true
+            }
+            if (target.language in nestedInheritanceLanguages && target.classKind != ClassKind.INTERFACE &&
+                target.superType === IrAny && random.nextBoolean(config.nestedTypeAsSuperProbability)
+            ) {
+                val nestedBases = eligibleNested.filter { (_, nested) ->
+                    nested.language in nestedInheritanceLanguages && nested.visibility == Visibility.PUBLIC &&
+                        nested.classKind in setOf(ClassKind.OPEN, ClassKind.ABSTRACT)
+                }
+                nestedBases.randomOrNull(random)?.second?.let { nestedBase ->
+                    target.superType = nestedBase.type
+                    subClassMap.getOrPut(nestedBase) { mutableListOf() }.add(target)
+                }
+            }
+            addNestedInterface(target, owner = target, candidates = eligibleNested)
+        }
+
+        for ((index, pair) in nestedDeclarations.withIndex()) {
+            val (owner, target) = pair
+            val earlierNested = nestedDeclarations.take(index).filter { it.first !== owner }
+            if (target.language in nestedInheritanceLanguages && target.classKind != ClassKind.INTERFACE &&
+                target.superType === IrAny && random.nextBoolean(config.nestedTypeAsSuperProbability)
+            ) {
+                val nestedBases = earlierNested.filter { (_, nested) ->
+                    nested.language in nestedInheritanceLanguages && nested.visibility == Visibility.PUBLIC &&
+                        nested.classKind in setOf(ClassKind.OPEN, ClassKind.ABSTRACT)
+                }
+                nestedBases.randomOrNull(random)?.second?.let { nestedBase ->
+                    target.superType = nestedBase.type
+                    subClassMap.getOrPut(nestedBase) { mutableListOf() }.add(target)
+                }
+            }
+            addNestedInterface(target, owner, earlierNested)
         }
     }
 
@@ -599,7 +790,16 @@ open class IrDeclGenerator(
     fun IrClassDeclaration.genOverrides() {
         logger.trace { "start gen overrides for: ${this.name}" }
 
-        val signatureMap = collectFunctionSignatureMap()
+        val signatureMap = collectFunctionSignatureMap().mapNotNull { (signature, pair) ->
+            fun availableFromCurrentLanguage(function: IrFunctionDeclaration): Boolean =
+                function.visibility != Visibility.PRIVATE &&
+                    !(language == Language.JAVA && function.language == Language.KOTLIN &&
+                        function.visibility == Visibility.INTERNAL)
+            val visibleSuper = pair.first?.takeIf(::availableFromCurrentLanguage)
+            val visibleInterfaces = pair.second.filter(::availableFromCurrentLanguage).toMutableSet()
+            if (visibleSuper == null && visibleInterfaces.isEmpty()) null
+            else signature to (visibleSuper to visibleInterfaces)
+        }.toMap().toMutableMap()
         val (mustOverrides, canOverride, stubOverride) = getOverrideCandidates(signatureMap)
 
         for ((superFunc, intfFunc) in mustOverrides) {
@@ -649,6 +849,56 @@ open class IrDeclGenerator(
         }
     }
 
+    private fun IrClassDeclaration.hasUnimplementedKotlinInternalAbstractMember(): Boolean {
+        if (classKind == ClassKind.ABSTRACT || classKind == ClassKind.INTERFACE) {
+            return false
+        }
+
+        val ancestors = mutableListOf<IrClassDeclaration>()
+        val visited = mutableSetOf(this)
+        fun collect(type: IrType?) {
+            val classifier = type as? IrClassifier ?: return
+            val ancestor = classifier.classDecl
+            if (!visited.add(ancestor)) return
+            ancestors += ancestor
+            collect(ancestor.superType)
+            ancestor.implementedTypes.forEach(::collect)
+        }
+        collect(superType)
+        implementedTypes.forEach(::collect)
+
+        val inheritedInternalAbstracts = ancestors
+            .asSequence()
+            .flatMap { it.functions.asSequence() }
+            .filter {
+                it.language == Language.KOTLIN &&
+                    it.visibility == Visibility.INTERNAL &&
+                    it.body == null &&
+                    !it.isOverrideStub
+            }
+            .toList()
+        if (inheritedInternalAbstracts.isEmpty()) return false
+
+        val hierarchyFunctions = (listOf(this) + ancestors).flatMap { it.functions }
+        fun IrFunctionDeclaration.overridesTransitively(target: IrFunctionDeclaration): Boolean {
+            val seen = mutableSetOf<IrFunctionDeclaration>()
+            fun visits(function: IrFunctionDeclaration): Boolean {
+                if (!seen.add(function)) return false
+                if (function === target) return true
+                return function.override.any(::visits)
+            }
+            return override.any(::visits)
+        }
+
+        return inheritedInternalAbstracts.any { required ->
+            hierarchyFunctions.none { implementation ->
+                implementation.body != null &&
+                    !implementation.isOverrideStub &&
+                    implementation.overridesTransitively(required)
+            }
+        }
+    }
+
     fun genClass(
         context: IrProgram, name: String = randomName(true), language: Language = randomLanguage()
     ): IrClassDeclaration {
@@ -656,6 +906,7 @@ open class IrDeclGenerator(
             this.name = name
             this.classKind = randomClassKind()
             this.language = language
+            this.visibility = randomVisibility(language, topLevel = true)
             allSuperTypeArguments = mutableMapOf()
         }
         context.modules.first().classes.add(clazz)
@@ -678,6 +929,11 @@ open class IrDeclGenerator(
                 )
             }
             genOverrides()
+            if (hasUnimplementedKotlinInternalAbstractMember()) {
+                // Keep the inheritance edge, but do not emit a concrete class when the
+                // generated source has no legal implementation for an inherited abstract member.
+                classKind = ClassKind.ABSTRACT
+            }
         }
         return clazz
     }
@@ -706,6 +962,11 @@ open class IrDeclGenerator(
         return buildFunctionDeclaration {
             this.name = name
             this.language = language
+            this.visibility = when {
+                inIntf -> Visibility.PUBLIC
+                topLevel -> randomVisibility(language, topLevel = true)
+                else -> randomMethodVisibility(language)
+            }
             if (funcContainer is IrClassDeclaration) {
                 this.containingClassName = funcContainer.name
             }
@@ -731,6 +992,10 @@ open class IrDeclGenerator(
                     else -> false
                 }
             }
+            // Abstract declarations cannot be private in either source language. Private
+            // declarations also cannot be open/overridden in Kotlin.
+            if (body == null) visibility = Visibility.PUBLIC
+            if (visibility == Visibility.PRIVATE) isFinal = true
             for (i in 0 until config.functionParameterNumRange.random(random)) {
                 parameterList.parameters.add(
                     genFunctionParameter(
@@ -777,6 +1042,7 @@ open class IrDeclGenerator(
         val function = buildFunctionDeclaration {
             this.name = first.name
             this.language = language
+            this.visibility = overrideVisibility(from, language)
             for (typeParam in first.typeParameters) {
                 val typeParameter = typeParam.copy()
                 /**

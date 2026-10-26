@@ -53,9 +53,17 @@ internal class K2IncrementalFuzzer(
     private val recordCompilerReturn: () -> Unit,
     private val reportRound: (kotlin.time.Duration) -> Unit,
     private val reportMismatch: () -> Unit,
+    private val reportSummary: (String) -> Unit = { println(it) },
     private val sccStageCount: Int = 3,
     private val stateChangeSteps: Int = 0,
     private val incrementalCompilesPerRound: Int = 4,
+    private val mismatchClassifier: (
+        Boolean,
+        Boolean,
+        Map<String, String>,
+        Map<String, String>,
+        Boolean?,
+    ) -> List<String> = ::incrementalCleanMismatchReasons,
 ) {
     private val printer = IrProgramPrinter()
     private var completedPairs = 0
@@ -165,12 +173,14 @@ internal class K2IncrementalFuzzer(
                         repeatIndex = repeatIndex,
                         scheduleSeed = scheduleSeed,
                         trajectoryName = "state-changes",
-                        snapshots = stateMutationSnapshots(
-                            program = program,
-                            scheduleSeed = scheduleSeed,
-                            requestedSteps = stateChangeSteps,
-                            incrementalOutput = repeatDirectory.resolve("state-changes/incremental/classes"),
-                        ),
+                        snapshots = { incrementalOutput ->
+                            stateMutationSnapshots(
+                                program = program,
+                                scheduleSeed = scheduleSeed,
+                                requestedSteps = stateChangeSteps,
+                                incrementalOutput = incrementalOutput,
+                            )
+                        },
                     )
                 ) return
                 if (!runTrajectory(
@@ -180,9 +190,11 @@ internal class K2IncrementalFuzzer(
                         repeatIndex = repeatIndex,
                         scheduleSeed = scheduleSeed,
                         trajectoryName = "scc-validity",
-                        snapshots = sccSnapshots.mapIndexed { index, snapshot ->
-                            K2IncrementalSnapshot(snapshot, sccStages[index])
-                        }.asSequence(),
+                        snapshots = { _ ->
+                            sccSnapshots.mapIndexed { index, snapshot ->
+                                K2IncrementalSnapshot(snapshot, sccStages[index])
+                            }.asSequence()
+                        },
                     )
                 ) return
                 if (!runTrajectory(
@@ -192,9 +204,11 @@ internal class K2IncrementalFuzzer(
                         repeatIndex = repeatIndex,
                         scheduleSeed = scheduleSeed,
                         trajectoryName = "parameter-stress",
-                        snapshots = parameterSnapshots.mapIndexed { index, snapshot ->
-                            K2IncrementalSnapshot(snapshot, parameterStages[index])
-                        }.asSequence(),
+                        snapshots = { _ ->
+                            parameterSnapshots.mapIndexed { index, snapshot ->
+                                K2IncrementalSnapshot(snapshot, parameterStages[index])
+                            }.asSequence()
+                        },
                     )
                 ) return
             }
@@ -210,11 +224,37 @@ internal class K2IncrementalFuzzer(
         repeatIndex: Int,
         scheduleSeed: Long,
         trajectoryName: String,
-        snapshots: Sequence<K2IncrementalSnapshot>,
+        snapshots: (Path) -> Sequence<K2IncrementalSnapshot>,
+    ): Boolean {
+        val workspaceDirectory = Files.createTempDirectory("codesmith-k2-incremental-")
+        return try {
+            runTrajectoryInWorkspace(
+                caseDirectory = caseDirectory,
+                programIndex = programIndex,
+                generationSeed = generationSeed,
+                repeatIndex = repeatIndex,
+                scheduleSeed = scheduleSeed,
+                trajectoryName = trajectoryName,
+                workspaceDirectory = workspaceDirectory,
+                snapshots = snapshots,
+            )
+        } finally {
+            workspaceDirectory.toFile().deleteRecursively()
+        }
+    }
+
+    private fun runTrajectoryInWorkspace(
+        caseDirectory: Path,
+        programIndex: Long,
+        generationSeed: Long,
+        repeatIndex: Int,
+        scheduleSeed: Long,
+        trajectoryName: String,
+        workspaceDirectory: Path,
+        snapshots: (Path) -> Sequence<K2IncrementalSnapshot>,
     ): Boolean {
         val trajectoryDirectory = caseDirectory.resolve(trajectoryName)
-        Files.createDirectories(trajectoryDirectory)
-        val incrementalRoot = trajectoryDirectory.resolve("incremental")
+        val incrementalRoot = workspaceDirectory.resolve("incremental")
         val incrementalSourceRoot = incrementalRoot.resolve("src")
         val incrementalOutput = incrementalRoot.resolve("classes")
         val incrementalCache = incrementalRoot.resolve("cache")
@@ -223,7 +263,7 @@ internal class K2IncrementalFuzzer(
 
         var roundPairCount = 0
         var roundDuration = Duration.ZERO
-        for ((roundIndex, roundSnapshots) in snapshots.chunked(incrementalCompilesPerRound).withIndex()) {
+        for ((roundIndex, roundSnapshots) in snapshots(incrementalOutput).chunked(incrementalCompilesPerRound).withIndex()) {
             if (roundSnapshots.size != incrementalCompilesPerRound) {
                 println(
                     "K2_INCREMENTAL_INCOMPLETE_ROUND_SKIPPED program=$programIndex repeat=$repeatIndex " +
@@ -251,24 +291,12 @@ internal class K2IncrementalFuzzer(
                 val logicalSources = printer.print(snapshot.program)
                 val sources = applySourceLayout(logicalSources, snapshot.sourceLayout)
                 val snapshotDirectory = trajectoryDirectory.resolve("snapshots/${snapshotIndex.toString().padStart(4, '0')}")
-                val sourceArchive = snapshotDirectory.resolve("sources")
-                writeSources(sourceArchive, sources)
-                Files.writeString(snapshotDirectory.resolve("ir.json"), gson.toJson(snapshot.program))
-                Files.writeString(snapshotDirectory.resolve("stage.txt"), snapshot.description + "\n")
-                Files.writeString(
-                    snapshotDirectory.resolve("round.txt"),
-                    listOf(
-                        "test_round_index=$completedTestRounds",
-                        "round_step=${roundPairCount + 1}/$incrementalCompilesPerRound",
-                    ).joinToString(System.lineSeparator(), postfix = System.lineSeparator()),
-                )
                 snapshot.outputAction?.let { action ->
                     val relativePath = Path.of(action.deleteRelativePath).normalize()
                     require(!relativePath.isAbsolute && !relativePath.startsWith("..")) {
                         "Unsafe incremental output path: ${action.deleteRelativePath}"
                     }
                     Files.deleteIfExists(incrementalOutput.resolve(relativePath))
-                    Files.writeString(snapshotDirectory.resolve("output-action.txt"), "DELETE ${relativePath.toString().replace(File.separatorChar, '/')}\n")
                 }
                 val incrementalFiles = syncSources(incrementalSourceRoot, sources)
                 val incremental = compile(
@@ -280,14 +308,13 @@ internal class K2IncrementalFuzzer(
                     forceAllKotlinSourcesModified = snapshot.outputAction != null,
                 )
                 if (incremental.compilerReturned) recordCompilerReturn()
-                writeJson(snapshotDirectory.resolve("incremental-result.json"), incremental)
                 val kotlinSourceCount = sources.keys.count { it.endsWith(".kt") }
                 val selective = snapshotIndex > 0 && incremental.iterations.any {
                     it.incremental && it.sourceFiles.isNotEmpty() && it.sourceFiles.size < kotlinSourceCount
                 }
                 selectiveRecompileProven = selectiveRecompileProven || selective
 
-                val cleanRoot = snapshotDirectory.resolve("clean")
+                val cleanRoot = workspaceDirectory.resolve("clean/${snapshotIndex.toString().padStart(4, '0')}")
                 val cleanSourceRoot = cleanRoot.resolve("src")
                 val cleanFiles = writeSources(cleanSourceRoot, sources)
                 val clean = compile(
@@ -298,7 +325,6 @@ internal class K2IncrementalFuzzer(
                     cleanFiles,
                 )
                 if (clean.compilerReturned) recordCompilerReturn()
-                writeJson(snapshotDirectory.resolve("clean-result.json"), clean)
 
                 val bothSuccessful = isSuccessful(incremental) && isSuccessful(clean)
                 val binaryComparison = if (bothSuccessful) {
@@ -306,16 +332,33 @@ internal class K2IncrementalFuzzer(
                 } else {
                     ClassBinaryComparison(compared = false, classFileCount = 0, equal = null, differingClassFiles = emptyList())
                 }
-                writeJson(snapshotDirectory.resolve("binary-comparison.json"), binaryComparison)
                 val differences = compare(incremental, clean, binaryComparison)
                 if (differences.isNotEmpty()) {
                     mismatchCount++
                     reportMismatch()
                     snapshotMismatch = true
-                    Files.writeString(snapshotDirectory.resolve("mismatch.txt"), differences.joinToString("\n", postfix = "\n"))
+                    archiveMismatchReport(
+                        snapshotDirectory,
+                        K2IncrementalMismatchReport(
+                            sources = sources,
+                            irJson = gson.toJson(snapshot.program),
+                            stage = snapshot.description,
+                            testRoundIndex = completedTestRounds,
+                            roundStep = roundPairCount + 1,
+                            outputAction = snapshot.outputAction?.let { action ->
+                                val relativePath = Path.of(action.deleteRelativePath).normalize()
+                                "DELETE ${relativePath.toString().replace(File.separatorChar, '/')}\n"
+                            },
+                            incrementalResultJson = gson.toJson(incremental),
+                            cleanResultJson = gson.toJson(clean),
+                            binaryComparisonJson = gson.toJson(binaryComparison),
+                            differences = differences,
+                        ),
+                    )
                     println(
-                        "K2_INCREMENTAL_MISMATCH program=$programIndex repeat=$repeatIndex " +
-                            "trajectory=$trajectoryName snapshot=$snapshotIndex ${differences.joinToString("; ")}",
+                        "K2_INCREMENTAL_MISMATCH program=$programIndex generationSeed=$generationSeed " +
+                            "repeat=$repeatIndex scheduleSeed=$scheduleSeed trajectory=$trajectoryName snapshot=$snapshotIndex " +
+                            differences.joinToString("; "),
                     )
                 }
                 val cleanSuccess = clean.exitCode == ExitCode.OK.name && clean.thrownClass == null
@@ -329,16 +372,6 @@ internal class K2IncrementalFuzzer(
                     }
                 }
                 snapshotCount++
-                println(
-                    "K2_INCREMENTAL_PAIR program=$programIndex generationSeed=$generationSeed repeat=$repeatIndex " +
-                        "scheduleSeed=$scheduleSeed trajectory=$trajectoryName snapshot=$snapshotIndex " +
-                        "testRound=$completedTestRounds roundStep=${roundPairCount + 1}/$incrementalCompilesPerRound " +
-                        "stage=${snapshot.description} incremental=${incremental.exitCode ?: incremental.thrownClass} " +
-                        "incrementalKotlin=${incremental.kotlinExitCode} incrementalJava=${incremental.javaExitCode} " +
-                        "clean=${clean.exitCode ?: clean.thrownClass} cleanKotlin=${clean.kotlinExitCode} " +
-                        "cleanJava=${clean.javaExitCode} cleanSuccess=$cleanSuccess selective=$selective " +
-                        "mismatch=${differences.isNotEmpty()}",
-                )
             }
             completedPairs++
             roundPairCount++
@@ -614,10 +647,6 @@ internal class K2IncrementalFuzzer(
         return sources.keys.sorted().map { root.resolve(it).toAbsolutePath().toFile() }
     }
 
-    private fun writeJson(path: Path, value: Any) {
-        Files.writeString(path, gson.toJson(value))
-    }
-
     private fun classHashes(outputDirectory: Path): Map<String, String> {
         val hashes = sortedMapOf<String, String>()
         if (!Files.exists(outputDirectory)) return hashes
@@ -672,17 +701,41 @@ internal class K2IncrementalFuzzer(
     ): List<String> {
         val incSuccess = isSuccessful(incremental)
         val cleanSuccess = isSuccessful(clean)
-        return incrementalCleanMismatchReasons(
-            incrementalSuccess = incSuccess,
-            cleanSuccess = cleanSuccess,
-            incrementalClassHashes = incremental.classHashes,
-            cleanClassHashes = clean.classHashes,
-            binaryOutputsEqual = binaryComparison.equal,
+        return mismatchClassifier(
+            incSuccess,
+            cleanSuccess,
+            incremental.classHashes,
+            clean.classHashes,
+            binaryComparison.equal,
+        )
+    }
+
+    internal fun archiveMismatchReport(snapshotDirectory: Path, report: K2IncrementalMismatchReport) {
+        Files.createDirectories(snapshotDirectory)
+        writeSources(snapshotDirectory.resolve("sources"), report.sources)
+        Files.writeString(snapshotDirectory.resolve("ir.json"), report.irJson)
+        Files.writeString(snapshotDirectory.resolve("stage.txt"), report.stage + "\n")
+        Files.writeString(
+            snapshotDirectory.resolve("round.txt"),
+            listOf(
+                "test_round_index=${report.testRoundIndex}",
+                "round_step=${report.roundStep}/$incrementalCompilesPerRound",
+            ).joinToString(System.lineSeparator(), postfix = System.lineSeparator()),
+        )
+        report.outputAction?.let { action ->
+            Files.writeString(snapshotDirectory.resolve("output-action.txt"), action)
+        }
+        Files.writeString(snapshotDirectory.resolve("incremental-result.json"), report.incrementalResultJson)
+        Files.writeString(snapshotDirectory.resolve("clean-result.json"), report.cleanResultJson)
+        Files.writeString(snapshotDirectory.resolve("binary-comparison.json"), report.binaryComparisonJson)
+        Files.writeString(
+            snapshotDirectory.resolve("mismatch.txt"),
+            report.differences.joinToString("\n", postfix = "\n"),
         )
     }
 
     private fun printSummary() {
-        println(
+        reportSummary(
             "K2_INCREMENTAL_SUMMARY programs=$programCount scheduleRepeats=$scheduleRepeatCount " +
                 "testRounds=$completedTestRounds incrementalCompilesPerRound=$incrementalCompilesPerRound " +
                 "snapshots=$snapshotCount pairedComparisons=$completedPairs " +
@@ -748,6 +801,19 @@ internal class K2IncrementalFuzzer(
         }
     }
 }
+
+internal data class K2IncrementalMismatchReport(
+    val sources: Map<String, String>,
+    val irJson: String,
+    val stage: String,
+    val testRoundIndex: Int,
+    val roundStep: Int,
+    val outputAction: String?,
+    val incrementalResultJson: String,
+    val cleanResultJson: String,
+    val binaryComparisonJson: String,
+    val differences: List<String>,
+)
 
 /**
  * Classifies only success/failure and successful binary output. Two failures are provisionally

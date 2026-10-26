@@ -19,6 +19,7 @@ val irImplementationDetailType = generatedType("IrImplementationDetail")
 
 val classKindType = type("ir", "ClassKind")
 val languageType = type("ir", "Language")
+val visibilityType = type("ir", "Visibility")
 val nullabilityAnnotationProviderType = type("ir", "NullabilityAnnotationProvider")
 
 val unitType = type("ir.types.builtin", "IrUnit")

@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.ir.serde
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import com.github.xyzboom.codesmith.ir.builder.buildModule
 import com.github.xyzboom.codesmith.ir.builder.buildParameterList
@@ -200,6 +201,8 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                     language = context.deserialize(langObj, Language::class.java)
                 }
                 printNullableAnnotations = funcObj.get(::printNullableAnnotations.name)?.asBoolean ?: false
+                visibility = funcObj.get(::visibility.name)?.let { context.deserialize(it, Visibility::class.java) }
+                    ?: Visibility.PUBLIC
                 isOverride = funcObj.get(::isOverride.name)?.asBoolean ?: false
                 isOverrideStub = funcObj.get(::isOverrideStub.name)?.asBoolean ?: false
                 isFinal = funcObj.get(::isFinal.name)?.asBoolean ?: false
@@ -262,6 +265,8 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
             val clazz = buildClassDeclaration {
                 name = classObj.get(::name.name).asString
                 language = context.deserialize(classObj.get(::language.name), Language::class.java)
+                visibility = classObj.get(::visibility.name)?.let { context.deserialize(it, Visibility::class.java) }
+                    ?: Visibility.PUBLIC
                 classKind = context.deserialize(classObj.get(::classKind.name), ClassKind::class.java)
                 allSuperTypeArguments = mutableMapOf()
             }
@@ -271,6 +276,17 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                 for (funcObj in functionsObj) {
                     clazz.functions.add(deserializeFunctionFirstStage(funcObj.asJsonObject, context, clazz))
                 }
+            }
+            val nestedClasses = classObj.get(IrClassDeclaration::classes.name)
+            if (nestedClasses != null && nestedClasses.isJsonArray) {
+                for (nested in nestedClasses.asJsonArray) {
+                    clazz.classes.add(deserializeClassFirstStage(nested.asJsonObject, context))
+                }
+            }
+            if (clazz.name in classMap) {
+                throw JsonParseException(
+                    "Duplicate class name '${clazz.name}'; IR class references require globally unique names",
+                )
             }
             classMap[clazz.name] = clazz
             return clazz
@@ -293,6 +309,12 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                     it.asJsonObject.get(IrFunctionDeclaration::name.name).asString
                 }
                 deserializeFunctionForClassSecondStage(functionsObjMap, context, clazz)
+            }
+            val nestedClasses = classObj.get(IrClassDeclaration::classes.name)
+            if (nestedClasses != null && nestedClasses.isJsonArray) {
+                for (nested in nestedClasses.asJsonArray) {
+                    deserializeClassSecondStage(nested.asJsonObject, context)
+                }
             }
             with(clazz) {
                 deserializeTypeParameters(classObj.asMap(), context)

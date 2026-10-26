@@ -12,24 +12,31 @@ import java.util.IdentityHashMap
 /**
  * Class dependency graph ordered as dependency-first strongly connected components.
  *
- * An edge points from a class to every program class used by its inheritance or
- * function signature. Classes in one component must be compiled in the same module.
+ * An edge points from a top-level class to the top-level owner of every declaration used by
+ * inheritance or function signatures anywhere in its nested declaration tree. Classes in one
+ * component must be compiled in the same module.
  */
 val IrProgram.classDependencyGraph: Map<IrClassDeclaration, Set<IrClassDeclaration>>
     get() = computeClassDependencyGraph(classes)
 
 fun computeClassDependencyGraph(classes: Collection<IrClassDeclaration>): Map<IrClassDeclaration, Set<IrClassDeclaration>> {
-    val programClasses = classes.toSet()
-    return classes.associateWith { clazz ->
+    val roots = classes.toList()
+    val ownerByClass = IdentityHashMap<IrClassDeclaration, IrClassDeclaration>()
+    fun registerOwner(root: IrClassDeclaration, declaration: IrClassDeclaration) {
+        ownerByClass[declaration] = root
+        declaration.classes.forEach { registerOwner(root, it) }
+    }
+    roots.forEach { registerOwner(it, it) }
+
+    return roots.associateWith { root ->
         buildSet {
             val visitedTypes = Collections.newSetFromMap(IdentityHashMap<IrType, Boolean>())
             fun collectType(type: IrType?) {
                 if (type == null || !visitedTypes.add(type)) return
                 when (type) {
                     is IrClassifier -> {
-                        if (type.classDecl in programClasses && type.classDecl !== clazz) {
-                            add(type.classDecl)
-                        }
+                        val dependencyOwner = ownerByClass[type.classDecl]
+                        if (dependencyOwner != null && dependencyOwner !== root) add(dependencyOwner)
                         if (type is IrParameterizedClassifier) {
                             type.arguments.values.forEach { (_, argument) -> collectType(argument.type) }
                         }
@@ -39,15 +46,19 @@ fun computeClassDependencyGraph(classes: Collection<IrClassDeclaration>): Map<Ir
                 }
             }
 
-            collectType(clazz.superType)
-            clazz.implementedTypes.forEach(::collectType)
-            clazz.allSuperTypeArguments.values.forEach { (_, type) -> collectType(type) }
-            clazz.typeParameters.forEach { collectType(it.upperbound) }
-            clazz.functions.forEach { function ->
-                collectType(function.returnType)
-                function.parameterList.parameters.forEach { collectType(it.type) }
-                function.typeParameters.forEach { collectType(it.upperbound) }
+            fun collectDeclaration(declaration: IrClassDeclaration) {
+                collectType(declaration.superType)
+                declaration.implementedTypes.forEach(::collectType)
+                declaration.allSuperTypeArguments.values.forEach { (_, type) -> collectType(type) }
+                declaration.typeParameters.forEach { collectType(it.upperbound) }
+                declaration.functions.forEach { function ->
+                    collectType(function.returnType)
+                    function.parameterList.parameters.forEach { collectType(it.type) }
+                    function.typeParameters.forEach { collectType(it.upperbound) }
+                }
+                declaration.classes.forEach(::collectDeclaration)
             }
+            collectDeclaration(root)
         }
     }
 }

@@ -1,8 +1,8 @@
 package com.github.xyzboom.codesmith.kotlin
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
+import com.github.xyzboom.codesmith.serde.gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import org.jetbrains.kotlin.incremental.ChangedFiles
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -79,6 +79,131 @@ class K2IncrementalRunnerIntegrationTest {
     }
 
     @Test
+    fun `mismatch archive preserves sources and comparison evidence without compiler outputs`() {
+        val fuzzer = K2IncrementalFuzzer(
+            generatorConfig = GeneratorConfig.default,
+            baseSeed = 1,
+            maxCompilerSubmissions = 8,
+            scheduleRepeatCount = 1,
+            outputDirectory = tempDir.toFile(),
+            reserveCompilerGroup = { false },
+            recordCompilerReturn = {},
+            reportRound = {},
+            reportMismatch = {},
+        )
+        val reportDirectory = tempDir.resolve("mismatch")
+        val report = K2IncrementalMismatchReport(
+            sources = mapOf("src/Outer.kt" to "class Outer\n"),
+            irJson = "{\"program\":\"fixture\"}",
+            stage = "SOURCE_CHANGE",
+            testRoundIndex = 3,
+            roundStep = 2,
+            outputAction = "DELETE classes/A.class\n",
+            incrementalResultJson = "{\"exitCode\":\"OK\",\"iterations\":[{\"sourceFiles\":[]}]}",
+            cleanResultJson = "{\"exitCode\":\"COMPILATION_ERROR\",\"diagnostics\":[\"override\"]}",
+            binaryComparisonJson = "{\"compared\":false,\"equal\":null}",
+            differences = listOf("compile success differs"),
+        )
+
+        fuzzer.archiveMismatchReport(reportDirectory, report)
+
+        assertEquals("class Outer\n", Files.readString(reportDirectory.resolve("sources/src/Outer.kt")))
+        assertEquals(report.irJson, Files.readString(reportDirectory.resolve("ir.json")))
+        assertEquals("SOURCE_CHANGE\n", Files.readString(reportDirectory.resolve("stage.txt")))
+        assertTrue(Files.readString(reportDirectory.resolve("round.txt")).contains("round_step=2/4"))
+        assertEquals(report.outputAction, Files.readString(reportDirectory.resolve("output-action.txt")))
+        assertEquals(report.incrementalResultJson, Files.readString(reportDirectory.resolve("incremental-result.json")))
+        assertEquals(report.cleanResultJson, Files.readString(reportDirectory.resolve("clean-result.json")))
+        assertEquals(report.binaryComparisonJson, Files.readString(reportDirectory.resolve("binary-comparison.json")))
+        assertEquals("compile success differs\n", Files.readString(reportDirectory.resolve("mismatch.txt")))
+        val paths = Files.walk(reportDirectory).use { it.toList() }
+        assertTrue(paths.none { it.fileName.toString() in setOf("cache", "classes", "classpath-snapshots") })
+        assertTrue(paths.none { Files.isRegularFile(it) && it.fileName.toString().endsWith(".class") })
+    }
+
+    @Test
+    fun `runner archives the actual compiler observations when mismatch classification triggers`() {
+        var mismatchReports = 0
+        var completedSubmissions = 0
+        var forceMismatch = true
+        val summaries = mutableListOf<String>()
+        val maxSubmissions = 8
+
+        K2IncrementalFuzzer(
+            generatorConfig = GeneratorConfig(
+                javaRatio = 0.5f,
+                topLevelDeclRange = 4..4,
+                classHasSuperProbability = 0f,
+                classImplNumRange = 0..0,
+                classMemberNumRange = 0..0,
+                classHasTypeParameterProbability = 0f,
+                moduleNumRange = 1..1,
+            ),
+            baseSeed = 20261027,
+            maxCompilerSubmissions = maxSubmissions,
+            scheduleRepeatCount = 1,
+            outputDirectory = tempDir.toFile(),
+            reserveCompilerGroup = { true },
+            recordCompilerReturn = { completedSubmissions++ },
+            reportRound = {},
+            reportMismatch = { mismatchReports++ },
+            reportSummary = { summaries += it },
+            mismatchClassifier = { incrementalSuccess, cleanSuccess, incrementalHashes, cleanHashes, binaryEqual ->
+                if (forceMismatch) {
+                    forceMismatch = false
+                    listOf("test-injected mismatch")
+                } else {
+                    incrementalCleanMismatchReasons(
+                        incrementalSuccess,
+                        cleanSuccess,
+                        incrementalHashes,
+                        cleanHashes,
+                        binaryEqual,
+                    )
+                }
+            },
+        ).run()
+
+        assertEquals(1, mismatchReports)
+        assertEquals(2, completedSubmissions, "one incremental/clean pair should be archived before stopping")
+        assertTrue(summaries.single().contains("compilerMismatches=1"), summaries.single())
+        val campaign = childDirectories(tempDir.resolve("incremental")).single()
+        val program = childDirectories(campaign).single()
+        val snapshots = program.resolve("repeats/repeat-000/scc-validity/snapshots")
+        assertEquals(listOf("0000"), childDirectories(snapshots).map { it.fileName.toString() })
+        val mismatch = snapshots.resolve("0000")
+        assertTrue(Files.isRegularFile(mismatch.resolve("ir.json")))
+        val archivedSourceFiles = Files.walk(mismatch.resolve("sources")).use { paths ->
+            paths.filter { Files.isRegularFile(it) }.count()
+        }
+        assertTrue(archivedSourceFiles > 0, "source files should be archived")
+        assertTrue(Files.readString(mismatch.resolve("mismatch.txt")).contains("test-injected mismatch"))
+        val incrementalResult = gson.fromJson(
+            Files.readString(mismatch.resolve("incremental-result.json")),
+            JsonObject::class.java,
+        )
+        val cleanResult = gson.fromJson(
+            Files.readString(mismatch.resolve("clean-result.json")),
+            JsonObject::class.java,
+        )
+        val binaryComparison = gson.fromJson(
+            Files.readString(mismatch.resolve("binary-comparison.json")),
+            JsonObject::class.java,
+        )
+        assertEquals("OK", incrementalResult.get("exitCode").asString)
+        assertEquals("OK", cleanResult.get("exitCode").asString)
+        assertTrue(incrementalResult.getAsJsonObject("classHashes").size() > 0)
+        assertTrue(cleanResult.getAsJsonObject("classHashes").size() > 0)
+        assertTrue(incrementalResult.getAsJsonArray("iterations").size() > 0)
+        assertTrue(cleanResult.getAsJsonArray("iterations").size() > 0)
+        assertTrue(binaryComparison.get("compared").asBoolean)
+        assertTrue(binaryComparison.get("equal").asBoolean)
+        val paths = Files.walk(mismatch).use { it.toList() }
+        assertTrue(paths.none { it.fileName.toString() in setOf("cache", "classes", "classpath-snapshots") })
+        assertTrue(paths.none { Files.isRegularFile(it) && it.fileName.toString().endsWith(".class") })
+    }
+
+    @Test
     fun `missing incremental outputs mark all current Kotlin sources modified`() {
         val sources = listOf(File("A.kt"), File("B.kt"))
         val changed = incrementalChangedFiles(true, sources) as ChangedFiles.DeterminableFiles.Known
@@ -88,11 +213,12 @@ class K2IncrementalRunnerIntegrationTest {
     }
 
     @Test
-    fun `runner archives bounded incremental and clean comparisons`() {
+    fun `runner archives bounded incremental and clean comparisons only for mismatches`() {
         var reservedSubmissions = 0
         var completedSubmissions = 0
         var mismatchReports = 0
         val reportedRounds = mutableListOf<Duration>()
+        val summaries = mutableListOf<String>()
         val maxSubmissions = 8
 
         K2IncrementalFuzzer(
@@ -111,6 +237,7 @@ class K2IncrementalRunnerIntegrationTest {
             recordCompilerReturn = { completedSubmissions++ },
             reportRound = { reportedRounds += it },
             reportMismatch = { mismatchReports++ },
+            reportSummary = { summaries += it },
         ).run()
 
         assertEquals(maxSubmissions, reservedSubmissions)
@@ -135,57 +262,22 @@ class K2IncrementalRunnerIntegrationTest {
         val schedule = Files.readString(repeat.resolve("schedule.txt"))
         assertTrue(schedule.contains("generation_seed=771"))
         assertTrue(schedule.contains("schedule_repeat=0"))
-        assertTrue(Files.isDirectory(repeat.resolve("scc-validity/incremental/cache")))
+        val summary = summaries.single()
+        assertTrue(summary.contains("pairedComparisons=4"), summary)
+        assertTrue(summary.contains("selectiveRecompileProven=true"), summary)
+        assertTrue(summary.contains("compilerMismatches=0"), summary)
+        assertFalse(Files.exists(repeat.resolve("scc-validity")), "Successful pairs must not create report folders")
+        assertFalse(Files.exists(repeat.resolve("parameter-stress")), "Successful pairs must not create report folders")
 
-        val snapshots = childDirectories(repeat.resolve("scc-validity/snapshots"))
-        assertEquals(4, snapshots.size)
-        snapshots.forEachIndexed { snapshotIndex, snapshot ->
-            assertTrue(Files.isRegularFile(snapshot.resolve("ir.json")))
-            assertTrue(Files.isRegularFile(snapshot.resolve("incremental-result.json")))
-            assertTrue(Files.isRegularFile(snapshot.resolve("clean-result.json")))
-            val roundMetadata = Files.readString(snapshot.resolve("round.txt"))
-            assertTrue(roundMetadata.contains("test_round_index=0"))
-            assertTrue(roundMetadata.contains("round_step=${snapshotIndex + 1}/4"))
-            assertTrue(Files.isDirectory(snapshot.resolve("sources")))
-
-            val incremental = readJson(snapshot.resolve("incremental-result.json"))
-            val clean = readJson(snapshot.resolve("clean-result.json"))
-            assertEquals("OK", incremental.get("exitCode").asString)
-            assertEquals("OK", clean.get("exitCode").asString)
-            assertEquals("OK", incremental.get("kotlinExitCode").asString)
-            assertEquals("OK", clean.get("kotlinExitCode").asString)
-            assertEquals("OK", incremental.get("javaExitCode").asString)
-            assertEquals("OK", clean.get("javaExitCode").asString)
-            assertTrue(incremental.getAsJsonArray("javaDiagnostics") != null)
-            assertTrue(clean.getAsJsonArray("javaDiagnostics") != null)
-            assertTrue(incremental.getAsJsonArray("errorDiagnostics").isEmpty())
-            assertTrue(clean.getAsJsonArray("errorDiagnostics").isEmpty())
-            assertTrue(incremental.get("thrownClass") == null || incremental.get("thrownClass").isJsonNull)
-            assertTrue(clean.get("thrownClass") == null || clean.get("thrownClass").isJsonNull)
-            assertEquals(incremental.get("classHashes"), clean.get("classHashes"))
-            val binaryComparison = readJson(snapshot.resolve("binary-comparison.json"))
-            assertTrue(binaryComparison.get("compared").asBoolean)
-            assertTrue(binaryComparison.get("equal").asBoolean)
-            assertEquals(incremental.getAsJsonObject("classHashes").size(), binaryComparison.get("classFileCount").asInt)
-            assertTrue(binaryComparison.getAsJsonArray("differingClassFiles").isEmpty())
-            val classHashNames = incremental.getAsJsonObject("classHashes").keySet()
-            assertTrue(classHashNames.any { it.startsWith("kotlin/") }, "Kotlin class output must be archived")
-            assertTrue(classHashNames.any { it.startsWith("java/") }, "Java class output must be archived")
-            assertFalse(Files.exists(snapshot.resolve("mismatch.txt")))
-        }
-
-        val secondSnapshot = snapshots.last()
-        val sourceCount = Files.walk(secondSnapshot.resolve("sources")).use { paths ->
-            paths.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".kt") }.count().toInt()
-        }
-        assertTrue(sourceCount > 1, "Seed 771 should produce enough Kotlin sources to observe selective compilation")
-        val incremental = readJson(secondSnapshot.resolve("incremental-result.json"))
-        val selectiveCompile = incremental.getAsJsonArray("iterations").any { iteration ->
-            val entry = iteration.asJsonObject
-            entry.get("incremental").asBoolean &&
-                entry.getAsJsonArray("sourceFiles").size() in 1 until sourceCount
-        }
-        assertTrue(selectiveCompile, "The retained-state incremental compile must compile fewer than all Kotlin sources")
+        val reportPaths = Files.walk(campaignRoots.single()).use { it.toList() }
+        assertTrue(
+            reportPaths.none { it.fileName.toString() in setOf("cache", "classes", "classpath-snapshots") },
+            "Compiler workspaces must stay outside the report tree",
+        )
+        assertTrue(
+            reportPaths.none { Files.isRegularFile(it) && it.fileName.toString().endsWith(".class") },
+            "Compiled class files must not be archived in the report",
+        )
     }
 
     @Test
@@ -194,6 +286,7 @@ class K2IncrementalRunnerIntegrationTest {
         var completedSubmissions = 0
         var mismatchReports = 0
         val reportedRounds = mutableListOf<Duration>()
+        val summaries = mutableListOf<String>()
         val maxSubmissions = 8
 
         K2IncrementalFuzzer(
@@ -220,12 +313,16 @@ class K2IncrementalRunnerIntegrationTest {
             recordCompilerReturn = { completedSubmissions++ },
             reportRound = { reportedRounds += it },
             reportMismatch = { mismatchReports++ },
+            reportSummary = { summaries += it },
             sccStageCount = 3,
         ).run()
 
         assertEquals(8, reservedSubmissions)
         assertEquals(8, completedSubmissions)
         assertEquals(1, reportedRounds.size, "The empty baseline plus three SCC stages form one four-compile test round")
+        val summary = summaries.single()
+        assertTrue(summary.contains("sccValidityPairs=4"), summary)
+        assertTrue(summary.contains("compilerMismatches=0"), summary)
 
         val campaign = childDirectories(tempDir.resolve("incremental")).single()
         val program = childDirectories(campaign).single()
@@ -238,42 +335,11 @@ class K2IncrementalRunnerIntegrationTest {
         assertTrue(schedule.contains("scc_stage_count_requested=3"))
         assertTrue(schedule.contains("scc_stage_count_actual=3"))
         assertTrue(schedule.contains("scc_validity_snapshots=4"))
-        val snapshots = childDirectories(repeat.resolve("scc-validity/snapshots"))
-        assertEquals(4, snapshots.size, "Expected the empty baseline plus three automatic SCC stages")
-
-        val expectedClassCountsByPart = listOf(1, 2, 4)
-        snapshots.drop(1).forEachIndexed { partIndex, snapshot ->
-            assertTrue(Files.readString(snapshot.resolve("stage.txt")).startsWith("ADD_SCC_PART:"))
-            val ir = readJson(snapshot.resolve("ir.json"))
-            val includedClassCount = ir.getAsJsonArray("modules")[0].asJsonObject.getAsJsonArray("classes").size()
-            assertEquals(expectedClassCountsByPart[partIndex], includedClassCount, "Unexpected accumulated class count at part ${partIndex + 1}")
-
-            val incremental = readJson(snapshot.resolve("incremental-result.json"))
-            val clean = readJson(snapshot.resolve("clean-result.json"))
-            assertEquals("OK", incremental.get("exitCode").asString, "Incremental part ${partIndex + 1}: $incremental")
-            assertEquals("OK", clean.get("exitCode").asString, "Clean part ${partIndex + 1}: $clean")
-            assertEquals("OK", incremental.get("kotlinExitCode").asString)
-            assertEquals("OK", clean.get("kotlinExitCode").asString)
-            assertEquals("OK", incremental.get("javaExitCode").asString)
-            assertEquals("OK", clean.get("javaExitCode").asString)
-            assertEquals(incremental.get("classHashes"), clean.get("classHashes"))
-
-            val binaryComparison = readJson(snapshot.resolve("binary-comparison.json"))
-            assertTrue(binaryComparison.get("compared").asBoolean, "Part ${partIndex + 1} needs a byte comparison")
-            assertTrue(binaryComparison.get("equal").asBoolean, "Part ${partIndex + 1} class bytes must match")
-            assertEquals(
-                incremental.getAsJsonObject("classHashes").size(),
-                binaryComparison.get("classFileCount").asInt,
-            )
-            assertTrue(binaryComparison.getAsJsonArray("differingClassFiles").isEmpty())
-            assertFalse(Files.exists(snapshot.resolve("mismatch.txt")))
-        }
+        assertFalse(Files.exists(repeat.resolve("scc-validity")), "Matched prefixes must not create mismatch reports")
         assertEquals(0, mismatchReports)
     }
 
     private fun childDirectories(path: Path): List<Path> = Files.list(path).use { paths ->
         paths.filter { Files.isDirectory(it) }.sorted().toList()
     }
-
-    private fun readJson(path: Path): JsonObject = JsonParser.parseString(Files.readString(path)).asJsonObject
 }

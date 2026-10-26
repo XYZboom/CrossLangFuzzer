@@ -8,6 +8,7 @@
 package com.github.xyzboom.codesmith.ir.declarations.builder
 
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.declarations.IrPropertyDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrPropertyDeclarationImpl
@@ -17,11 +18,13 @@ import kotlin.contracts.*
 class IrPropertyDeclarationBuilder {
     lateinit var name: String
     lateinit var language: Language
+    lateinit var visibility: Visibility
 
     fun build(): IrPropertyDeclaration {
         return IrPropertyDeclarationImpl(
             name,
             language,
+            visibility,
         )
     }
 }

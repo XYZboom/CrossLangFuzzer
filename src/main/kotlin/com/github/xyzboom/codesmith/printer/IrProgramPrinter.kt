@@ -142,6 +142,15 @@ class IrProgramPrinter(
             printStub = printStub,
             nullabilityAnnotationProvider = element.nullabilityAnnotationProvider,
         )
+        val sourceClassNames = IdentityHashMap<IrClassDeclaration, String>()
+        fun registerClassName(clazz: IrClassDeclaration, enclosingName: String?) {
+            val fullName = if (enclosingName == null) clazz.name else "$enclosingName.${clazz.name}"
+            sourceClassNames[clazz] = fullName
+            clazz.classes.forEach { registerClassName(it, fullName) }
+        }
+        element.classes.forEach { registerClassName(it, null) }
+        javaClassPrinter.setSourceClassNames(sourceClassNames)
+        ktClassPrinter.setSourceClassNames(sourceClassNames)
         for (clazz in element.classes) {
             val (fileName, content) = when (clazz.language) {
                 Language.KOTLIN -> "${clazz.name}.kt" to ktClassPrinter.print(clazz)
