@@ -749,6 +749,11 @@ internal class K2IncrementalFuzzer(
     }
 }
 
+/**
+ * Classifies only success/failure and successful binary output. Two failures are provisionally
+ * equivalent regardless of diagnostic differences; callers still archive both diagnostic sets
+ * for later analysis. Failed/failed pairs do not become mismatches under this policy.
+ */
 internal fun incrementalCleanMismatchReasons(
     incrementalSuccess: Boolean,
     cleanSuccess: Boolean,
