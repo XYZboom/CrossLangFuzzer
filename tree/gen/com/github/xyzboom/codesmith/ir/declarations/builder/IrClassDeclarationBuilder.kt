@@ -9,6 +9,7 @@ package com.github.xyzboom.codesmith.ir.declarations.builder
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.containers.builder.IrFuncContainerBuilder
 import com.github.xyzboom.codesmith.ir.containers.builder.IrTypeParameterContainerBuilder
@@ -24,7 +25,9 @@ import kotlin.contracts.*
 class IrClassDeclarationBuilder : IrTypeParameterContainerBuilder, IrFuncContainerBuilder {
     lateinit var name: String
     var language: Language = Language.KOTLIN
+    var visibility: Visibility = Visibility.PUBLIC
     override val functions: MutableList<IrFunctionDeclaration> = mutableListOf()
+    val classes: MutableList<IrClassDeclaration> = mutableListOf()
     override val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
     lateinit var classKind: ClassKind
     var superType: IrType? = null
@@ -35,7 +38,9 @@ class IrClassDeclarationBuilder : IrTypeParameterContainerBuilder, IrFuncContain
         return IrClassDeclarationImpl(
             name,
             language,
+            visibility,
             functions,
+            classes,
             typeParameters,
             classKind,
             superType,

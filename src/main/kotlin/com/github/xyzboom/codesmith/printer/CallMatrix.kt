@@ -1,6 +1,8 @@
 package com.github.xyzboom.codesmith.printer
 
 import com.github.xyzboom.codesmith.ir.ClassKind
+import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrDefinitelyNotNullType
@@ -41,15 +43,20 @@ data class MatrixReceiver(
 
 /** Builds the complete inherited receiver matrix for constructible concrete classes. */
 object CallMatrix {
-    /** Override stubs are emitted as comments and therefore have no callable declaration. */
+    /**
+     * The executable harness is emitted in a separate module. Until it models package/module and
+     * protected-receiver access rules, only public declarations are safe to invoke there.
+     */
     fun ownFunctions(clazz: IrClassDeclaration): List<IrFunctionDeclaration> =
-        clazz.functions.filterNot { it.isOverrideStub }
+        clazz.functions.filterNot { it.isOverrideStub || it.visibility != com.github.xyzboom.codesmith.ir.Visibility.PUBLIC }
 
     fun isInstantiable(clazz: IrClassDeclaration): Boolean =
         clazz.classKind == ClassKind.FINAL || clazz.classKind == ClassKind.OPEN
 
     /**
-     * Build receiver shapes for every constructible class.
+     * Build receiver shapes for every public constructible class. Public Java/Kotlin nested
+     * declarations are included only when every enclosing class is public; Scala nested types are
+     * omitted because the Kotlin harness does not model their path-dependent type syntax.
      *
      * For a concrete class `C`, an inherited declaration from `P` is called through `C`, through
      * a standalone `P` instance when `P` is constructible, and through the same `C` instance
@@ -58,6 +65,27 @@ object CallMatrix {
      * deduplication, so diamond paths do not duplicate calls.
      */
     fun receivers(classes: List<IrClassDeclaration>): List<MatrixReceiver> {
+        val matrixClasses = mutableListOf<IrClassDeclaration>()
+        val seenClasses = java.util.Collections.newSetFromMap(
+            java.util.IdentityHashMap<IrClassDeclaration, Boolean>(),
+        )
+        fun addClass(clazz: IrClassDeclaration) {
+            if (seenClasses.add(clazz)) matrixClasses += clazz
+        }
+        classes.filter { it.visibility == Visibility.PUBLIC }.forEach(::addClass)
+        fun addPublicNestedClasses(clazz: IrClassDeclaration, enclosingAccessible: Boolean) {
+            for (nested in clazz.classes) {
+                val accessible = enclosingAccessible &&
+                    nested.language in setOf(Language.JAVA, Language.KOTLIN) &&
+                    nested.visibility == Visibility.PUBLIC
+                if (accessible) addClass(nested)
+                addPublicNestedClasses(nested, accessible)
+            }
+        }
+        classes.forEach { root ->
+            addPublicNestedClasses(root, root.visibility == com.github.xyzboom.codesmith.ir.Visibility.PUBLIC)
+        }
+
         val result = mutableListOf<MatrixReceiver>()
 
         fun receiver(receiverClass: IrClassDeclaration, staticType: IrType): MatrixReceiver {
@@ -79,7 +107,7 @@ object CallMatrix {
             }
         }
 
-        for (clazz in classes) {
+        for (clazz in matrixClasses) {
             if (!isInstantiable(clazz)) continue
             val concreteClassType = concreteType(clazz)
             ownFunctions(clazz).forEach { function ->
@@ -91,12 +119,15 @@ object CallMatrix {
                     // C instance with its normal C static type.
                     addCall(clazz, concreteClassType, function, actualParentType)
                     // Independent declaring-parent instance, only for a constructible parent.
-                    if (isInstantiable(parent)) {
+                    if (seenClasses.contains(parent) && isInstantiable(parent)) {
                         val concreteParentType = concreteType(parent)
                         addCall(parent, concreteParentType, function, concreteParentType)
                     }
-                    // The same C instance viewed as the actual P<...> inherited type.
-                    addCall(clazz, actualParentType, function, actualParentType)
+                    // The same C instance viewed as the actual P<...> inherited type, when P
+                    // is independently accessible to the harness.
+                    if (seenClasses.contains(parent)) {
+                        addCall(clazz, actualParentType, function, actualParentType)
+                    }
                 }
             }
         }

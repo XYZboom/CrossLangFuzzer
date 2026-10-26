@@ -42,16 +42,18 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
         }
         builder(classDecl) {
             parents += funcContainerBuilder
-            additionalImports(languageType)
+            additionalImports(languageType, visibilityType)
             default("allSuperTypeArguments", "mutableMapOf()")
             default("language", "Language.KOTLIN")
+            default("visibility", "Visibility.PUBLIC")
         }
 
         builder(funcDecl) {
             defaultFalse("printNullableAnnotations", "isOverride", "isOverrideStub", "isFinal")
-            additionalImports(unitType, languageType)
+            additionalImports(unitType, languageType, visibilityType)
             default("returnType", "IrUnit")
             default("language", "Language.KOTLIN")
+            default("visibility", "Visibility.PUBLIC")
         }
     }
 }

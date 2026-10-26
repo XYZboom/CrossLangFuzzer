@@ -26,6 +26,7 @@ object IrFunctionDeclarationSerializer : JsonSerializer<IrFunctionDeclaration> {
                 if (containingClassName == null) {
                     add(::language.name, p2?.serialize(language))
                 }
+                add(::visibility.name, p2?.serialize(visibility))
                 addTypeParameters(this, p2)
                 if (printNullableAnnotations) {
                     addProperty(::printNullableAnnotations.name, printNullableAnnotations)

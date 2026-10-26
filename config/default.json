@@ -21,6 +21,12 @@
       3,
       6
     ],
+    "nestedClassProbability": 0.25,
+    "nestedClassNumRange": [
+      1,
+      2
+    ],
+    "nestedTypeAsSuperProbability": 0.3,
     "classMemberIsFunctionWeight": 4,
     "classMemberIsPropertyWeight": 2,
     "classHasTypeParameterProbability": 0.3,
@@ -28,6 +34,12 @@
       1,
       3
     ],
+    "functionPublicVisibilityWeight": 6,
+    "functionProtectedVisibilityWeight": 2,
+    "functionPackagePrivateVisibilityWeight": 1,
+    "functionInternalVisibilityWeight": 1,
+    "functionPrivateVisibilityWeight": 1,
+    "overrideVisibilityWidenProbability": 0.5,
     "functionParameterNumRange": [
       0,
       3

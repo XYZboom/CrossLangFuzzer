@@ -3,6 +3,7 @@ package com.github.xyzboom.codesmith.printer.clazz
 import com.github.xyzboom.codesmith.ir.NullabilityAnnotationProvider
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.Language.*
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.IrParameterList
@@ -188,9 +189,9 @@ class JavaIrClassPrinter(
             is IrBuiltInType -> chooseTypeMap[irType]
                 ?: throw IllegalStateException("No such built-in type: $irType")
 
-            is IrSimpleClassifier -> irType.classDecl.name
+            is IrSimpleClassifier -> sourceClassName(irType.classDecl)
             is IrParameterizedClassifier -> {
-                val sb = StringBuilder(irType.classDecl.name)
+                val sb = StringBuilder(sourceClassName(irType.classDecl))
                 sb.append("<")
                 // print type arg in the order of superType
                 val typeArgs = irType.getTypeArguments()
@@ -263,13 +264,13 @@ class JavaIrClassPrinter(
     }
 
     override fun visitClassDeclaration(clazz: IrClassDeclaration, data: StringBuilder) {
+        val topLevel = elementStack.none { it is IrClassDeclaration }
         val body = StringBuilder()
-        indentCount++
         super.visitClassDeclaration(clazz, body)
-        indentCount--
 
         data.append(indent)
-        data.append("public ")
+        data.append(javaVisibility(clazz.visibility, topLevel))
+        if (!topLevel) data.append("static ")
         data.append(printIrClassType(clazz.classKind))
         data.append(clazz.name)
         val typeParameters = clazz.typeParameters
@@ -300,6 +301,14 @@ class JavaIrClassPrinter(
     }
 
 
+    private fun javaVisibility(visibility: Visibility, topLevel: Boolean): String = when (visibility) {
+        Visibility.PUBLIC -> "public "
+        Visibility.PROTECTED -> if (topLevel) error("Top-level Java declarations cannot be protected") else "protected "
+        Visibility.PACKAGE_PRIVATE -> ""
+        Visibility.PRIVATE -> if (topLevel) error("Top-level Java declarations cannot be private") else "private "
+        Visibility.INTERNAL -> error("Java declarations cannot be internal")
+    }
+
     override fun visitFunctionDeclaration(function: IrFunctionDeclaration, data: StringBuilder) {
         if (function.isOverrideStub && !printStub) {
             return
@@ -322,7 +331,7 @@ class JavaIrClassPrinter(
             data.append("@Override\n")
         }
         data.append(indent)
-        data.append("public ")
+        data.append(javaVisibility(function.visibility, topLevel = function.topLevel))
         if (function.body == null) {
             data.append("abstract ")
         } else {

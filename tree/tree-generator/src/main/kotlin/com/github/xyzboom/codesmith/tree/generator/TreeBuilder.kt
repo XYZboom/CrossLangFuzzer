@@ -39,11 +39,13 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
     val declaration: Element by element(Element.Kind.Declaration, name = "Declaration") {
         parent(namedElement)
         +field("language", languageType, isChild = false)
+        +field("visibility", visibilityType, isChild = false)
     }
 
     val classDecl: Element by element(Element.Kind.Declaration, name = "ClassDeclaration") {
         parent(declaration)
         parent(funcContainer)
+        parent(classContainer)
         parent(typeParameterContainer)
 
         +field("classKind", classKindType, isChild = false)

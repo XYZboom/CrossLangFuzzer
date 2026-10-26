@@ -9,6 +9,7 @@ package com.github.xyzboom.codesmith.ir.declarations.builder
 
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.builder.BuilderDsl
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.impl.IrFunctionDeclarationImpl
@@ -22,6 +23,7 @@ import kotlin.contracts.*
 class IrFunctionDeclarationBuilder {
     lateinit var name: String
     var language: Language = Language.KOTLIN
+    var visibility: Visibility = Visibility.PUBLIC
     val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
     var printNullableAnnotations: Boolean = false
     var body: IrBlock? = null
@@ -37,6 +39,7 @@ class IrFunctionDeclarationBuilder {
         return IrFunctionDeclarationImpl(
             name,
             language,
+            visibility,
             typeParameters,
             printNullableAnnotations,
             body,

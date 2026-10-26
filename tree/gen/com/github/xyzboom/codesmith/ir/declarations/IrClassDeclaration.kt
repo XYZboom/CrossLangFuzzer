@@ -8,6 +8,8 @@ package com.github.xyzboom.codesmith.ir.declarations
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.IrElement
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
+import com.github.xyzboom.codesmith.ir.containers.IrClassContainer
 import com.github.xyzboom.codesmith.ir.containers.IrFuncContainer
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -19,10 +21,12 @@ import com.github.xyzboom.codesmith.ir.visitors.IrVisitor
 /**
  * Generated from: [com.github.xyzboom.codesmith.tree.generator.TreeBuilder.classDecl]
  */
-abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypeParameterContainer {
+abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrClassContainer, IrTypeParameterContainer {
     abstract override var name: String
     abstract override var language: Language
+    abstract override var visibility: Visibility
     abstract override var functions: MutableList<IrFunctionDeclaration>
+    abstract override var classes: MutableList<IrClassDeclaration>
     abstract override var typeParameters: MutableList<IrTypeParameter>
     abstract var classKind: ClassKind
     abstract var superType: IrType?
@@ -40,7 +44,11 @@ abstract class IrClassDeclaration : IrDeclaration(), IrFuncContainer, IrTypePara
 
     abstract override fun <D> transformLanguage(transformer: IrTransformer<D>, data: D): IrClassDeclaration
 
+    abstract override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrClassDeclaration
+
     abstract override fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrClassDeclaration
+
+    abstract override fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrClassDeclaration
 
     abstract override fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrClassDeclaration
 

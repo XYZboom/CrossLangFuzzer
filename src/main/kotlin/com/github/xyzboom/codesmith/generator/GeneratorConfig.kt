@@ -19,12 +19,24 @@ data class GeneratorConfig(
     val classHasSuperProbability: Float = 0.3f,
     val classImplNumRange: IntRange = 0..3,
     val classMemberNumRange: IntRange = 3..6,
+    val nestedClassProbability: Float = 0.25f,
+    val nestedClassNumRange: IntRange = 1..2,
+    /** Probability of choosing a visible nested declaration as a direct supertype. */
+    val nestedTypeAsSuperProbability: Float = 0.3f,
     val classMemberIsFunctionWeight: Int = 4,
     val classMemberIsPropertyWeight: Int = 2,
     val classHasTypeParameterProbability: Float = 0.3f,
     val classTypeParameterNumberRange: IntRange = 1..3,
     //</editor-fold>
     //<editor-fold desc="Function">
+    /** Default method visibility ratio is public:protected:language-specific:private = 6:2:1:1. */
+    val functionPublicVisibilityWeight: Int = 6,
+    val functionProtectedVisibilityWeight: Int = 2,
+    val functionPackagePrivateVisibilityWeight: Int = 1,
+    val functionInternalVisibilityWeight: Int = 1,
+    val functionPrivateVisibilityWeight: Int = 1,
+    /** Probability that an override widens its inherited visibility when widening is legal. */
+    val overrideVisibilityWidenProbability: Float = 0.5f,
     val functionParameterNumRange: IntRange = 0..3,
     val functionExpressionNumRange: IntRange = 2..8,
     /**
@@ -85,6 +97,26 @@ data class GeneratorConfig(
         require(moduleNumRange.first >= 1 && moduleNumRange.last >= moduleNumRange.first) {
             "moduleNumRange must be valid and >= 1, but was $moduleNumRange"
         }
+        require(nestedTypeAsSuperProbability in 0f..1f) {
+            "nestedTypeAsSuperProbability must be in [0, 1]"
+        }
+        require(overrideVisibilityWidenProbability in 0f..1f) {
+            "overrideVisibilityWidenProbability must be in [0, 1]"
+        }
+        val visibilityWeights = listOf(
+            functionPublicVisibilityWeight,
+            functionProtectedVisibilityWeight,
+            functionPackagePrivateVisibilityWeight,
+            functionInternalVisibilityWeight,
+            functionPrivateVisibilityWeight,
+        )
+        require(visibilityWeights.all { it >= 0 }) { "Function visibility weights cannot be negative" }
+        require(
+            functionPublicVisibilityWeight + functionProtectedVisibilityWeight +
+                functionPackagePrivateVisibilityWeight + functionPrivateVisibilityWeight > 0 &&
+                functionPublicVisibilityWeight + functionProtectedVisibilityWeight +
+                functionInternalVisibilityWeight + functionPrivateVisibilityWeight > 0
+        ) { "Function visibility weights must allow at least one Java and Kotlin visibility" }
     }
 
     companion object {

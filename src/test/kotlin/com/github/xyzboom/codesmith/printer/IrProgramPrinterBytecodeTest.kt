@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class IrProgramPrinterBytecodeTest {
     @Test
@@ -418,6 +419,27 @@ class IrProgramPrinterBytecodeTest {
     }
 
     @Test
+    fun `printer rejects nested declarations with a different source language`() {
+        val nested = buildClassDeclaration {
+            name = "KotlinNested"
+            language = Language.KOTLIN
+            classKind = ClassKind.FINAL
+        }
+        val outer = buildClassDeclaration {
+            name = "JavaOuter"
+            language = Language.JAVA
+            classKind = ClassKind.OPEN
+            classes += nested
+        }
+        val program = buildProgram { classes += outer }
+
+        val exception = assertThrows<IllegalArgumentException> {
+            IrProgramPrinter().print(program)
+        }
+        assertTrue(exception.message.orEmpty().contains("Nested class KotlinNested must use JAVA"))
+    }
+
+    @Test
     fun `Kotlin class main and trivial harness use different files`() {
         val program = buildProgram {
             modules += buildModule {
@@ -441,6 +463,89 @@ class IrProgramPrinterBytecodeTest {
         assertTrue(output.contains("class main"))
         assertTrue(output.contains("// FILE: main_1.kt"))
         assertTrue(output.contains("fun box(): String"))
+    }
+
+    @Test
+    fun `nested declarations are rendered recursively with language-specific visibility`() {
+        val javaLeaf = buildClassDeclaration {
+            name = "JavaLeaf"
+            language = Language.JAVA
+            visibility = com.github.xyzboom.codesmith.ir.Visibility.PRIVATE
+            classKind = ClassKind.FINAL
+            functions += function("leafMethod", Language.JAVA).apply {
+                visibility = com.github.xyzboom.codesmith.ir.Visibility.PACKAGE_PRIVATE
+            }
+        }
+        val javaNested = buildClassDeclaration {
+            name = "JavaNested"
+            language = Language.JAVA
+            visibility = com.github.xyzboom.codesmith.ir.Visibility.PROTECTED
+            classKind = ClassKind.OPEN
+            classes += javaLeaf
+        }
+        val javaOuter = buildClassDeclaration {
+            name = "JavaOuter"
+            language = Language.JAVA
+            visibility = com.github.xyzboom.codesmith.ir.Visibility.PUBLIC
+            classKind = ClassKind.OPEN
+            classes += javaNested
+        }
+
+        val kotlinLeaf = buildClassDeclaration {
+            name = "KotlinLeaf"
+            language = Language.KOTLIN
+            visibility = com.github.xyzboom.codesmith.ir.Visibility.PRIVATE
+            classKind = ClassKind.FINAL
+            functions += function("leafMethod", Language.KOTLIN).apply {
+                visibility = com.github.xyzboom.codesmith.ir.Visibility.PROTECTED
+            }
+        }
+        val kotlinNested = buildClassDeclaration {
+            name = "KotlinNested"
+            language = Language.KOTLIN
+            visibility = com.github.xyzboom.codesmith.ir.Visibility.INTERNAL
+            classKind = ClassKind.OPEN
+            classes += kotlinLeaf
+        }
+        val kotlinOuter = buildClassDeclaration {
+            name = "KotlinOuter"
+            language = Language.KOTLIN
+            visibility = com.github.xyzboom.codesmith.ir.Visibility.PUBLIC
+            classKind = ClassKind.OPEN
+            classes += kotlinNested
+        }
+        val program = buildProgram {
+            classes += javaOuter
+            classes += kotlinOuter
+        }
+
+        val files = IrProgramPrinter().print(program)
+        val javaSource = files.getValue("JavaOuter.java")
+        assertTrue(javaSource.contains("public class JavaOuter"))
+        assertTrue(javaSource.contains("    protected static class JavaNested"))
+        assertTrue(javaSource.contains("        private static final class JavaLeaf"))
+        assertTrue(javaSource.contains("            final void leafMethod()"), javaSource)
+
+        val kotlinSource = files.getValue("KotlinOuter.kt")
+        assertTrue(kotlinSource.contains("public open class KotlinOuter"))
+        assertTrue(kotlinSource.contains("    internal open class KotlinNested"))
+        assertTrue(kotlinSource.contains("        private class KotlinLeaf"))
+        assertTrue(kotlinSource.contains("            protected fun leafMethod(): Unit"))
+
+        val scalaLeaf = buildClassDeclaration {
+            name = "ScalaLeaf"
+            language = Language.SCALA
+            classKind = ClassKind.FINAL
+        }
+        val scalaOuter = buildClassDeclaration {
+            name = "ScalaOuter"
+            language = Language.SCALA
+            classKind = ClassKind.OPEN
+            classes += scalaLeaf
+        }
+        val scalaSource = com.github.xyzboom.codesmith.printer.clazz.ScalaIrClassPrinter().print(scalaOuter)
+        assertTrue(scalaSource.contains("class ScalaOuter {"))
+        assertTrue(scalaSource.contains("  final class ScalaLeaf"))
     }
 
     private fun function(name: String, language: Language, vararg parameterTypes: com.github.xyzboom.codesmith.ir.types.IrType) =

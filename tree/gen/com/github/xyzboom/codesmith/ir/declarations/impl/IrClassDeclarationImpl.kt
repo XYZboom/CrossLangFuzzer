@@ -9,6 +9,7 @@ package com.github.xyzboom.codesmith.ir.declarations.impl
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.IrType
@@ -21,7 +22,9 @@ import com.github.xyzboom.codesmith.ir.visitors.transformInplace
 internal class IrClassDeclarationImpl(
     override var name: String,
     override var language: Language,
+    override var visibility: Visibility,
     override var functions: MutableList<IrFunctionDeclaration>,
+    override var classes: MutableList<IrClassDeclaration>,
     override var typeParameters: MutableList<IrTypeParameter>,
     override var classKind: ClassKind,
     override var superType: IrType?,
@@ -31,11 +34,13 @@ internal class IrClassDeclarationImpl(
 
     override fun <R, D> acceptChildren(visitor: IrVisitor<R, D>, data: D) {
         functions.forEach { it.accept(visitor, data) }
+        classes.forEach { it.accept(visitor, data) }
         typeParameters.forEach { it.accept(visitor, data) }
     }
 
     override fun <D> transformChildren(transformer: IrTransformer<D>, data: D): IrClassDeclarationImpl {
         transformFunctions(transformer, data)
+        transformClasses(transformer, data)
         transformTypeParameters(transformer, data)
         return this
     }
@@ -48,8 +53,17 @@ internal class IrClassDeclarationImpl(
         return this
     }
 
+    override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrClassDeclarationImpl {
+        return this
+    }
+
     override fun <D> transformFunctions(transformer: IrTransformer<D>, data: D): IrClassDeclarationImpl {
         functions.transformInplace(transformer, data)
+        return this
+    }
+
+    override fun <D> transformClasses(transformer: IrTransformer<D>, data: D): IrClassDeclarationImpl {
+        classes.transformInplace(transformer, data)
         return this
     }
 

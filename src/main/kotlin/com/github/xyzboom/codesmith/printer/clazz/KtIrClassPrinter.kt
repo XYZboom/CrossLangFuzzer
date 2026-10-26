@@ -2,6 +2,7 @@ package com.github.xyzboom.codesmith.printer.clazz
 
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.Visibility
 import com.github.xyzboom.codesmith.ir.IrParameterList
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.functions
@@ -70,9 +71,9 @@ class KtIrClassPrinter(
 
             is IrClassifier ->
                 when (irType) {
-                    is IrSimpleClassifier -> irType.classDecl.name
+                    is IrSimpleClassifier -> sourceClassName(irType.classDecl)
                     is IrParameterizedClassifier -> {
-                        val sb = StringBuilder(irType.classDecl.name)
+                        val sb = StringBuilder(sourceClassName(irType.classDecl))
                         sb.append("<")
                         // print type arg in the order of superType
                         val typeArgs = irType.getTypeArguments()
@@ -161,8 +162,9 @@ class KtIrClassPrinter(
     }
 
     override fun visitClassDeclaration(clazz: IrClassDeclaration, data: StringBuilder) {
+        val topLevel = elementStack.none { it is IrClassDeclaration }
         data.append(indent)
-        data.append("public ")
+        data.append(kotlinVisibility(clazz.visibility, topLevel))
         data.append(printIrClassType(clazz.classKind))
         data.append(clazz.name)
         val typeParameters = clazz.typeParameters
@@ -179,9 +181,7 @@ class KtIrClassPrinter(
         data.append(clazz.printExtendList(clazz.superType, clazz.implementedTypes))
         data.append(" {\n")
 
-        indentCount++
         super.visitClassDeclaration(clazz, data)
-        indentCount--
 
         data.append(indent)
         data.append("}\n")
@@ -199,6 +199,7 @@ class KtIrClassPrinter(
             data.append("/*\n")
         }
         data.append(indent)
+        data.append(kotlinVisibility(function.visibility, topLevel = function.topLevel))
         if (function.body == null) {
             data.append("abstract ")
         }
@@ -248,6 +249,14 @@ class KtIrClassPrinter(
             data.append("*/\n")
         }
         require(elementStack.pop() === function)
+    }
+
+    private fun kotlinVisibility(visibility: Visibility, topLevel: Boolean): String = when (visibility) {
+        Visibility.PUBLIC -> "public "
+        Visibility.PROTECTED -> if (topLevel) error("Top-level Kotlin declarations cannot be protected") else "protected "
+        Visibility.INTERNAL -> "internal "
+        Visibility.PRIVATE -> "private "
+        Visibility.PACKAGE_PRIVATE -> error("Kotlin has no package-private visibility")
     }
 
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {

@@ -41,6 +41,12 @@ object IrClassDeclarationSerializer : JsonSerializer<IrClassDeclaration> {
             with(src) {
                 addProperty(::name.name, name)
                 add(::language.name, context?.serialize(language))
+                add(::visibility.name, context?.serialize(visibility))
+                if (classes.isNotEmpty()) {
+                    val nested = JsonArray()
+                    classes.forEach { nested.add(context?.serialize(it, IrClassDeclaration::class.java)) }
+                    add(::classes.name, nested)
+                }
                 if (functions.isNotEmpty()) {
                     val funcsObj = JsonArray()
                     for (func in functions) {

@@ -21,9 +21,41 @@ abstract class AbstractIrClassPrinter(
     open val spaceCountInIndent = 4
     override fun visitElement(element: IrElement, data: StringBuilder) {
         elementStack.push(element)
-        super.visitElement(element, data)
-        require(elementStack.pop() === element)
+        try {
+            super.visitElement(element, data)
+        } finally {
+            require(elementStack.pop() === element)
+        }
     }
+
+    /**
+     * Traverse every child declaration of a class under one shared nesting context. Concrete
+     * printers render the class header and body delimiters; the IR visitor owns recursive member
+     * traversal so newly added declaration containers are not lost or hard-coded per language.
+     */
+    override fun visitClassDeclaration(classDeclaration: IrClassDeclaration, data: StringBuilder) {
+        val enclosingClass = elementStack.lastOrNull { it is IrClassDeclaration } as? IrClassDeclaration
+        require(enclosingClass == null || enclosingClass.language == classDeclaration.language) {
+            "Nested class ${classDeclaration.name} must use ${enclosingClass?.language}, " +
+                "matching its enclosing class language"
+        }
+        elementStack.push(classDeclaration)
+        indentCount++
+        try {
+            super.visitClassDeclaration(classDeclaration, data)
+        } finally {
+            indentCount--
+            require(elementStack.pop() === classDeclaration)
+        }
+    }
+
+    private var sourceClassNames: Map<IrClassDeclaration, String> = emptyMap()
+
+    internal fun setSourceClassNames(names: Map<IrClassDeclaration, String>) {
+        sourceClassNames = names
+    }
+
+    protected fun sourceClassName(clazz: IrClassDeclaration): String = sourceClassNames[clazz] ?: clazz.name
 
     val indent get() = " ".repeat(spaceCountInIndent).repeat(indentCount)
 
