@@ -1,6 +1,9 @@
 package com.github.xyzboom.codesmith.ir
 
-/** Materialize a class-set snapshot without mutating the source program. */
+/**
+ * Materialize a class-set snapshot without mutating the source program.
+ * An empty set is valid for baseline S0.
+ */
 fun IrProgram.materializeClassSnapshot(includedClassNames: Collection<String>): IrProgram {
     require(modules.size == 1) { "SCC incremental snapshots require exactly one module" }
     val available = classes.map { it.name }.toSet()
