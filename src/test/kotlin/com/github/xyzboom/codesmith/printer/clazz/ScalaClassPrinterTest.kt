@@ -40,7 +40,7 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "class $clazzName {\n" +
+        val expect = "final class $clazzName {\n" +
                 "  def $funcName(): Unit = \n" +
                 todoFunctionBody +
                 "}\n"
@@ -67,7 +67,7 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "class $clazzName {\n" +
+        val expect = "final class $clazzName {\n" +
                 "  // stub\n" +
                 "  /*\n" +
                 "  override def $funcName(): Unit = \n" +
@@ -104,7 +104,7 @@ class ScalaClassPrinterTest {
         }
         clazz.functions.add(func)
         val result = printer.print(clazz)
-        val expect = "class SimpleClassWithFunctionHasParameter {\n" +
+        val expect = "final class SimpleClassWithFunctionHasParameter {\n" +
                 "  def simple(arg0: Object, arg1: SimpleClassWithFunctionHasParameter): Unit = \n" +
                 "    ???\n" +
                 "}\n"
@@ -163,7 +163,7 @@ class ScalaClassPrinterTest {
         }
         classB.functions.add(funcInB)
         val result = printer.print(classB)
-        val expect = "class B extends A[B] {\n" +
+        val expect = "final class B extends A[B] {\n" +
                 "  def func(t: B): Unit\n" +
                 "}\n"
         assertEquals(expect, result)

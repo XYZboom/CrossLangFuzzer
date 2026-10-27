@@ -199,7 +199,9 @@ class KtIrClassPrinter(
             data.append("/*\n")
         }
         data.append(indent)
-        data.append(kotlinVisibility(function.visibility, topLevel = function.topLevel))
+        if (function.visibility != Visibility.PUBLIC) {
+            data.append(kotlinVisibility(function.visibility, topLevel = function.topLevel))
+        }
         if (function.body == null) {
             data.append("abstract ")
         }
