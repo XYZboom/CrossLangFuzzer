@@ -29,8 +29,8 @@ data class GeneratorConfig(
     val classTypeParameterNumberRange: IntRange = 1..3,
     //</editor-fold>
     //<editor-fold desc="Function">
-    /** Default method visibility ratio is public:protected:language-specific:private = 6:2:1:1. */
-    val functionPublicVisibilityWeight: Int = 6,
+    /** Relative roulette-sampling weights across the visibilities supported by the source language. */
+    val functionPublicVisibilityWeight: Int = 1,
     val functionProtectedVisibilityWeight: Int = 2,
     val functionPackagePrivateVisibilityWeight: Int = 1,
     val functionInternalVisibilityWeight: Int = 1,
