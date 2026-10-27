@@ -216,11 +216,11 @@ class K2IncrementalRunnerIntegrationTest {
     }
 
     @Test
-    fun `default campaign finishes the test round after a mismatch and only archives that snapshot`() {
+    fun `default campaign completes the round and archives every mismatching snapshot`() {
         var reservedSubmissions = 0
         var completedSubmissions = 0
         var mismatchReports = 0
-        var forceMismatch = true
+        var forcedMismatchCount = 0
         val maxSubmissions = 8
         val summaries = mutableListOf<String>()
 
@@ -250,9 +250,9 @@ class K2IncrementalRunnerIntegrationTest {
             reportMismatch = { mismatchReports++ },
             reportSummary = { summaries += it },
             mismatchClassifier = { incrementalSuccess, cleanSuccess, incrementalHashes, cleanHashes, binaryEqual ->
-                if (forceMismatch) {
-                    forceMismatch = false
-                    listOf("test-injected mismatch")
+                if (forcedMismatchCount < 2) {
+                    forcedMismatchCount++
+                    listOf("test-injected mismatch $forcedMismatchCount")
                 } else {
                     incrementalCleanMismatchReasons(
                         incrementalSuccess,
@@ -266,14 +266,79 @@ class K2IncrementalRunnerIntegrationTest {
         ).run()
 
         assertEquals(8, completedSubmissions, "the default must finish the reserved round after a mismatch")
-        assertEquals(1, mismatchReports)
-        assertTrue(summaries.single().contains("compilerMismatches=1"), summaries.single())
+        assertEquals(2, mismatchReports)
+        assertTrue(summaries.single().contains("compilerMismatches=2"), summaries.single())
         assertTrue(summaries.single().contains("sccValidityPairs=4"), summaries.single())
         val campaign = childDirectories(tempDir.resolve("incremental")).single()
         val program = childDirectories(campaign).single()
+        assertTrue(Files.isRegularFile(program.resolve("program.json")))
+        assertTrue(Files.isRegularFile(program.resolve("seed.txt")))
+        assertTrue(Files.isRegularFile(program.resolve("repeats/repeat-000/schedule.txt")))
         val snapshots = program.resolve("repeats/repeat-000/scc-validity/snapshots")
-        assertEquals(listOf("0000"), childDirectories(snapshots).map { it.fileName.toString() })
-        assertTrue(Files.isRegularFile(snapshots.resolve("0000/mismatch.txt")))
+        assertEquals(listOf("0000", "0001"), childDirectories(snapshots).map { it.fileName.toString() })
+        assertTrue(Files.readString(snapshots.resolve("0000/mismatch.txt")).contains("test-injected mismatch 1"))
+        assertTrue(Files.readString(snapshots.resolve("0001/mismatch.txt")).contains("test-injected mismatch 2"))
+    }
+
+    @Test
+    fun `stop-on-errors controls continuation after a trajectory error`() {
+        for (stopOnErrors in listOf(false, true)) {
+            val runDirectory = tempDir.resolve("stop-on-errors-$stopOnErrors")
+            val outputDirectory = runDirectory.resolve("out")
+            val errorDirectory = runDirectory.resolve("errors")
+            var failFirstReservation = true
+            var reservedSubmissions = 0
+            var completedSubmissions = 0
+            val summaries = mutableListOf<String>()
+
+            K2IncrementalFuzzer(
+                generatorConfig = GeneratorConfig(
+                    javaRatio = 0.5f,
+                    topLevelDeclRange = 4..4,
+                    classHasSuperProbability = 0f,
+                    classImplNumRange = 0..0,
+                    classMemberNumRange = 0..0,
+                    classHasTypeParameterProbability = 0f,
+                    moduleNumRange = 1..1,
+                ),
+                baseSeed = if (stopOnErrors) 20261030 else 20261029,
+                maxCompilerSubmissions = 8,
+                scheduleRepeatCount = 1,
+                outputDirectory = outputDirectory.toFile(),
+                errorOutputDirectory = errorDirectory.toFile(),
+                reserveCompilerGroup = { size ->
+                    if (failFirstReservation) {
+                        failFirstReservation = false
+                        throw IllegalStateException("test-injected trajectory error")
+                    }
+                    if (reservedSubmissions + size > 8) false
+                    else {
+                        reservedSubmissions += size
+                        true
+                    }
+                },
+                recordCompilerReturn = { completedSubmissions++ },
+                reportRound = {},
+                reportMismatch = {},
+                reportSummary = { summaries += it },
+                stopOnErrors = stopOnErrors,
+            ).run()
+
+            assertEquals(1, summaries.size)
+            assertTrue(summaries.single().contains("trajectoryErrors=1"), summaries.single())
+            val errorFiles = Files.walk(errorDirectory).use { paths ->
+                paths.filter { Files.isRegularFile(it) && it.fileName.toString() == "trajectory-error.txt" }.toList()
+            }
+            assertEquals(1, errorFiles.size)
+            assertTrue(Files.readString(errorFiles.single()).contains("test-injected trajectory error"))
+            if (stopOnErrors) {
+                assertEquals(0, completedSubmissions, "stop-on-errors must prevent later trajectories")
+            } else {
+                assertEquals(8, completedSubmissions, "default behavior must continue into the later parameter trajectory")
+                assertTrue(summaries.single().contains("parameterStressPairs=4"), summaries.single())
+            }
+            assertFalse(Files.exists(outputDirectory.resolve("incremental")), "trajectory errors are not bug reports")
+        }
     }
 
     @Test

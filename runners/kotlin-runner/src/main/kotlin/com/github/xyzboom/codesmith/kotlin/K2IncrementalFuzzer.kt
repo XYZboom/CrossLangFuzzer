@@ -144,7 +144,9 @@ internal class K2IncrementalFuzzer(
                         "scc_stage_components=${sccStageBatches.map { stage -> stage.map { it.componentIndex } }}\n" +
                         "scc_validity_snapshots=${sccStageBatches.size + 1}\n" +
                         "parameter_stress_snapshots=${plan.refinedSnapshots.size + 1}\n"
+                var candidateMetadataPersisted = false
                 fun persistCandidateMetadata() {
+                    if (candidateMetadataPersisted) return
                     Files.createDirectories(caseDirectory.toPath())
                     Files.writeString(caseDirectory.toPath().resolve("program.json"), gson.toJson(program))
                     Files.writeString(
@@ -153,6 +155,7 @@ internal class K2IncrementalFuzzer(
                     )
                     Files.createDirectories(repeatDirectory)
                     Files.writeString(repeatDirectory.resolve("schedule.txt"), scheduleText)
+                    candidateMetadataPersisted = true
                 }
                 val sccSnapshots = buildList {
                     add(emptyProgram)
@@ -180,14 +183,17 @@ internal class K2IncrementalFuzzer(
                         "parameterStressSnapshots=${parameterSnapshots.size} " +
                         "stateChangeSteps=$stateChangeSteps",
                 )
-                val mismatchesBeforeStateChanges = mismatchCount
-                val stateChangesResult = if (stateChangeSteps == 0) K2TrajectoryResult.COMPLETED else runTrajectory(
+                val stateChangesResult = if (stateChangeSteps == 0) {
+                    K2TrajectoryResult.COMPLETED
+                } else {
+                    runTrajectory(
                         caseDirectory = repeatDirectory,
                         programIndex = programIndex,
                         generationSeed = seed,
                         repeatIndex = repeatIndex,
                         scheduleSeed = scheduleSeed,
                         trajectoryName = "state-changes",
+                        onMismatch = ::persistCandidateMetadata,
                         snapshots = { incrementalOutput ->
                             stateMutationSnapshots(
                                 program = program,
@@ -197,12 +203,11 @@ internal class K2IncrementalFuzzer(
                             )
                         },
                     )
-                if (mismatchCount > mismatchesBeforeStateChanges) persistCandidateMetadata()
+                }
                 if (shouldStopAfter(stateChangesResult)) {
                     printSummary()
                     return
                 }
-                val mismatchesBeforeScc = mismatchCount
                 val sccResult = runTrajectory(
                         caseDirectory = repeatDirectory,
                         programIndex = programIndex,
@@ -210,18 +215,17 @@ internal class K2IncrementalFuzzer(
                         repeatIndex = repeatIndex,
                         scheduleSeed = scheduleSeed,
                         trajectoryName = "scc-validity",
+                        onMismatch = ::persistCandidateMetadata,
                         snapshots = { _ ->
                             sccSnapshots.mapIndexed { index, snapshot ->
                                 K2IncrementalSnapshot(snapshot, sccStages[index])
                             }.asSequence()
                         },
                     )
-                if (mismatchCount > mismatchesBeforeScc) persistCandidateMetadata()
                 if (shouldStopAfter(sccResult)) {
                     printSummary()
                     return
                 }
-                val mismatchesBeforeParameters = mismatchCount
                 val parametersResult = runTrajectory(
                         caseDirectory = repeatDirectory,
                         programIndex = programIndex,
@@ -229,13 +233,13 @@ internal class K2IncrementalFuzzer(
                         repeatIndex = repeatIndex,
                         scheduleSeed = scheduleSeed,
                         trajectoryName = "parameter-stress",
+                        onMismatch = ::persistCandidateMetadata,
                         snapshots = { _ ->
                             parameterSnapshots.mapIndexed { index, snapshot ->
                                 K2IncrementalSnapshot(snapshot, parameterStages[index])
                             }.asSequence()
                         },
                     )
-                if (mismatchCount > mismatchesBeforeParameters) persistCandidateMetadata()
                 if (shouldStopAfter(parametersResult)) {
                     printSummary()
                     return
@@ -253,6 +257,7 @@ internal class K2IncrementalFuzzer(
         repeatIndex: Int,
         scheduleSeed: Long,
         trajectoryName: String,
+        onMismatch: () -> Unit,
         snapshots: (Path) -> Sequence<K2IncrementalSnapshot>,
     ): K2TrajectoryResult {
         var workspaceDirectory: Path? = null
@@ -266,6 +271,7 @@ internal class K2IncrementalFuzzer(
                 repeatIndex = repeatIndex,
                 scheduleSeed = scheduleSeed,
                 trajectoryName = trajectoryName,
+                onMismatch = onMismatch,
                 workspaceDirectory = workspaceDirectory,
                 snapshots = snapshots,
             )
@@ -302,9 +308,11 @@ internal class K2IncrementalFuzzer(
         }
     }
 
-    private fun shouldStopAfter(result: K2TrajectoryResult): Boolean =
-        result == K2TrajectoryResult.BUDGET_EXHAUSTED ||
-            (stopOnErrors && result in setOf(K2TrajectoryResult.MISMATCH, K2TrajectoryResult.ERROR))
+    private fun shouldStopAfter(result: K2TrajectoryResult): Boolean = when (result) {
+        K2TrajectoryResult.COMPLETED -> false
+        K2TrajectoryResult.BUDGET_EXHAUSTED -> true
+        K2TrajectoryResult.MISMATCH, K2TrajectoryResult.ERROR -> stopOnErrors
+    }
 
     private fun runTrajectoryInWorkspace(
         caseDirectory: Path,
@@ -313,6 +321,7 @@ internal class K2IncrementalFuzzer(
         repeatIndex: Int,
         scheduleSeed: Long,
         trajectoryName: String,
+        onMismatch: () -> Unit,
         workspaceDirectory: Path,
         snapshots: (Path) -> Sequence<K2IncrementalSnapshot>,
     ): K2TrajectoryResult {
@@ -325,6 +334,7 @@ internal class K2IncrementalFuzzer(
         Files.createDirectories(incrementalSourceRoot)
 
         var roundPairCount = 0
+        var trajectoryHadMismatch = false
         var roundDuration = Duration.ZERO
         for ((roundIndex, roundSnapshots) in snapshots(incrementalOutput).chunked(incrementalCompilesPerRound).withIndex()) {
             if (roundSnapshots.size != incrementalCompilesPerRound) {
@@ -399,6 +409,7 @@ internal class K2IncrementalFuzzer(
                     mismatchCount++
                     reportMismatch()
                     snapshotMismatch = true
+                    trajectoryHadMismatch = true
                     archiveMismatchReport(
                         snapshotDirectory,
                         K2IncrementalMismatchReport(
@@ -417,6 +428,7 @@ internal class K2IncrementalFuzzer(
                             differences = differences,
                         ),
                     )
+                    onMismatch()
                     println(
                         "K2_INCREMENTAL_MISMATCH program=$programIndex generationSeed=$generationSeed " +
                             "repeat=$repeatIndex scheduleSeed=$scheduleSeed trajectory=$trajectoryName snapshot=$snapshotIndex " +
@@ -441,6 +453,7 @@ internal class K2IncrementalFuzzer(
             if (trajectoryName == "scc-validity") sccValidityPairCount++
             if (trajectoryName == "parameter-stress") parameterStressPairCount++
             if (snapshotMismatch && stopOnErrors) {
+                // Stop consuming this reserved group now; the caller ends the campaign from this outcome.
                 println(
                     "K2_INCREMENTAL_TEST_ROUND_INTERRUPTED index=$completedTestRounds " +
                         "completedSteps=$roundPairCount/$incrementalCompilesPerRound",
@@ -460,7 +473,7 @@ internal class K2IncrementalFuzzer(
             }
         }
         }
-        return K2TrajectoryResult.COMPLETED
+        return if (trajectoryHadMismatch) K2TrajectoryResult.MISMATCH else K2TrajectoryResult.COMPLETED
     }
 
     private fun stateMutationSnapshots(
