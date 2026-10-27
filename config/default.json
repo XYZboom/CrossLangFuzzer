@@ -34,7 +34,7 @@
       1,
       3
     ],
-    "functionPublicVisibilityWeight": 6,
+    "functionPublicVisibilityWeight": 1,
     "functionProtectedVisibilityWeight": 2,
     "functionPackagePrivateVisibilityWeight": 1,
     "functionInternalVisibilityWeight": 1,

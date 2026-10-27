@@ -31,7 +31,7 @@ class BytecodeClassPrefixGeneratorTest {
         assertEquals(2..4, config.generatorConfig.moduleNumRange)
         assertEquals(0.25f, config.generatorConfig.nestedClassProbability)
         assertEquals(0.3f, config.generatorConfig.nestedTypeAsSuperProbability)
-        assertEquals(6, config.generatorConfig.functionPublicVisibilityWeight)
+        assertEquals(1, config.generatorConfig.functionPublicVisibilityWeight)
         assertEquals(2, config.generatorConfig.functionProtectedVisibilityWeight)
         assertEquals(0.5f, config.generatorConfig.overrideVisibilityWidenProbability)
     }
@@ -114,7 +114,7 @@ class BytecodeClassPrefixGeneratorTest {
             assertTrue((counts[Visibility.PROTECTED] ?: 0) > 0, "$language protected missing: $counts")
             assertTrue((counts[Visibility.PRIVATE] ?: 0) > 0, "$language private missing: $counts")
             assertTrue((counts[languageSpecific] ?: 0) > 0, "$language-specific visibility missing: $counts")
-            assertTrue((counts[Visibility.PUBLIC] ?: 0) > (counts[Visibility.PROTECTED] ?: 0), "$language ratio: $counts")
+            assertTrue((counts[Visibility.PUBLIC] ?: 0) < (counts[Visibility.PROTECTED] ?: 0), "$language ratio: $counts")
         }
     }
 
