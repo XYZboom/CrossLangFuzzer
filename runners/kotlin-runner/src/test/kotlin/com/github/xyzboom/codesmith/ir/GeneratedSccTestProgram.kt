@@ -32,7 +32,12 @@ internal fun generatedSccTestProgram(): GeneratedSccTestProgram {
         val program = IrDeclGenerator(config, Random(seed), Language.KOTLIN).genProgram()
         val hasParameterizedOverride = program.classes.any { clazz ->
             clazz.functions.any { function ->
-                function.isOverride && !function.isOverrideStub && function.parameterList.parameters.size >= 2
+                function.isOverride && !function.isOverrideStub &&
+                    function.parameterList.parameters.size >= 2 &&
+                    function.override.any { overridden ->
+                        function.parameterList.parameters.map { it.type } ==
+                            overridden.parameterList.parameters.map { it.type }
+                    }
             }
         }
         if (hasParameterizedOverride) return GeneratedSccTestProgram(seed, program)
@@ -53,6 +58,16 @@ internal fun createGeneratedMultiClassScc(program: IrProgram): Set<String> {
     val (secondClass, secondFunction) = functions[1]
     firstFunction.parameterList.parameters[0].type = buildSimpleClassifier { classDecl = secondClass }
     secondFunction.parameterList.parameters[0].type = buildSimpleClassifier { classDecl = firstClass }
+    program.classes.forEach { clazz ->
+        clazz.functions.filter { it.isOverride && !it.isOverrideStub }.forEach { function ->
+            val overridden = function.override.firstOrNull() ?: return@forEach
+            if (function.parameterList.parameters.size == overridden.parameterList.parameters.size) {
+                function.parameterList.parameters.zip(overridden.parameterList.parameters).forEach { (parameter, baseParameter) ->
+                    parameter.type = baseParameter.type
+                }
+            }
+        }
+    }
     val component = program.topologicallyOrderedClassComponents.single { group ->
         group.any { it.name == firstClass.name } && group.any { it.name == secondClass.name }
     }
