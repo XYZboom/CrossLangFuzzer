@@ -199,7 +199,11 @@ class KtIrClassPrinter(
             data.append("/*\n")
         }
         data.append(indent)
-        if (function.visibility != Visibility.PUBLIC) {
+        if (function.visibility != Visibility.PUBLIC ||
+            (function.isOverride && function.override.any { it.visibility != Visibility.PUBLIC })
+        ) {
+            // An override inherits its base visibility unless it widens it explicitly.
+            // Preserve a public IR override when any overridden declaration is non-public.
             data.append(kotlinVisibility(function.visibility, topLevel = function.topLevel))
         }
         if (function.body == null) {

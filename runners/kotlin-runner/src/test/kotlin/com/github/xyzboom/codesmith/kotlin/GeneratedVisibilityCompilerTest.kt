@@ -76,26 +76,32 @@ class GeneratedVisibilityCompilerTest {
 
     @Test
     fun `K2 accepts Java descendants of Kotlin internal abstract overrides`() {
-        val program = IrDeclGenerator(
-            config = GeneratorConfig(
-                topLevelDeclRange = 12..12,
-                javaRatio = 0.5f,
-                classMemberNumRange = 1..3,
-                classMemberIsFunctionWeight = 3,
-                nestedClassProbability = 1f,
-                nestedClassNumRange = 2..2,
-                nestedTypeAsSuperProbability = 1f,
-                noFinalProperties = true,
-                moduleNumRange = 1..1,
-            ),
-            random = Random(20261215),
-            majorLanguage = Language.KOTLIN,
-        ).genProgram()
+        val abstractMember = buildFunctionDeclaration {
+            name = "internalMember"
+            language = Language.KOTLIN
+            visibility = Visibility.INTERNAL
+            parameterList = buildParameterList()
+            body = null
+        }
+        val parent = buildClassDeclaration {
+            name = "KotlinInternalAbstractBase"
+            language = Language.KOTLIN
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.ABSTRACT
+            functions += abstractMember
+        }
+        val javaChild = buildClassDeclaration {
+            name = "JavaAbstractChild"
+            language = Language.JAVA
+            visibility = Visibility.PUBLIC
+            classKind = ClassKind.ABSTRACT
+            superType = parent.type
+        }
+        val program = buildProgram {
+            classes += parent
+            classes += javaChild
+        }
 
-        val parent = program.classes.single { it.name == "DV0RxzB" }
-        val abstractMember = parent.functions.single { it.name == "cnp" }
-        val javaChild = program.classes.single { it.name == "Y7MMn" }
-        assertEquals(Language.KOTLIN, parent.language)
         assertEquals(Visibility.INTERNAL, abstractMember.visibility)
         assertTrue(abstractMember.body == null)
         assertEquals(Language.JAVA, javaChild.language)
