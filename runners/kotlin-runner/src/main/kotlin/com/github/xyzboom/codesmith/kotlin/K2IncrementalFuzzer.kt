@@ -2,7 +2,9 @@ package com.github.xyzboom.codesmith.kotlin
 
 import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
+import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.deepCopy
 import com.github.xyzboom.codesmith.ir.materialize
@@ -10,6 +12,7 @@ import com.github.xyzboom.codesmith.ir.materializeClassSnapshot
 import com.github.xyzboom.codesmith.ir.sccIncrementalPartitionPlan
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import com.github.xyzboom.codesmith.serde.gson
+import com.github.xyzboom.codesmith.ir.types.IrClassifier
 import com.intellij.util.io.DataExternalizer
 import org.jetbrains.kotlin.build.report.BuildReporter
 import org.jetbrains.kotlin.build.report.ICReporter
@@ -57,6 +60,7 @@ internal class K2IncrementalFuzzer(
     private val sccStageCount: Int = 3,
     private val stateChangeSteps: Int = 0,
     private val incrementalCompilesPerRound: Int = 4,
+    private val stopOnErrors: Boolean = false,
     private val mismatchClassifier: (
         Boolean,
         Boolean,
@@ -64,6 +68,7 @@ internal class K2IncrementalFuzzer(
         Map<String, String>,
         Boolean?,
     ) -> List<String> = ::incrementalCleanMismatchReasons,
+    private val errorOutputDirectory: File = outputDirectory.toPath().resolveSibling("errors").toFile(),
 ) {
     private val printer = IrProgramPrinter()
     private var completedPairs = 0
@@ -78,6 +83,8 @@ internal class K2IncrementalFuzzer(
     private var parameterStressCleanSuccesses = 0
     private var stateChangePairCount = 0
     private var stateChangeMutationCount = 0
+    private var trajectoryErrorCount = 0
+    private var lastStateMutation: String? = null
     private val stateChangeOperatorCounts = sortedMapOf<String, Int>()
 
     fun run() {
@@ -96,31 +103,31 @@ internal class K2IncrementalFuzzer(
             topLevelDeclRange = minClassCount..maxClassCount,
         )
         val campaign = File(outputDirectory, "incremental").resolve("run-${System.currentTimeMillis()}-seed-$baseSeed")
-        campaign.mkdirs()
         println("K2_INCREMENTAL_OUTPUT=${campaign.path}")
         println(
             "K2_INCREMENTAL_CONFIG=single-module mixed Kotlin/Java; seed=$baseSeed; " +
                 "maxCompilerSubmissions=$maxCompilerSubmissions; scheduleRepeats=$scheduleRepeatCount; " +
                 "sccStageCount=$sccStageCount; stateChangeSteps=$stateChangeSteps; " +
-                "incrementalCompilesPerRound=$incrementalCompilesPerRound",
+                "incrementalCompilesPerRound=$incrementalCompilesPerRound; stopOnErrors=$stopOnErrors",
         )
 
         var programIndex = 0L
+        var nextGenerationSeed = baseSeed
         while (maxCompilerSubmissions == 0 || completedPairs * 2 < maxCompilerSubmissions) {
-            val seed = Math.addExact(baseSeed, programIndex)
+            val seed = nextGenerationSeed
+            nextGenerationSeed = Math.addExact(nextGenerationSeed, 1L)
             val program = IrDeclGenerator(effectiveConfig, Random(seed), Language.KOTLIN).genProgram()
-            require(program.modules.size == 1) { "Incremental generator produced ${program.modules.size} modules" }
             ensureMixedLanguages(program)
+            val crossLanguageMutationTarget = hasJavaImplementedKotlinDefaultInterface(program)
+            require(program.modules.size == 1) { "Incremental generator produced ${program.modules.size} modules" }
             val caseDirectory = campaign.resolve("program-$programIndex-seed-$seed")
-            caseDirectory.mkdirs()
-            Files.writeString(caseDirectory.toPath().resolve("program.json"), gson.toJson(program))
-            Files.writeString(caseDirectory.toPath().resolve("seed.txt"), "base_seed=$baseSeed\nprogram_index=$programIndex\nprogram_seed=$seed\n")
             programCount++
             val kotlinClassCount = program.classes.count { it.language == Language.KOTLIN }
             val javaClassCount = program.classes.count { it.language == Language.JAVA }
             println(
                 "K2_INCREMENTAL_PROGRAM index=$programIndex seed=$seed classes=${program.classes.size} " +
-                    "kotlinClasses=$kotlinClassCount javaClasses=$javaClassCount",
+                    "kotlinClasses=$kotlinClassCount javaClasses=$javaClassCount " +
+                    "crossLanguageMutationTarget=$crossLanguageMutationTarget",
             )
 
             val emptyProgram = program.materializeClassSnapshot(emptyList())
@@ -130,16 +137,23 @@ internal class K2IncrementalFuzzer(
                 val sccStageBatches = plan.sccStages(sccStageCount)
                 val repeatDirectory = caseDirectory.toPath()
                     .resolve("repeats/repeat-${repeatIndex.toString().padStart(3, '0')}")
-                Files.createDirectories(repeatDirectory)
-                Files.writeString(
-                    repeatDirectory.resolve("schedule.txt"),
+                val scheduleText =
                     "generation_seed=$seed\nschedule_repeat=$repeatIndex\nschedule_seed=$scheduleSeed\n" +
                         "scc_component_order=${plan.components.map { component -> component.map { it.name } }}\n" +
                         "scc_stage_count_requested=$sccStageCount\nscc_stage_count_actual=${sccStageBatches.size}\n" +
                         "scc_stage_components=${sccStageBatches.map { stage -> stage.map { it.componentIndex } }}\n" +
                         "scc_validity_snapshots=${sccStageBatches.size + 1}\n" +
-                        "parameter_stress_snapshots=${plan.refinedSnapshots.size + 1}\n",
-                )
+                        "parameter_stress_snapshots=${plan.refinedSnapshots.size + 1}\n"
+                fun persistCandidateMetadata() {
+                    Files.createDirectories(caseDirectory.toPath())
+                    Files.writeString(caseDirectory.toPath().resolve("program.json"), gson.toJson(program))
+                    Files.writeString(
+                        caseDirectory.toPath().resolve("seed.txt"),
+                        "base_seed=$baseSeed\nprogram_index=$programIndex\nprogram_seed=$seed\n",
+                    )
+                    Files.createDirectories(repeatDirectory)
+                    Files.writeString(repeatDirectory.resolve("schedule.txt"), scheduleText)
+                }
                 val sccSnapshots = buildList {
                     add(emptyProgram)
                     val accumulatedStageBatches = mutableListOf<com.github.xyzboom.codesmith.ir.SccClassBatch>()
@@ -166,7 +180,8 @@ internal class K2IncrementalFuzzer(
                         "parameterStressSnapshots=${parameterSnapshots.size} " +
                         "stateChangeSteps=$stateChangeSteps",
                 )
-                if (stateChangeSteps > 0 && !runTrajectory(
+                val mismatchesBeforeStateChanges = mismatchCount
+                val stateChangesResult = if (stateChangeSteps == 0) K2TrajectoryResult.COMPLETED else runTrajectory(
                         caseDirectory = repeatDirectory,
                         programIndex = programIndex,
                         generationSeed = seed,
@@ -182,8 +197,13 @@ internal class K2IncrementalFuzzer(
                             )
                         },
                     )
-                ) return
-                if (!runTrajectory(
+                if (mismatchCount > mismatchesBeforeStateChanges) persistCandidateMetadata()
+                if (shouldStopAfter(stateChangesResult)) {
+                    printSummary()
+                    return
+                }
+                val mismatchesBeforeScc = mismatchCount
+                val sccResult = runTrajectory(
                         caseDirectory = repeatDirectory,
                         programIndex = programIndex,
                         generationSeed = seed,
@@ -196,8 +216,13 @@ internal class K2IncrementalFuzzer(
                             }.asSequence()
                         },
                     )
-                ) return
-                if (!runTrajectory(
+                if (mismatchCount > mismatchesBeforeScc) persistCandidateMetadata()
+                if (shouldStopAfter(sccResult)) {
+                    printSummary()
+                    return
+                }
+                val mismatchesBeforeParameters = mismatchCount
+                val parametersResult = runTrajectory(
                         caseDirectory = repeatDirectory,
                         programIndex = programIndex,
                         generationSeed = seed,
@@ -210,7 +235,11 @@ internal class K2IncrementalFuzzer(
                             }.asSequence()
                         },
                     )
-                ) return
+                if (mismatchCount > mismatchesBeforeParameters) persistCandidateMetadata()
+                if (shouldStopAfter(parametersResult)) {
+                    printSummary()
+                    return
+                }
             }
             programIndex++
         }
@@ -225,9 +254,11 @@ internal class K2IncrementalFuzzer(
         scheduleSeed: Long,
         trajectoryName: String,
         snapshots: (Path) -> Sequence<K2IncrementalSnapshot>,
-    ): Boolean {
-        val workspaceDirectory = Files.createTempDirectory("codesmith-k2-incremental-")
+    ): K2TrajectoryResult {
+        var workspaceDirectory: Path? = null
         return try {
+            if (trajectoryName == "state-changes") lastStateMutation = null
+            workspaceDirectory = Files.createTempDirectory("codesmith-k2-incremental-")
             runTrajectoryInWorkspace(
                 caseDirectory = caseDirectory,
                 programIndex = programIndex,
@@ -238,10 +269,42 @@ internal class K2IncrementalFuzzer(
                 workspaceDirectory = workspaceDirectory,
                 snapshots = snapshots,
             )
+        } catch (exception: Exception) {
+            trajectoryErrorCount++
+            val errorDirectory = errorOutputDirectory.toPath()
+                .resolve(caseDirectory.parent.parent.parent.fileName.toString())
+                .resolve(caseDirectory.parent.parent.fileName.toString())
+                .resolve(caseDirectory.parent.fileName.toString())
+                .resolve(caseDirectory.fileName.toString())
+                .resolve(trajectoryName)
+            Files.createDirectories(errorDirectory)
+            val errorText = buildString {
+                appendLine("program_index=$programIndex")
+                appendLine("generation_seed=$generationSeed")
+                appendLine("schedule_repeat=$repeatIndex")
+                appendLine("schedule_seed=$scheduleSeed")
+                appendLine("trajectory=$trajectoryName")
+                appendLine("last_state_mutation=${lastStateMutation ?: "none"}")
+                appendLine("exception=${exception::class.qualifiedName}: ${exception.message}")
+                appendLine()
+                append(exception.stackTraceToString())
+            }
+            val errorFile = errorDirectory.resolve("trajectory-error.txt")
+            Files.writeString(errorFile, errorText)
+            println(
+                "K2_INCREMENTAL_TRAJECTORY_ERROR program=$programIndex generationSeed=$generationSeed " +
+                    "repeat=$repeatIndex scheduleSeed=$scheduleSeed trajectory=$trajectoryName " +
+                    "exception=${exception::class.qualifiedName} report=$errorFile",
+            )
+            K2TrajectoryResult.ERROR
         } finally {
-            workspaceDirectory.toFile().deleteRecursively()
+            workspaceDirectory?.toFile()?.deleteRecursively()
         }
     }
+
+    private fun shouldStopAfter(result: K2TrajectoryResult): Boolean =
+        result == K2TrajectoryResult.BUDGET_EXHAUSTED ||
+            (stopOnErrors && result in setOf(K2TrajectoryResult.MISMATCH, K2TrajectoryResult.ERROR))
 
     private fun runTrajectoryInWorkspace(
         caseDirectory: Path,
@@ -252,7 +315,7 @@ internal class K2IncrementalFuzzer(
         trajectoryName: String,
         workspaceDirectory: Path,
         snapshots: (Path) -> Sequence<K2IncrementalSnapshot>,
-    ): Boolean {
+    ): K2TrajectoryResult {
         val trajectoryDirectory = caseDirectory.resolve(trajectoryName)
         val incrementalRoot = workspaceDirectory.resolve("incremental")
         val incrementalSourceRoot = incrementalRoot.resolve("src")
@@ -277,8 +340,7 @@ internal class K2IncrementalFuzzer(
                     "K2_INCREMENTAL_BUDGET_EXHAUSTED after $completedTestRounds complete test rounds " +
                         "and $completedPairs snapshot comparisons",
                 )
-                printSummary()
-                return false
+                return K2TrajectoryResult.BUDGET_EXHAUSTED
             }
             println(
                 "K2_INCREMENTAL_TEST_ROUND_START index=$completedTestRounds program=$programIndex " +
@@ -378,13 +440,12 @@ internal class K2IncrementalFuzzer(
             roundDuration += duration
             if (trajectoryName == "scc-validity") sccValidityPairCount++
             if (trajectoryName == "parameter-stress") parameterStressPairCount++
-            if (snapshotMismatch) {
+            if (snapshotMismatch && stopOnErrors) {
                 println(
                     "K2_INCREMENTAL_TEST_ROUND_INTERRUPTED index=$completedTestRounds " +
                         "completedSteps=$roundPairCount/$incrementalCompilesPerRound",
                 )
-                printSummary()
-                return false
+                return K2TrajectoryResult.MISMATCH
             }
             if (roundPairCount == incrementalCompilesPerRound) {
                 println(
@@ -399,7 +460,7 @@ internal class K2IncrementalFuzzer(
             }
         }
         }
-        return true
+        return K2TrajectoryResult.COMPLETED
     }
 
     private fun stateMutationSnapshots(
@@ -416,6 +477,8 @@ internal class K2IncrementalFuzzer(
             val outputFiles = classFilePaths(incrementalOutput).keys
             val mutation = scheduler.next(state, logicalSources, outputFiles, stepIndex) ?: break
             state = mutation.state
+            lastStateMutation = "step=$stepIndex operator=${mutation.operator} description=${mutation.description}"
+            println("K2_INCREMENTAL_STATE_MUTATION step=$stepIndex operator=${mutation.operator} description=${mutation.description}")
             yield(
                 K2IncrementalSnapshot(
                     program = state.program,
@@ -448,6 +511,19 @@ internal class K2IncrementalFuzzer(
         }
         require(classes.any { it.language == Language.KOTLIN } && classes.any { it.language == Language.JAVA }) {
             "Generated program did not contain both Kotlin and Java classes after language assignment"
+        }
+    }
+
+    private fun hasJavaImplementedKotlinDefaultInterface(program: IrProgram): Boolean {
+        val kotlinInterfaces = program.classes.filter {
+            it.language == Language.KOTLIN && it.classKind == ClassKind.INTERFACE &&
+                it.functions.any { function -> function.body?.expressions?.isEmpty() == true }
+        }.toSet()
+        if (kotlinInterfaces.isEmpty()) return false
+        return program.classes.any { clazz ->
+            clazz.language == Language.JAVA && clazz.implementedTypes.any { type ->
+                type is IrClassifier && type.classDecl in kotlinInterfaces
+            }
         }
     }
 
@@ -743,8 +819,16 @@ internal class K2IncrementalFuzzer(
                 "parameterStressPairs=$parameterStressPairCount parameterStressCleanSuccesses=$parameterStressCleanSuccesses " +
                 "stateChangePairs=$stateChangePairCount stateChangeMutations=$stateChangeMutationCount " +
                 "stateChangeOperators=$stateChangeOperatorCounts " +
-                "compilerMismatches=$mismatchCount selectiveRecompileProven=$selectiveRecompileProven",
+                "compilerMismatches=$mismatchCount trajectoryErrors=$trajectoryErrorCount " +
+                "selectiveRecompileProven=$selectiveRecompileProven",
         )
+    }
+
+    private enum class K2TrajectoryResult {
+        COMPLETED,
+        MISMATCH,
+        ERROR,
+        BUDGET_EXHAUSTED,
     }
 
     private data class K2IncrementalSnapshot(
@@ -834,6 +918,12 @@ internal fun incrementalCleanMismatchReasons(
     }
     return emptyList()
 }
+
+internal fun incrementalOutcomeMismatchReasons(
+    incrementalSuccess: Boolean,
+    cleanSuccess: Boolean,
+): List<String> =
+    if (incrementalSuccess != cleanSuccess) listOf("compile success differs") else emptyList()
 
 internal fun incrementalChangedFiles(
     forceAllKotlinSourcesModified: Boolean,
