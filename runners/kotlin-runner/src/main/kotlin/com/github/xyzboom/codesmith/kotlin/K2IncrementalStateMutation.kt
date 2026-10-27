@@ -63,6 +63,12 @@ internal class K2IncrementalStateMutationScheduler(seed: Int) {
         val startIndex = (operatorOffset + stepIndex) % weightedOperators.size
         val orderedOperators = buildList {
             val seenNames = mutableSetOf<String>()
+            if (stepIndex == 0) {
+                operators.firstOrNull { it.name == "TOGGLE_INTERFACE_METHOD_BODY" }?.let {
+                    add(it)
+                    seenNames += it.name
+                }
+            }
             for (offset in weightedOperators.indices) {
                 val candidate = weightedOperators[(startIndex + offset) % weightedOperators.size]
                 if (seenNames.add(candidate.name)) add(candidate)
@@ -120,8 +126,15 @@ internal class K2IncrementalStateMutationScheduler(seed: Int) {
         unusedOutputClassFiles: Set<String>,
         unusedStepIndex: Int,
     ): K2IncrementalStateMutation? {
+        val javaImplementedKotlinInterfaces = state.program.classes
+            .filter { it.language == Language.JAVA }
+            .flatMap { it.implementedTypes.filterIsInstance<com.github.xyzboom.codesmith.ir.types.IrClassifier>() }
+            .map { it.classDecl }
+            .toSet()
         val candidates = state.program.classes.flatMap { clazz ->
-            if (clazz.language != Language.KOTLIN || clazz.classKind != ClassKind.INTERFACE) {
+            if (clazz.language != Language.KOTLIN || clazz.classKind != ClassKind.INTERFACE ||
+                clazz !in javaImplementedKotlinInterfaces
+            ) {
                 emptyList()
             } else {
                 clazz.functions.mapIndexedNotNull { functionIndex, function ->

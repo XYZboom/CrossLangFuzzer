@@ -79,6 +79,14 @@ class K2IncrementalRunnerIntegrationTest {
     }
 
     @Test
+    fun `outcome-only oracle flags either asymmetric direction and ignores symmetric outcomes`() {
+        assertEquals(listOf("compile success differs"), incrementalOutcomeMismatchReasons(false, true))
+        assertEquals(listOf("compile success differs"), incrementalOutcomeMismatchReasons(true, false))
+        assertTrue(incrementalOutcomeMismatchReasons(false, false).isEmpty())
+        assertTrue(incrementalOutcomeMismatchReasons(true, true).isEmpty())
+    }
+
+    @Test
     fun `mismatch archive preserves sources and comparison evidence without compiler outputs`() {
         val fuzzer = K2IncrementalFuzzer(
             generatorConfig = GeneratorConfig.default,
@@ -122,7 +130,7 @@ class K2IncrementalRunnerIntegrationTest {
     }
 
     @Test
-    fun `runner archives the actual compiler observations when mismatch classification triggers`() {
+    fun `stop on errors archives the actual compiler observations and stops at the mismatch`() {
         var mismatchReports = 0
         var completedSubmissions = 0
         var forceMismatch = true
@@ -148,6 +156,7 @@ class K2IncrementalRunnerIntegrationTest {
             reportRound = {},
             reportMismatch = { mismatchReports++ },
             reportSummary = { summaries += it },
+            stopOnErrors = true,
             mismatchClassifier = { incrementalSuccess, cleanSuccess, incrementalHashes, cleanHashes, binaryEqual ->
                 if (forceMismatch) {
                     forceMismatch = false
@@ -169,6 +178,9 @@ class K2IncrementalRunnerIntegrationTest {
         assertTrue(summaries.single().contains("compilerMismatches=1"), summaries.single())
         val campaign = childDirectories(tempDir.resolve("incremental")).single()
         val program = childDirectories(campaign).single()
+        assertTrue(Files.isRegularFile(program.resolve("program.json")))
+        assertTrue(Files.isRegularFile(program.resolve("seed.txt")))
+        assertTrue(Files.isRegularFile(program.resolve("repeats/repeat-000/schedule.txt")))
         val snapshots = program.resolve("repeats/repeat-000/scc-validity/snapshots")
         assertEquals(listOf("0000"), childDirectories(snapshots).map { it.fileName.toString() })
         val mismatch = snapshots.resolve("0000")
@@ -201,6 +213,67 @@ class K2IncrementalRunnerIntegrationTest {
         val paths = Files.walk(mismatch).use { it.toList() }
         assertTrue(paths.none { it.fileName.toString() in setOf("cache", "classes", "classpath-snapshots") })
         assertTrue(paths.none { Files.isRegularFile(it) && it.fileName.toString().endsWith(".class") })
+    }
+
+    @Test
+    fun `default campaign finishes the test round after a mismatch and only archives that snapshot`() {
+        var reservedSubmissions = 0
+        var completedSubmissions = 0
+        var mismatchReports = 0
+        var forceMismatch = true
+        val maxSubmissions = 8
+        val summaries = mutableListOf<String>()
+
+        K2IncrementalFuzzer(
+            generatorConfig = GeneratorConfig(
+                javaRatio = 0.5f,
+                topLevelDeclRange = 4..4,
+                classHasSuperProbability = 0f,
+                classImplNumRange = 0..0,
+                classMemberNumRange = 0..0,
+                classHasTypeParameterProbability = 0f,
+                moduleNumRange = 1..1,
+            ),
+            baseSeed = 20261028,
+            maxCompilerSubmissions = maxSubmissions,
+            scheduleRepeatCount = 1,
+            outputDirectory = tempDir.toFile(),
+            reserveCompilerGroup = { size ->
+                if (reservedSubmissions + size > maxSubmissions) false
+                else {
+                    reservedSubmissions += size
+                    true
+                }
+            },
+            recordCompilerReturn = { completedSubmissions++ },
+            reportRound = {},
+            reportMismatch = { mismatchReports++ },
+            reportSummary = { summaries += it },
+            mismatchClassifier = { incrementalSuccess, cleanSuccess, incrementalHashes, cleanHashes, binaryEqual ->
+                if (forceMismatch) {
+                    forceMismatch = false
+                    listOf("test-injected mismatch")
+                } else {
+                    incrementalCleanMismatchReasons(
+                        incrementalSuccess,
+                        cleanSuccess,
+                        incrementalHashes,
+                        cleanHashes,
+                        binaryEqual,
+                    )
+                }
+            },
+        ).run()
+
+        assertEquals(8, completedSubmissions, "the default must finish the reserved round after a mismatch")
+        assertEquals(1, mismatchReports)
+        assertTrue(summaries.single().contains("compilerMismatches=1"), summaries.single())
+        assertTrue(summaries.single().contains("sccValidityPairs=4"), summaries.single())
+        val campaign = childDirectories(tempDir.resolve("incremental")).single()
+        val program = childDirectories(campaign).single()
+        val snapshots = program.resolve("repeats/repeat-000/scc-validity/snapshots")
+        assertEquals(listOf("0000"), childDirectories(snapshots).map { it.fileName.toString() })
+        assertTrue(Files.isRegularFile(snapshots.resolve("0000/mismatch.txt")))
     }
 
     @Test
@@ -245,39 +318,14 @@ class K2IncrementalRunnerIntegrationTest {
         assertEquals(1, reportedRounds.size, "Four incremental/clean pairs form one logical test round")
         assertEquals(0, mismatchReports)
 
-        val campaignRoots = childDirectories(tempDir.resolve("incremental"))
-        assertEquals(1, campaignRoots.size)
-        val programs = childDirectories(campaignRoots.single())
-        assertEquals(1, programs.size)
-        val program = programs.single()
-        assertTrue(Files.isRegularFile(program.resolve("program.json")))
-        val programJsonText = Files.readString(program.resolve("program.json"))
-        assertTrue(programJsonText.contains("\"language\":\"KOTLIN\""), "Archived program must contain Kotlin declarations")
-        assertTrue(programJsonText.contains("\"language\":\"JAVA\""), "Archived program must contain Java declarations")
-        assertTrue(Files.isRegularFile(program.resolve("seed.txt")))
-
-        val repeats = childDirectories(program.resolve("repeats"))
-        assertEquals(1, repeats.size)
-        val repeat = repeats.single()
-        val schedule = Files.readString(repeat.resolve("schedule.txt"))
-        assertTrue(schedule.contains("generation_seed=771"))
-        assertTrue(schedule.contains("schedule_repeat=0"))
+        assertFalse(
+            Files.exists(tempDir.resolve("incremental")),
+            "Successful comparisons must not create per-program report folders",
+        )
         val summary = summaries.single()
         assertTrue(summary.contains("pairedComparisons=4"), summary)
         assertTrue(summary.contains("selectiveRecompileProven=true"), summary)
         assertTrue(summary.contains("compilerMismatches=0"), summary)
-        assertFalse(Files.exists(repeat.resolve("scc-validity")), "Successful pairs must not create report folders")
-        assertFalse(Files.exists(repeat.resolve("parameter-stress")), "Successful pairs must not create report folders")
-
-        val reportPaths = Files.walk(campaignRoots.single()).use { it.toList() }
-        assertTrue(
-            reportPaths.none { it.fileName.toString() in setOf("cache", "classes", "classpath-snapshots") },
-            "Compiler workspaces must stay outside the report tree",
-        )
-        assertTrue(
-            reportPaths.none { Files.isRegularFile(it) && it.fileName.toString().endsWith(".class") },
-            "Compiled class files must not be archived in the report",
-        )
     }
 
     @Test
@@ -324,18 +372,10 @@ class K2IncrementalRunnerIntegrationTest {
         assertTrue(summary.contains("sccValidityPairs=4"), summary)
         assertTrue(summary.contains("compilerMismatches=0"), summary)
 
-        val campaign = childDirectories(tempDir.resolve("incremental")).single()
-        val program = childDirectories(campaign).single()
-        val programJsonText = Files.readString(program.resolve("program.json"))
-        assertTrue(programJsonText.contains("\"language\":\"KOTLIN\""))
-        assertTrue(programJsonText.contains("\"language\":\"JAVA\""))
-
-        val repeat = program.resolve("repeats/repeat-000")
-        val schedule = Files.readString(repeat.resolve("schedule.txt"))
-        assertTrue(schedule.contains("scc_stage_count_requested=3"))
-        assertTrue(schedule.contains("scc_stage_count_actual=3"))
-        assertTrue(schedule.contains("scc_validity_snapshots=4"))
-        assertFalse(Files.exists(repeat.resolve("scc-validity")), "Matched prefixes must not create mismatch reports")
+        assertFalse(
+            Files.exists(tempDir.resolve("incremental")),
+            "Matching SCC comparisons must not create per-program report folders",
+        )
         assertEquals(0, mismatchReports)
     }
 

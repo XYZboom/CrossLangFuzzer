@@ -175,7 +175,7 @@ abstract class CommonCompilerRunner(
     protected val stopOnErrors by run<OptionWithValues<Boolean, Boolean, Boolean>> {
         option("-s", "--stop-on-errors")
             .flag()
-            .help("Stop the runner when find a compiler bug.")
+            .help("Stop the runner when it finds a compiler bug or an incremental trajectory error.")
     }
     private val configFile by run<OptionWithValues<File, File, File>> {
         option("--config-file").file(
