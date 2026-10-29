@@ -234,6 +234,7 @@ abstract class CommonCompilerRunner(
 
     protected abstract val runnerLanguage: Language
     protected abstract val mutatorLanguageSemantics: MutatorLanguageSemantics
+    protected open val sourcePackageName: String? get() = null
     protected abstract fun normalTargets(): List<CompilerTarget>
     protected abstract fun differentialTargets(): List<CompilerTarget>
 
@@ -378,6 +379,7 @@ abstract class CommonCompilerRunner(
                 minimizedResults,
                 outDir = outDir,
                 metadata = metadata,
+                packageName = sourcePackageName,
             )
             if (report != null) rawReportCount.incrementAndGet()
         }
@@ -401,6 +403,7 @@ abstract class CommonCompilerRunner(
             outDir = nonSimilarOutDir,
             metadata = metadata,
             forceRecord = forceRecord,
+            packageName = sourcePackageName,
         )
         if (report != null) differentialReportCount.incrementAndGet()
     }
@@ -504,6 +507,7 @@ abstract class CommonCompilerRunner(
                                 outDir = if (differential) nonSimilarOutDir else outDir,
                                 metadata = metadata,
                                 forceRecord = true,
+                                packageName = sourcePackageName,
                             )
                             if (report != null) {
                                 if (differential) differentialReportCount.incrementAndGet()

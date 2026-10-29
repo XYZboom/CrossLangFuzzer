@@ -102,6 +102,7 @@ fun recordCompileResult(
     outDir: File = logFile,
     metadata: Map<String, String> = emptyMap(),
     forceRecord: Boolean = false,
+    packageName: String? = null,
 ): File? {
     val resultSet = compileResults.toSet()
     require(forceRecord || compileResults.size == 1 || resultSet.size != 1)
@@ -123,7 +124,7 @@ fun recordCompileResult(
     }
     if (minimizedProgram != null) {
         File(dir, "main-min.${majorLanguage.extension}")
-            .writeText(IrProgramPrinter(majorLanguage).printToSingle(minimizedProgram))
+            .writeText(IrProgramPrinter(majorLanguage, packageName = packageName).printToSingle(minimizedProgram))
         File(dir, "main-min.json").writeText(gson.toJson(minimizedProgram))
     }
     if (minimizedCompileResults != null) {
@@ -136,7 +137,9 @@ fun recordCompileResult(
             }
         }
     }
-    File(dir, "main.${majorLanguage.extension}").writeText(IrProgramPrinter(majorLanguage).printToSingle(program))
+    File(dir, "main.${majorLanguage.extension}").writeText(
+        IrProgramPrinter(majorLanguage, packageName = packageName).printToSingle(program)
+    )
     File(dir, "main.json").writeText(gson.toJson(program))
     for ((fileName, content) in metadata) {
         File(dir, fileName).writeText(content)
@@ -148,4 +151,5 @@ fun recordCompileResult(
     majorLanguage: Language,
     program: IrProgram,
     compileResult: CompileResult,
-): File? = recordCompileResult(majorLanguage, program, listOf(compileResult))
+    packageName: String? = null,
+): File? = recordCompileResult(majorLanguage, program, listOf(compileResult), packageName = packageName)

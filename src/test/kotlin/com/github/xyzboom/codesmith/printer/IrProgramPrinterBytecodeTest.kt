@@ -548,6 +548,50 @@ class IrProgramPrinterBytecodeTest {
         assertTrue(scalaSource.contains("  final class ScalaLeaf"))
     }
 
+    @Test
+    fun `configured package is added to generated sources while default output stays unchanged`() {
+        val program = buildProgram {
+            classes += buildClassDeclaration {
+                name = "JavaInFoo"
+                language = Language.JAVA
+                classKind = ClassKind.FINAL
+            }
+            classes += buildClassDeclaration {
+                name = "KotlinInFoo"
+                language = Language.KOTLIN
+                classKind = ClassKind.FINAL
+            }
+            classes += buildClassDeclaration {
+                name = "ScalaInFoo"
+                language = Language.SCALA
+                classKind = ClassKind.FINAL
+            }
+        }
+
+        val defaultFiles = IrProgramPrinter(Language.SCALA).print(program)
+        val packagedPrinter = IrProgramPrinter(Language.SCALA, packageName = "foo")
+        val packagedFiles = packagedPrinter.print(program)
+
+        assertEquals(defaultFiles.keys, packagedFiles.keys)
+        assertFalse(defaultFiles.getValue("JavaInFoo.java").startsWith("package "))
+        assertFalse(defaultFiles.getValue("KotlinInFoo.kt").startsWith("package "))
+        assertFalse(defaultFiles.getValue("ScalaInFoo.scala").startsWith("package "))
+        assertTrue(packagedFiles.getValue("JavaInFoo.java").startsWith("package foo;\n\n"))
+        assertTrue(packagedFiles.getValue("KotlinInFoo.kt").startsWith("package foo\n\n"))
+        assertTrue(packagedFiles.getValue("ScalaInFoo.scala").startsWith("package foo\n\n"))
+        assertTrue(packagedFiles.getValue("DefaultValueUnavailableException.java").startsWith("package foo;\n\n"))
+        assertEquals(
+            defaultFiles.getValue("org/jetbrains/annotations/NotNull.java"),
+            packagedFiles.getValue("org/jetbrains/annotations/NotNull.java"),
+        )
+
+        val singleFile = packagedPrinter.printToSingle(program)
+        assertTrue(singleFile.contains("// FILE: ScalaInFoo.scala\npackage foo\n\n"))
+        assertTrue(singleFile.contains("// FILE: DefaultValueUnavailableException.java\npackage foo;\n\n"))
+        assertTrue(singleFile.contains("// FILE: org/jetbrains/annotations/NotNull.java\npackage org.jetbrains.annotations;"))
+        assertTrue(singleFile.contains("// FILE: main.kt\npackage foo\n\n"))
+    }
+
     private fun function(name: String, language: Language, vararg parameterTypes: com.github.xyzboom.codesmith.ir.types.IrType) =
         buildFunctionDeclaration {
             this.name = name

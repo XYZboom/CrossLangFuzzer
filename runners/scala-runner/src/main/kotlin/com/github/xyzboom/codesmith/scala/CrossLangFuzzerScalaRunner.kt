@@ -13,20 +13,21 @@ import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 class CrossLangFuzzerScalaRunner : CommonCompilerRunner("scala") {
     object Scala2Compiler : ICompiler {
         override fun compile(program: IrProgram): CompileResult {
-            val printer = IrProgramPrinter(Language.SCALA)
+            val printer = IrProgramPrinter(Language.SCALA, packageName = SCALA_GENERATED_PACKAGE_NAME)
             return compileScala2WithJava(printer, program)
         }
     }
 
     object Scala3Compiler : ICompiler {
         override fun compile(program: IrProgram): CompileResult {
-            val printer = IrProgramPrinter(Language.SCALA)
+            val printer = IrProgramPrinter(Language.SCALA, packageName = SCALA_GENERATED_PACKAGE_NAME)
             return compileScala3WithJava(printer, program)
         }
     }
 
     override val runnerLanguage: Language get() = Language.SCALA
     override val mutatorLanguageSemantics: MutatorLanguageSemantics get() = MutatorLanguageSemantics.SCALA
+    override val sourcePackageName: String get() = SCALA_GENERATED_PACKAGE_NAME
 
     override fun normalTargets(): List<CompilerTarget> = listOf(
         CompilerTarget("scala3", Scala3Compiler, Language.SCALA)

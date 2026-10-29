@@ -22,6 +22,8 @@ import kotlin.io.path.Path
 import kotlin.io.path.pathString
 import kotlin.jvm.optionals.getOrNull
 
+const val SCALA_GENERATED_PACKAGE_NAME = "foo"
+
 val SourcePosition?.msg: String
     get() = if (this == null) {
         "no position"

@@ -42,13 +42,21 @@ import java.util.IdentityHashMap
 class IrProgramPrinter(
     majorLanguage: Language = Language.KOTLIN,
     private val printStub: Boolean = true,
+    private val packageName: String? = null,
 ) : IrPrinter<IrProgram, Map<String, String>> {
     private val majorLanguage = majorLanguage
     private lateinit var javaClassPrinter: JavaIrClassPrinter
     private val ktClassPrinter = KtIrClassPrinter(printStub = printStub)
     private val scalaClassPrinter = ScalaIrClassPrinter(printStub = printStub)
 
+    init {
+        require(packageName == null || packageName.matches(PACKAGE_NAME_PATTERN)) {
+            "Invalid source package name: $packageName"
+        }
+    }
+
     companion object {
+        private val PACKAGE_NAME_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*")
         private val jetbrainsExtraJavaFile = buildMap {
             put(
                 "org/jetbrains/annotations/NotNull.java",
@@ -178,7 +186,17 @@ class IrProgramPrinter(
             result[kotlinTopLevelFileName] = ktClassPrinter.printTopLevelFunctionsAndProperties(element)
             result[auxiliaryNames.harnessFileName()] = printHarness(element, javaTopLevelContainers)
         }
+        for ((fileName, content) in result.toMap()) {
+            result[fileName] = addPackage(fileName, content)
+        }
         return result
+    }
+
+    private fun addPackage(fileName: String, content: String): String {
+        val sourcePackageName = packageName ?: return content
+        if (fileName in jetbrainsExtraJavaFile.keys || fileName in jspecifyExtraJavaFile.keys) return content
+        val separator = if (fileName.endsWith(".java")) ";\n\n" else "\n\n"
+        return "package $sourcePackageName$separator$content"
     }
 
     fun saveTo(path: String, program: IrProgram) {
@@ -233,7 +251,12 @@ class IrProgramPrinter(
         val auxiliaryNames = AuxiliaryNameAllocator(element.classes)
 
         sb.append("// MODULE: $annotationsModuleName\n")
-        appendFiles(sb, extraJavaFile(element.nullabilityAnnotationProvider))
+        appendFiles(
+            sb,
+            extraJavaFile(element.nullabilityAnnotationProvider).mapValues { (fileName, content) ->
+                addPackage(fileName, content)
+            },
+        )
 
         for ((moduleIndex, module) in effectiveModules.withIndex()) {
             val printedModuleName = printedModuleNames.getValue(module)
@@ -252,16 +275,19 @@ class IrProgramPrinter(
             if (module.functions.any { it.language == Language.KOTLIN } ||
                 module.properties.any { it.language == Language.KOTLIN }
             ) {
+                val kotlinTopLevelFileName = auxiliaryNames.kotlinFile(kotlinTopLevelBaseName(
+                    printedModuleName, moduleIndex, effectiveModules.size
+                ))
                 val moduleProgram = buildProgram {
                     modules += module
                     nullabilityAnnotationProvider = element.nullabilityAnnotationProvider
                 }
                 appendFiles(
                     sb,
-                    mapOf(auxiliaryNames.kotlinFile(kotlinTopLevelBaseName(
-                        printedModuleName, moduleIndex, effectiveModules.size
-                    )) to
-                            ktClassPrinter.printTopLevelFunctionsAndProperties(moduleProgram)),
+                    mapOf(kotlinTopLevelFileName to addPackage(
+                        kotlinTopLevelFileName,
+                        ktClassPrinter.printTopLevelFunctionsAndProperties(moduleProgram),
+                    )),
                 )
             }
             if (module.functions.any { it.language == Language.JAVA } ||
@@ -279,8 +305,10 @@ class IrProgramPrinter(
                 }
                 appendFiles(
                     sb,
-                    mapOf("$containerName.java" to
-                            javaClassPrinter.printTopLevelFunctionsAndProperties(moduleProgram, containerName)),
+                    mapOf("$containerName.java" to addPackage(
+                        "$containerName.java",
+                        javaClassPrinter.printTopLevelFunctionsAndProperties(moduleProgram, containerName),
+                    )),
                 )
             }
         }
@@ -300,7 +328,13 @@ class IrProgramPrinter(
             harnessDependencies = listOf(annotationsModuleName) + effectiveModules.map { printedModuleNames.getValue(it) }
         }
         sb.append("// MODULE: $harnessModuleName(${harnessDependencies.joinToString(", ")})\n")
-        appendFiles(sb, mapOf(auxiliaryNames.harnessFileName() to printHarness(element, javaTopLevelContainers)))
+        appendFiles(
+            sb,
+            mapOf(auxiliaryNames.harnessFileName() to addPackage(
+                auxiliaryNames.harnessFileName(),
+                printHarness(element, javaTopLevelContainers),
+            )),
+        )
         return sb.toString()
     }
 
