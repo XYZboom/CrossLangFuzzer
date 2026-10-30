@@ -17,16 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Download tree-generator dependency
         run: |
@@ -39,3 +39,12 @@ jobs:
 
       - name: Run tests
         run: ./gradlew test --no-daemon
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: '**/build/test-results/test/*.xml'
+          if-no-files-found: warn
+          retention-days: 7
