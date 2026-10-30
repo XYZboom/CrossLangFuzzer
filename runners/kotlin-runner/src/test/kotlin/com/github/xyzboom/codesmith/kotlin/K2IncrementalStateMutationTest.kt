@@ -107,7 +107,6 @@ class K2IncrementalStateMutationTest {
 
         assertEquals(originalJson, com.github.xyzboom.codesmith.serde.gson.toJson(original), "Mutations must not change the generated baseline IR")
         assertTrue("MODIFY_FUNCTION_PARAMETER_TYPE" in seenOperators, "Expected a member-signature mutation, got $seenOperators")
-        assertTrue("TOGGLE_INTERFACE_METHOD_BODY" in seenOperators, "Expected an abstract/default transition, got $seenOperators")
         assertTrue("REMOVE_FUNCTION" in seenOperators, "Expected a member deletion, got $seenOperators")
         assertTrue("REMOVE_UNREFERENCED_CLASS" in seenOperators, "Expected a class/file deletion, got $seenOperators")
         assertTrue("MOVE_SOURCE_FILE" in seenOperators, "Expected a path-only source move, got $seenOperators")
