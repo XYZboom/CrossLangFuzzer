@@ -36,7 +36,6 @@ CrossLangFuzzer
 │   ├── scala-runner/   # Scala 编译器测试 runner
 │   └── groovy-runner/  # Groovy 编译器测试 runner
 ├── test-framework/     # Kotlin 测试框架集成
-└── ged/                # Graph Edit Distance — 程序相似度比较
 ```
 
 ---
@@ -217,15 +216,7 @@ Printer（当前为 TODO）。
 
 ---
 
-## 12. ged — 程序相似度比较
-
-**路径:** `ged/src/`
-
-使用 **Graph Edit Distance（GED）** 来量化两个 IR 程序之间的结构相似度。目前仍在实验性阶段，主要用于辅助去重。去重目前仍依赖手动方式。
-
----
-
-## 13. 配置与运行
+## 12. 配置与运行
 
 ### 生成配置
 
@@ -313,7 +304,6 @@ curl -L -o libs/tree-generator-common.jar \
 | DDMin           | DDMin                       | Delta-Debugging Minimization，程序化简算法 |
 | Override stub   | Override stub               | 保留了签名但删除了实现的 override 方法            |
 | 平台类型            | Platform Type               | Kotlin 对 Java 类型系统的映射类型             |
-| GED / 图编辑距离     | Graph Edit Distance         | 量化程序间结构相似度的指标                       |
 
 ---
 

@@ -218,12 +218,6 @@ abstract class CommonCompilerRunner(
             mustBeReadable = false,
         ).default(File("out/ir"))
     }
-    protected val enableGED by run<OptionWithValues<Boolean, Boolean, Boolean>> {
-        option("--enable-ged")
-            .flag()
-            .help("Enable gedlib for program similarity compare. DEVELOP ONLY!")
-    }
-
     protected val inputIRFiles: Sequence<File>?
         get() {
             val input = inputIR ?: return null
