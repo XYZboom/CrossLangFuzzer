@@ -4,8 +4,12 @@ import com.github.xyzboom.codesmith.generator.GeneratorConfig
 import com.github.xyzboom.codesmith.generator.IrDeclGenerator
 import com.github.xyzboom.codesmith.ir.ClassKind
 import com.github.xyzboom.codesmith.ir.Language
+import com.github.xyzboom.codesmith.ir.builder.buildProgram
 import com.github.xyzboom.codesmith.ir.classes
 import com.github.xyzboom.codesmith.ir.deepCopy
+import com.github.xyzboom.codesmith.ir.declarations.builder.buildClassDeclaration
+import com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration
+import com.github.xyzboom.codesmith.ir.types.type
 import com.github.xyzboom.codesmith.printer.IrProgramPrinter
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -22,6 +26,44 @@ class K2IncrementalStateMutationTest {
 
         assertEquals(mapOf("moved/Api.kt" to "class Api {}\n"), relocated)
         assertEquals(logicalSources.values.single(), relocated.values.single())
+    }
+
+    @Test
+    fun `interface method body toggle is available when Java implements the interface`() {
+        val interfaceFunction = buildFunctionDeclaration {
+            name = "method"
+            language = Language.KOTLIN
+            parameterList = buildParameterList()
+            body = null
+        }
+        val kotlinInterface = buildClassDeclaration {
+            name = "KotlinApi"
+            language = Language.KOTLIN
+            classKind = ClassKind.INTERFACE
+            functions += interfaceFunction
+        }
+        val javaImplementation = buildClassDeclaration {
+            name = "JavaImplementation"
+            language = Language.JAVA
+            classKind = ClassKind.FINAL
+            implementedTypes += kotlinInterface.type
+        }
+        val program = buildProgram {
+            classes += kotlinInterface
+            classes += javaImplementation
+        }
+        val state = K2IncrementalFuzzState(program)
+
+        val mutation = K2IncrementalStateMutationScheduler(481).next(
+            state = state,
+            logicalSources = IrProgramPrinter().print(program),
+            outputClassFiles = emptySet(),
+            stepIndex = 0,
+        ) ?: error("Expected a Java-compatible interface method body toggle")
+
+        assertEquals("TOGGLE_INTERFACE_METHOD_BODY", mutation.operator)
+        assertTrue(interfaceFunction.body == null, "Mutation must leave the original program unchanged")
+        assertNotNull(mutation.state.program.classes.single { it.name == "KotlinApi" }.functions.single().body)
     }
 
     @Test
