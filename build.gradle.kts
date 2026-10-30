@@ -71,6 +71,12 @@ compileKotlin.compilerOptions {
     freeCompilerArgs.set(listOf("-Xwhen-guards"))
 }
 
+allprojects {
+    tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+        maxHeapSize = "3g"
+    }
+}
+
 tasks.register<JavaExec>("generateDefaultConfigFile") {
     classpath = sourceSets["main"].runtimeClasspath
     workingDir = rootDir
