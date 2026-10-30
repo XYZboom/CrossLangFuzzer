@@ -34,7 +34,6 @@ CrossLangFuzzer
 │   ├── scala-runner/   # Scala compiler testing runner
 │   └── groovy-runner/  # Groovy compiler testing runner
 ├── test-framework/     # Kotlin test framework integration
-└── ged/                # Graph Edit Distance — program similarity comparison
 ```
 
 ---
@@ -208,15 +207,7 @@ Provides the ability to integrate generated test cases into the Kotlin compiler 
 
 ---
 
-## 12. ged — Program Similarity Comparison
-
-**Path:** `ged/src/`
-
-Uses **Graph Edit Distance (GED)** to quantify structural similarity between IR programs. Currently experimental, primarily used to assist deduplication. Deduplication currently still relies on manual processes.
-
----
-
-## 13. Configuration & Running
+## 12. Configuration & Running
 
 ### Generator Config
 
@@ -305,7 +296,6 @@ IrProgramPrinter ──→ .kt/.java/.scala  →  agree → next round
 | DDMin                            | DDMin         | Delta-Debugging Minimization, a program reduction algorithm              |
 | Override stub                    | Override stub | An override method that retains its signature but has its body removed   |
 | Platform Type                    | 平台类型          | Kotlin's mapping type for Java's type system                             |
-| GED / Graph Edit Distance        | GED / 图编辑距离   | Metric for quantifying structural similarity between programs            |
 
 ---
 
