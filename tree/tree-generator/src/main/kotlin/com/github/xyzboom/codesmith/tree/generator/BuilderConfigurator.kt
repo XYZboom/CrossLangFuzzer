@@ -49,7 +49,7 @@ class BuilderConfigurator(model: Model<Element>) : AbstractBuilderConfigurator<E
         }
 
         builder(funcDecl) {
-            defaultFalse("printNullableAnnotations", "isOverride", "isOverrideStub", "isFinal")
+            defaultFalse("isOverride", "isOverrideStub", "isFinal")
             additionalImports(unitType, languageType, visibilityType)
             default("returnType", "IrUnit")
             default("language", "Language.KOTLIN")

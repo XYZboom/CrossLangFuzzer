@@ -305,9 +305,8 @@ class IrMutator(
      * a non-platform parent normally requires equal top-level nullability after
      * inherited type arguments are substituted. The exception is a conflicting
      * Java annotation when the same child also directly satisfies a compatible
-     * Kotlin parent contract. The legacy `printNullableAnnotations` flag does
-     * not change the source emitted by the Java printer and therefore must not
-     * affect semantic validity.
+     * Kotlin parent contract. Java nullability annotations do not change the source emitted by the
+     * Java printer and therefore must not affect semantic validity.
      */
     private fun calculateParameterNullabilityValidity(
         program: IrProgram,

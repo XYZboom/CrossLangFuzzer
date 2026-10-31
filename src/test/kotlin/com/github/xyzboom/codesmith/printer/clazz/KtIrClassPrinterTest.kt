@@ -372,7 +372,6 @@ class KtIrClassPrinterTest {
                     name = "t"
                     type = funcParamType
                 })
-                printNullableAnnotations = true
             }
             classA.functions.add(func)
             val resultA = printer.print(classA)
@@ -405,7 +404,6 @@ class KtIrClassPrinterTest {
                         name = "t"
                         type = funcParamType
                     })
-                    printNullableAnnotations = true
                 }
                 classB.functions.add(funcInB)
                 val resultB = printer.print(classB)
@@ -438,7 +436,6 @@ class KtIrClassPrinterTest {
                         name = "t"
                         type = funcParamType
                     })
-                    printNullableAnnotations = true
                 }
                 classB.functions.add(funcInB)
                 val resultB = printer.print(classB)
@@ -471,7 +468,6 @@ class KtIrClassPrinterTest {
                         name = "t"
                         type = funcParamType
                     })
-                    printNullableAnnotations = true
                 }
                 classB.functions.add(funcInB)
                 val resultB = printer.print(classB)
@@ -703,7 +699,6 @@ class KtIrClassPrinterTest {
                     name = "t"
                     type = funcParamType
                 })
-                printNullableAnnotations = true
             }
             classA.functions.add(func)
             val resultA = printer.print(classA)
@@ -744,7 +739,6 @@ class KtIrClassPrinterTest {
                             type = funcParamType
                         })
                         isOverride = true
-                        printNullableAnnotations = true
                     }
                     classB.functions.add(funcInB)
                     val resultB = printer.print(classB)

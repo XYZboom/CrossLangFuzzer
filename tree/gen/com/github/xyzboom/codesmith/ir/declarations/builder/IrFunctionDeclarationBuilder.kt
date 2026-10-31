@@ -25,7 +25,6 @@ class IrFunctionDeclarationBuilder {
     var language: Language = Language.KOTLIN
     var visibility: Visibility = Visibility.PUBLIC
     val typeParameters: MutableList<IrTypeParameter> = mutableListOf()
-    var printNullableAnnotations: Boolean = false
     var body: IrBlock? = null
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
@@ -41,7 +40,6 @@ class IrFunctionDeclarationBuilder {
             language,
             visibility,
             typeParameters,
-            printNullableAnnotations,
             body,
             isOverride,
             isOverrideStub,

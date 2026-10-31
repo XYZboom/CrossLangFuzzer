@@ -14,7 +14,7 @@ import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
 import com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration
 import com.github.xyzboom.codesmith.ir.types.*
 import com.github.xyzboom.codesmith.ir.ClassKind.*
-import com.github.xyzboom.codesmith.ir.declarations.traverseOverride
+
 import com.github.xyzboom.codesmith.ir.expressions.IrBlock
 import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.github.xyzboom.codesmith.ir.types.builtin.IrBuiltInType
@@ -23,7 +23,7 @@ import com.github.xyzboom.codesmith.ir.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.printer.TypeContext
 import com.github.xyzboom.codesmith.printer.TypeContext.*
 import com.github.xyzboom.codesmith.printer.clazz.DefaultValueSupport.classDeclarationOrNull
-import io.github.oshai.kotlinlogging.KotlinLogging
+
 
 class JavaIrClassPrinter(
     private val majorLanguage: Language = KOTLIN,
@@ -71,7 +71,7 @@ class JavaIrClassPrinter(
             }
 
     companion object {
-        private val logger = KotlinLogging.logger {}
+
         private val builtInNames = buildMap {
             put(IrAny, "Object")
             put(IrNothing, "Void")
@@ -90,13 +90,6 @@ class JavaIrClassPrinter(
         const val FUNCTION_BODY_TODO = "throw new UnsupportedOperationException();"
     }
 
-    /**
-     * value: The binary value of 1 corresponding to the position from the low position indicates that
-     * the parameter of the index is a type parameter
-     * Example: 0b1011 for function: f(a, b, c, d) means a, b and d is type parameter
-     *          (in current or parent class)
-     */
-    private val functionParameterTypeHasTypeParameter = mutableMapOf<IrFunctionDeclaration, Int>()
 
     /**
      * Whether the body of the class that is currently printed throws
@@ -319,7 +312,6 @@ class JavaIrClassPrinter(
          * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
          * so multi line comments in stubs need to be disabled.
          */
-        var printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
@@ -361,36 +353,6 @@ class JavaIrClassPrinter(
             }
             data.append(">")
         }
-        val myReturnTypeIsTypeParameter = function.run {
-            returnType is IrTypeParameter ||
-                    (returnType is IrNullableType && (returnType as IrNullableType).innerType is IrTypeParameter)
-        }
-        // IrUnit in Java is void if it is not type argument. It's Void otherwise.
-        var anyOverrideReturnTypeIsTypeParameter = false
-        // see this.functionParameterTypeHasTypeParameter
-        var anyOverrideParameterIsTypeParameter = 0
-        function.traverseOverride {
-            val returnType = it.returnType
-            logger.trace { returnType.toString() }
-            if (returnType is IrTypeParameter ||
-                (returnType is IrNullableType && returnType.innerType is IrTypeParameter)
-            ) {
-                anyOverrideReturnTypeIsTypeParameter = true
-            }
-            var current = 1
-            for (param in it.parameterList.parameters) {
-                val paramType = param.type
-                if (paramType is IrTypeParameter ||
-                    (paramType is IrNullableType && paramType.innerType is IrTypeParameter)
-                ) {
-                    anyOverrideParameterIsTypeParameter = anyOverrideParameterIsTypeParameter or current
-                }
-                current = current shl 1 // current << 1 (shl is shift left in Kotlin)
-            }
-        }
-        functionParameterTypeHasTypeParameter[function] = anyOverrideParameterIsTypeParameter
-        printNullableAnnotation = printNullableAnnotation ||
-                anyOverrideReturnTypeIsTypeParameter || myReturnTypeIsTypeParameter
         data.append(
             printType(
                 function.returnType,
@@ -432,17 +394,11 @@ class JavaIrClassPrinter(
 
     override fun visitParameterList(parameterList: IrParameterList, data: StringBuilder) {
         val parameters = parameterList.parameters
-        val func = elementStack.peek() as IrFunctionDeclaration
-        // see this.functionParameterTypeHasTypeParameter
-        var current = 1
-        val anyOverrideParameterIsTypeParameter = functionParameterTypeHasTypeParameter[func]!!
         for ((index, parameter) in parameters.withIndex()) {
             val parameterType = parameter.type
             data.append(
                 printType(
-                    parameterType, Parameter,
-                    forcePrintNullableAnnotationIfIsTypeParameter = func.override.isEmpty()
-//                        (anyOverrideParameterIsTypeParameter and current) != 0
+                    parameterType, Parameter
                 )
             )
             data.append(" ")
@@ -450,61 +406,9 @@ class JavaIrClassPrinter(
             if (index != parameters.lastIndex) {
                 data.append(", ")
             }
-            current = current shl 1
         }
     }
 
-    /*override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
-        val propertyContainer: IrElement = elementStack.peek()
-        val printNullableAnnotation = property.printNullableAnnotations
-
-        fun buildGetterOrSetter(setter: Boolean) {
-            data.append(indent)
-            data.append("public ")
-            if (property.isFinal) {
-                if (property.topLevel) {
-                    data.append("static ")
-                } else {
-                    data.append("final ")
-                }
-            }
-            if (propertyContainer is IrClassDeclaration && propertyContainer.classType == INTERFACE) {
-                data.append("default ")
-            }
-            if (setter) {
-                data.append(printType(IrUnit, printNullableAnnotation = printNullableAnnotation))
-            } else {
-                data.append(printType(property.type, printNullableAnnotation = printNullableAnnotation))
-            }
-            data.append(" ")
-            data.append(
-                if (setter) {
-                    "set"
-                } else {
-                    "get"
-                }
-            )
-            data.append(property.name.replaceFirstChar { it.uppercaseChar() })
-            data.append("(")
-            if (setter) {
-                data.append(printType(property.type, printNullableAnnotation = printNullableAnnotation))
-                data.append(" value")
-            }
-            data.append(")")
-            data.append(" {\n")
-            indentCount++
-            data.append(indent)
-            data.append(FUNCTION_BODY_TODO)
-            data.append("\n")
-            indentCount--
-            data.append(indent)
-            data.append("}\n")
-        }
-        buildGetterOrSetter(false)
-        if (!property.readonly) {
-            buildGetterOrSetter(true)
-        }
-    }*/
 
     override fun visitBlock(block: IrBlock, data: StringBuilder) {
         val function = elementStack.peek() as IrFunctionDeclaration

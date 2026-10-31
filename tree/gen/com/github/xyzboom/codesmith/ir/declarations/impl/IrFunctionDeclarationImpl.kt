@@ -23,7 +23,6 @@ internal class IrFunctionDeclarationImpl(
     override var language: Language,
     override var visibility: Visibility,
     override var typeParameters: MutableList<IrTypeParameter>,
-    override var printNullableAnnotations: Boolean,
     override var body: IrBlock?,
     override var isOverride: Boolean,
     override var isOverrideStub: Boolean,
@@ -57,10 +56,6 @@ internal class IrFunctionDeclarationImpl(
 
     override fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
         typeParameters.transformInplace(transformer, data)
-        return this
-    }
-
-    override fun <D> transformPrintNullableAnnotations(transformer: IrTransformer<D>, data: D): IrFunctionDeclarationImpl {
         return this
     }
 

@@ -105,9 +105,7 @@ class IrMutatorImplOld(
             } else {
                 param.type = IrNullableType.nullableOf(type)
             }
-            if (func.language == LanguageOld.JAVA) {
-                func.printNullableAnnotations = true
-            }
+
             return@mutateParameterNullability true
         }
         return false

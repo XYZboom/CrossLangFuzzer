@@ -50,7 +50,7 @@
     "typeParameterUpperboundAlwaysAny": false,
     "typeParameterUpperboundNullableProbability": 0.4,
     "allowFunctionLevelTypeParameterAsUpperbound": false,
-    "printJavaNullableAnnotationProbability": 0.4,
+
     "newExpressionWeight": 1,
     "functionCallExpressionWeight": 1,
     "overrideOnlyMustOnes": false,

@@ -58,7 +58,7 @@ object TreeBuilder : AbstractElementConfigurator<Element, Field, Element.Kind>()
         parent(declaration)
         parent(typeParameterContainer)
 
-        +field("printNullableAnnotations", StandardTypes.boolean, isChild = false)
+
         +field("body", block, isChild = false, nullable = true)
         +field("isOverride", StandardTypes.boolean, isChild = false)
         +field("isOverrideStub", StandardTypes.boolean, isChild = false)
