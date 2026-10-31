@@ -1,7 +1,7 @@
 package com.github.xyzboom.codesmith.ir_old.declarations
 
 import com.fasterxml.jackson.annotation.*
-import com.github.xyzboom.codesmith.LanguageOld
+
 import com.github.xyzboom.codesmith.ir_old.IrParameterList
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
@@ -14,6 +14,7 @@ import com.github.xyzboom.codesmith.ir_old.visitor.IrVisitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 @JsonTypeName("function")
+@JsonIgnoreProperties("printNullableAnnotations")
 class IrFunctionDeclaration(
     name: String,
     @JsonIdentityReference
@@ -23,10 +24,7 @@ class IrFunctionDeclaration(
         private val logger = KotlinLogging.logger {}
     }
 
-    /**
-     * only available when [language] is [LanguageOld.JAVA]
-     */
-    var printNullableAnnotations: Boolean = false
+
     var body: IrBlock? = null
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false

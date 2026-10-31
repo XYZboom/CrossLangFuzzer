@@ -222,7 +222,6 @@ class JavaIrClassPrinterTest {
                     putTypeArgument(t, buildNullableType { innerType = classB.type })
                 }
             })
-            printNullableAnnotations = true
         }
         classB.functions.add(funcInB)
         val result = printer.print(classB)
@@ -422,7 +421,6 @@ class JavaIrClassPrinterTest {
                     name = "t"
                     type = funcParamType
                 })
-                printNullableAnnotations = true
             }
             classA.functions.add(func)
             val resultA = printer.print(classA)
@@ -455,7 +453,6 @@ class JavaIrClassPrinterTest {
                         name = "t"
                         type = funcParamType
                     })
-                    printNullableAnnotations = true
                 }
                 classB.functions.add(funcInB)
                 val resultB = printer.print(classB)
@@ -488,7 +485,6 @@ class JavaIrClassPrinterTest {
                         name = "t"
                         type = funcParamType
                     })
-                    printNullableAnnotations = true
                 }
                 classB.functions.add(funcInB)
                 val resultB = printer.print(classB)
@@ -521,7 +517,6 @@ class JavaIrClassPrinterTest {
                         name = "t"
                         type = funcParamType
                     })
-                    printNullableAnnotations = true
                 }
                 classB.functions.add(funcInB)
                 val resultB = printer.print(classB)
@@ -785,7 +780,6 @@ class JavaIrClassPrinterTest {
                     name = "t"
                     type = funcParamType
                 })
-                printNullableAnnotations = true
             }
             classA.functions.add(func)
             val resultA = printer.print(classA)
@@ -826,7 +820,6 @@ class JavaIrClassPrinterTest {
                             type = funcParamType
                         })
                         isOverride = true
-                        printNullableAnnotations = true
                     }
                     classB.functions.add(funcInB)
                     val resultB = printer.print(classB)

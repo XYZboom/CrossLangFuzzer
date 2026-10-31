@@ -68,7 +68,7 @@
     "typeParameterUpperboundNullableProbability": 0.4,
     "notNullTypeArgForNullableUpperboundProbability": 0.4,
     "allowFunctionLevelTypeParameterAsUpperbound": true,
-    "printJavaNullableAnnotationProbability": 0.4,
+
     "newExpressionWeight": 1,
     "functionCallExpressionWeight": 1,
     "overrideOnlyMustOnes": false,

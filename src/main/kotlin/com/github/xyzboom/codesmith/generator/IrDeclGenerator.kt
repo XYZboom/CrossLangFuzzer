@@ -277,13 +277,9 @@ open class IrDeclGenerator(
     fun shuffleLanguage(prog: IrProgram) {
         for (clazz in prog.classes) {
             clazz.language = randomLanguage()
-            for (func in clazz.functions) {
-                func.printNullableAnnotations = random.nextBoolean(config.printJavaNullableAnnotationProbability)
-            }
         }
         for (func in prog.functions) {
             func.language = randomLanguage()
-            func.printNullableAnnotations = random.nextBoolean(config.printJavaNullableAnnotationProbability)
         }
         for (property in prog.properties) {
             property.language = randomLanguage()
@@ -1012,10 +1008,6 @@ open class IrDeclGenerator(
                 this.returnType = returnType
             }
             require(!topLevel || this.returnType !is IrTypeParameter)
-            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
-                logger.trace { "make $name print nullable annotations" }
-                printNullableAnnotations = true
-            }
             // todo expressions here
             funcContainer.functions.add(this)
         }
@@ -1079,10 +1071,6 @@ open class IrDeclGenerator(
                 }
             }
             require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
-            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
-                logger.trace { "make $name print nullable annotations" }
-                printNullableAnnotations = true
-            }
         }
         functions.add(function)
         logger.trace {

@@ -24,7 +24,6 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
     abstract override var language: Language
     abstract override var visibility: Visibility
     abstract override var typeParameters: MutableList<IrTypeParameter>
-    abstract var printNullableAnnotations: Boolean
     abstract var body: IrBlock?
     abstract var isOverride: Boolean
     abstract var isOverrideStub: Boolean
@@ -48,8 +47,6 @@ abstract class IrFunctionDeclaration : IrDeclaration(), IrTypeParameterContainer
     abstract override fun <D> transformVisibility(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 
     abstract override fun <D> transformTypeParameters(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
-
-    abstract fun <D> transformPrintNullableAnnotations(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 
     abstract fun <D> transformBody(transformer: IrTransformer<D>, data: D): IrFunctionDeclaration
 

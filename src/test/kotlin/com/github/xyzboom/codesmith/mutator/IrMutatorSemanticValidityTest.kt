@@ -225,10 +225,8 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
-    fun `legacy Java annotation flag does not make an explicit parameter a platform type`() {
-        val parentFunction = parameterFunction(Language.JAVA).apply {
-            printNullableAnnotations = false
-        }
+    fun `Java explicit parameter nullability is not a platform type`() {
+        val parentFunction = parameterFunction(Language.JAVA)
         val childFunction = parameterFunction(Language.KOTLIN).apply {
             isOverride = true
             override += parentFunction
@@ -1659,10 +1657,8 @@ class IrMutatorSemanticValidityTest {
     }
 
     @Test
-    fun `legacy Java annotation flag does not make an explicit return type a platform type`() {
-        val parentFunction = returnTypeFunction(Language.JAVA, IrAny).apply {
-            printNullableAnnotations = false
-        }
+    fun `Java explicit return type nullability is not a platform type`() {
+        val parentFunction = returnTypeFunction(Language.JAVA, IrAny)
         val childFunction = returnTypeFunction(Language.KOTLIN, IrAny).apply {
             isOverride = true
             override += parentFunction

@@ -74,7 +74,7 @@ data class GeneratorConfig(
      */
     val allowFunctionLevelTypeParameterAsUpperbound: Boolean = true,
     //</editor-fold>
-    val printJavaNullableAnnotationProbability: Float = 0.4f,
+
     val newExpressionWeight: Int = 1,
     val functionCallExpressionWeight: Int = 1,
     /**

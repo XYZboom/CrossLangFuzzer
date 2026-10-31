@@ -200,7 +200,7 @@ object IrProgramDeserializer : JsonDeserializer<IrProgram> {
                 } else {
                     language = context.deserialize(langObj, Language::class.java)
                 }
-                printNullableAnnotations = funcObj.get(::printNullableAnnotations.name)?.asBoolean ?: false
+
                 visibility = funcObj.get(::visibility.name)?.let { context.deserialize(it, Visibility::class.java) }
                     ?: Visibility.PUBLIC
                 isOverride = funcObj.get(::isOverride.name)?.asBoolean ?: false

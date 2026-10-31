@@ -145,13 +145,9 @@ open class IrDeclGeneratorImplOld(
     override fun shuffleLanguage(prog: IrProgram) {
         for (clazz in prog.classes) {
             clazz.language = randomLanguage()
-            for (func in clazz.functions) {
-                func.printNullableAnnotations = random.nextBoolean(config.printJavaNullableAnnotationProbability)
-            }
         }
         for (func in prog.functions) {
             func.language = randomLanguage()
-            func.printNullableAnnotations = random.nextBoolean(config.printJavaNullableAnnotationProbability)
         }
         for (property in prog.properties) {
             property.language = randomLanguage()
@@ -635,10 +631,6 @@ open class IrDeclGeneratorImplOld(
                 this.returnType = returnType
             }
             require(!topLevel || this.returnType !is IrTypeParameter)
-            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
-                logger.trace { "make $name print nullable annotations" }
-                printNullableAnnotations = true
-            }
             val block = body
             /*if (block != null) {
                 repeat(config.functionExpressionNumRange.random(random)) {
@@ -728,10 +720,6 @@ open class IrDeclGeneratorImplOld(
                 }
             }
             require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
-            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
-                logger.trace { "make $name print nullable annotations" }
-                printNullableAnnotations = true
-            }
         })
     }
 
@@ -766,10 +754,6 @@ open class IrDeclGeneratorImplOld(
 
                     else -> false
                 }
-            }
-            if (random.nextBoolean(config.printJavaNullableAnnotationProbability)) {
-                logger.trace { "make $name print nullable annotations" }
-                printNullableAnnotations = true
             }
             readonly = topLevel || random.nextBoolean()
             genPropertyType(classContainer, propContainer as? IrClassDeclaration, this)

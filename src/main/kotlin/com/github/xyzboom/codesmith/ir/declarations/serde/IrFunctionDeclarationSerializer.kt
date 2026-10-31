@@ -28,9 +28,7 @@ object IrFunctionDeclarationSerializer : JsonSerializer<IrFunctionDeclaration> {
                 }
                 add(::visibility.name, p2?.serialize(visibility))
                 addTypeParameters(this, p2)
-                if (printNullableAnnotations) {
-                    addProperty(::printNullableAnnotations.name, printNullableAnnotations)
-                }
+
                 if (body != null) {
                     add(::body.name, p2?.serialize(body, IrBlock::class.java))
                 }

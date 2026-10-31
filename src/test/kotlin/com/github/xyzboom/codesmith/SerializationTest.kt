@@ -8,6 +8,7 @@ import com.github.xyzboom.codesmith.ir_old.types.IrClassType
 import com.github.xyzboom.codesmith.serde.defaultIrMapper
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class SerializationTest {
 
@@ -51,5 +52,25 @@ class SerializationTest {
         val deserialized = defaultIrMapper.readValue<IrClassDeclaration>(serialized)
         assertEquals(1, deserialized.functions.size)
         assertEquals(deserialized, deserialized.functions.single().container)
+
+        val legacySerialized = serialized.replace(
+            "\"name\" : \"simple\",",
+            "\"name\" : \"simple\",\n    \"printNullableAnnotations\" : true,"
+        )
+        val legacyDeserialized = defaultIrMapper.readValue<IrClassDeclaration>(legacySerialized)
+        assertEquals(1, legacyDeserialized.functions.size)
+    }
+
+    @Test
+    fun `new IR function JSON omits the removed nullable annotation flag`() {
+        val function = com.github.xyzboom.codesmith.ir.declarations.builder.buildFunctionDeclaration {
+            name = "simple"
+            parameterList = com.github.xyzboom.codesmith.ir.builder.buildParameterList()
+        }
+        val serialized = com.github.xyzboom.codesmith.serde.gson.toJson(
+            function,
+            com.github.xyzboom.codesmith.ir.declarations.IrFunctionDeclaration::class.java
+        )
+        assertFalse(com.google.gson.JsonParser.parseString(serialized).asJsonObject.has("printNullableAnnotations"))
     }
 }

@@ -1,7 +1,8 @@
 package com.github.xyzboom.codesmith.ir_old.declarations
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonTypeName
-import com.github.xyzboom.codesmith.LanguageOld
+
 import com.github.xyzboom.codesmith.ir_old.IrProgram
 import com.github.xyzboom.codesmith.ir_old.container.IrContainer
 import com.github.xyzboom.codesmith.ir_old.types.IrType
@@ -9,15 +10,13 @@ import com.github.xyzboom.codesmith.ir_old.types.builtin.IrUnit
 import com.github.xyzboom.codesmith.ir_old.visitor.IrVisitor
 
 @JsonTypeName("property")
+@JsonIgnoreProperties("printNullableAnnotations")
 class IrPropertyDeclaration(
     name: String,
     var container: IrContainer
 ) : IrDeclaration(name), IrClassMember {
 
-    /**
-     * only available when [language] is [LanguageOld.JAVA]
-     */
-    var printNullableAnnotations: Boolean = false
+
     var isOverride: Boolean = false
     var isOverrideStub: Boolean = false
     var override = mutableListOf<IrPropertyDeclaration>()

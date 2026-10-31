@@ -469,7 +469,6 @@ class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
         makeAbstract: Boolean,
         isStub: Boolean,
         isFinal: Boolean,
-        printJavaNullableAnnotationProbability: Boolean,
         language: Language
     ) {
         logger.trace {
@@ -514,7 +513,6 @@ class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
                 this.isFinal = isFinal
             }
             require(!isOverrideStub || (isOverrideStub && override.any { it.isFinal } == this.isFinal))
-            printNullableAnnotations = printJavaNullableAnnotationProbability
         }
         functions.add(function)
     }
@@ -613,14 +611,12 @@ class ProgramWithRemovedDecl(val prog: IrProgram) : IrProgram by prog {
                     c.regenOverrideFunction(
                         mustOrCan.flatten(), makeAbstract = false,
                         isStub = false, mustOrCan.first?.isFinal ?: false,
-                        printJavaNullableAnnotationProbability = f.printNullableAnnotations,
                         language = c.language
                     )
                 } else {
                     c.regenOverrideFunction(
                         stubMatches!!.flatten(), makeAbstract = false,
                         isStub = true, stubMatches.first?.isFinal ?: false,
-                        printJavaNullableAnnotationProbability = f.printNullableAnnotations,
                         language = c.language
                     )
                 }

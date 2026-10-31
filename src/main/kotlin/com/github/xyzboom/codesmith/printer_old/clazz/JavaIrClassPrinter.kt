@@ -231,7 +231,7 @@ class JavaIrClassPrinter(
          * Some version of Java's lexical analyzer is not greedy for matching multi line comments,
          * so multi line comments in stubs need to be disabled.
          */
-        val printNullableAnnotation = function.printNullableAnnotations || function.isOverrideStub
+        val printNullableAnnotation = function.isOverrideStub
         if (function.isOverrideStub) {
             data.append(indent)
             data.append("// stub\n")
@@ -306,7 +306,7 @@ class JavaIrClassPrinter(
             data.append(
                 printType(
                     parameter.type, Parameter,
-                    printNullableAnnotation = func.printNullableAnnotations || func.isOverrideStub,
+                    printNullableAnnotation = func.isOverrideStub,
                 )
             )
             data.append(" ")
@@ -319,8 +319,6 @@ class JavaIrClassPrinter(
 
     override fun visitProperty(property: IrPropertyDeclaration, data: StringBuilder) {
         val propertyContainer: IrElement = elementStack.peek()
-        val printNullableAnnotation = property.printNullableAnnotations
-
         fun buildGetterOrSetter(setter: Boolean) {
             data.append(indent)
             data.append("public ")
@@ -335,9 +333,9 @@ class JavaIrClassPrinter(
                 data.append("default ")
             }
             if (setter) {
-                data.append(printType(IrUnit, printNullableAnnotation = printNullableAnnotation))
+                data.append(printType(IrUnit, printNullableAnnotation = false))
             } else {
-                data.append(printType(property.type, printNullableAnnotation = printNullableAnnotation))
+                data.append(printType(property.type, printNullableAnnotation = false))
             }
             data.append(" ")
             data.append(
@@ -350,7 +348,7 @@ class JavaIrClassPrinter(
             data.append(property.name.replaceFirstChar { it.uppercaseChar() })
             data.append("(")
             if (setter) {
-                data.append(printType(property.type, printNullableAnnotation = printNullableAnnotation))
+                data.append(printType(property.type, printNullableAnnotation = false))
                 data.append(" value")
             }
             data.append(")")
