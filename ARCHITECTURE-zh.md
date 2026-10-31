@@ -233,9 +233,7 @@ Printer（当前为 TODO）。
 ### 快速运行
 
 ```bash
-# Download tree-generator
-curl -L -o libs/tree-generator-common.jar \
-  https://github.com/XYZboom/CrossLangFuzzer/releases/download/dev-ef4368/tree-generator-common.jar
+# tree:tree-generator 从 Maven Central 获取并编译 io.github.xyzboom:tree-generator:0.1.0:sources
 
 # Kotlin runner
 ./gradlew :runners:kotlin-runner:run --args="-s" \

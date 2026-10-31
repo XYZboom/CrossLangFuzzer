@@ -224,9 +224,7 @@ Provides the ability to integrate generated test cases into the Kotlin compiler 
 ### Quick Start
 
 ```bash
-# Download tree-generator
-curl -L -o libs/tree-generator-common.jar \
-  https://github.com/XYZboom/CrossLangFuzzer/releases/download/dev-ef4368/tree-generator-common.jar
+# tree:tree-generator compiles io.github.xyzboom:tree-generator:0.1.0:sources from Maven Central
 
 # Kotlin runner
 ./gradlew :runners:kotlin-runner:run --args="-s" \
