@@ -8,20 +8,8 @@ repositories {
     mavenCentral()
 }
 
-val treeGeneratorSourceArchive by configurations.creating {
-    isTransitive = false
-}
-
-val unpackTreeGeneratorSources by tasks.registering(Sync::class) {
-    from({ zipTree(treeGeneratorSourceArchive.singleFile) })
-    into(layout.buildDirectory.dir("generated/tree-generator-sources"))
-}
-
-kotlin.sourceSets.getByName("main").kotlin.srcDir(unpackTreeGeneratorSources)
-
 dependencies {
-    treeGeneratorSourceArchive("io.github.xyzboom:tree-generator:0.1.0:sources")
-    implementation(kotlin("reflect"))
+    implementation("io.github.xyzboom:tree-generator:0.1.0")
     testImplementation(kotlin("test"))
 }
 
