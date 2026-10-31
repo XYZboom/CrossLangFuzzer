@@ -6,7 +6,6 @@ import com.github.xyzboom.codesmith.serde.addTypeParameters
 import com.github.xyzboom.codesmith.ir.types.IrType
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameter
 import com.github.xyzboom.codesmith.ir.types.IrTypeParameterName
-import com.github.xyzboom.codesmith.ir.types.builtin.IrAny
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonNull
@@ -56,7 +55,7 @@ object IrClassDeclarationSerializer : JsonSerializer<IrClassDeclaration> {
                 }
                 addTypeParameters(this, context)
                 add(::classKind.name, context?.serialize(classKind))
-                if (superType != null && superType !== IrAny) {
+                if (superType != null) {
                     add(::superType.name, context?.serialize(superType, IrType::class.java))
                 }
                 if (allSuperTypeArguments.isNotEmpty()) {

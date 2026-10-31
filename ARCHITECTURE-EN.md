@@ -33,7 +33,6 @@ CrossLangFuzzer
 │   ├── kotlin-runner/  # Kotlin compiler testing runner
 │   ├── scala-runner/   # Scala compiler testing runner
 │   └── groovy-runner/  # Groovy compiler testing runner
-├── test-framework/     # Kotlin test framework integration
 ```
 
 ---
@@ -196,14 +195,6 @@ Differential testing between Scala 2.13 and Scala 3 nightly builds (versions cur
 ### groovy-runner — Groovy Compiler Testing
 
 Supports Groovy 4.0.x and 5.0.x differential testing.
-
----
-
-## 11. test-framework — Kotlin Test Framework Integration
-
-**Path:** `test-framework/src/`
-
-Provides the ability to integrate generated test cases into the Kotlin compiler test framework, generating standardized test files. (Test code is still being refined.)
 
 ---
 

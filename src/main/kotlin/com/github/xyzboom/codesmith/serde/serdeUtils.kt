@@ -1,14 +1,7 @@
 package com.github.xyzboom.codesmith.serde
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinFeature
-import com.fasterxml.jackson.module.kotlin.jsonMapper
-import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.github.xyzboom.codesmith.config.IntRangeDeserializer
 import com.github.xyzboom.codesmith.config.IntRangeSerializer
-import com.github.xyzboom.codesmith.ir_old.expressions.IrExpression
-import org.reflections.Reflections
 import com.github.xyzboom.codesmith.ir.IrProgram
 import com.github.xyzboom.codesmith.ir.containers.IrTypeParameterContainer
 import com.github.xyzboom.codesmith.ir.declarations.IrClassDeclaration
@@ -41,25 +34,6 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-
-private val reflections: Reflections = Reflections("com.github.xyzboom.codesmith")
-
-val defaultIrMapper: ObjectMapper by lazy {
-    jsonMapper {
-        addModule(kotlinModule {
-            enable(KotlinFeature.SingletonSupport)
-        })
-        val irTypeClasses = reflections.getSubTypesOf(com.github.xyzboom.codesmith.ir_old.types.IrType::class.java)
-        for (irTypeClass in irTypeClasses) {
-            registerSubtypes(irTypeClass)
-        }
-        val irExpressionClasses = reflections.getSubTypesOf(IrExpression::class.java)
-        for (irExpressionClass in irExpressionClasses) {
-            registerSubtypes(irExpressionClass)
-        }
-    }.setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT)
-}
-
 
 val gson: Gson = GsonBuilder()
     .registerTypeAdapter(IrProgramImpl::class.java, IrProgramSerializer)
