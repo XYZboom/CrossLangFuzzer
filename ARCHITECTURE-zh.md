@@ -233,7 +233,7 @@ Printer（当前为 TODO）。
 ### 快速运行
 
 ```bash
-# tree:tree-generator 从 Maven Central 获取并编译 io.github.xyzboom:tree-generator:0.1.0:sources
+# tree:tree-generator 从 Maven Central 解析 io.github.xyzboom:tree-generator:0.1.0
 
 # Kotlin runner
 ./gradlew :runners:kotlin-runner:run --args="-s" \

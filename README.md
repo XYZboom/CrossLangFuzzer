@@ -56,7 +56,7 @@ In the Scala and Groovy Runners, the Java compiler being tested is provided by t
 In the Kotlin Runner, it will be the JDK8 and JDK17 installed on the current device.
 Detailed configuration methods will be explained in the corresponding sections for each Runner.
 
-The tree generator sources are fetched from Maven Central as `io.github.xyzboom:tree-generator:0.1.0:sources` and compiled during the build; no prebuilt generator JAR or manual download is needed. Source provenance is documented in [BaseFuzzerTreeGen](https://github.com/XYZboom/BaseFuzzerTreeGen).
+The tree generator is declared as the Maven Central dependency `io.github.xyzboom:tree-generator:0.1.0`; Gradle resolves it automatically, so no manual JAR download is needed. Source provenance is documented in [BaseFuzzerTreeGen](https://github.com/XYZboom/BaseFuzzerTreeGen).
 
 ### Kotlin Runner 
 
