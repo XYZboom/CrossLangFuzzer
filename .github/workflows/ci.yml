@@ -28,15 +28,6 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Download tree-generator dependency
-        run: |
-          mkdir -p libs
-          curl --fail --location --retry 5 --retry-all-errors \
-            https://github.com/XYZboom/CrossLangFuzzer/releases/download/dev-ef4368/tree-generator-common.jar \
-            --output libs/tree-generator-common.jar
-          echo '45c4913ad661cbef4aacade3b8dd16c4b4c5ad784ad8b047173a78a860408e13  libs/tree-generator-common.jar' \
-            | sha256sum --check --strict
-
       - name: Run tests
         run: ./gradlew test --no-daemon
 
