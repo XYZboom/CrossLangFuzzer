@@ -85,6 +85,16 @@ abstract class AbstractIrClassPrinter(
         irType: IrType,
         typeContext: TypeContext = TypeContext.Other,
         noNullabilityAnnotation: Boolean = false,
+        /**
+         * ```java
+         * public class A<T extends @NotNull Object> {
+         *     public void func(@Nullable T t) {}
+         *     //               ^^^^^^^^^
+         *     // need to force print. Otherwise a kotlin child will consider `t` as NotNull
+         * }
+         * ```
+         */
+        forcePrintNullableAnnotationIfIsTypeParameter: Boolean = false,
     ): String {
         return when (typeContext) {
             Parameter, ReturnType, TypeArgumentInReturnType, FunctionTypeParameterUpperBound -> {

@@ -35,7 +35,6 @@ CrossLangFuzzer
 │   ├── kotlin-runner/  # Kotlin 编译器测试 runner
 │   ├── scala-runner/   # Scala 编译器测试 runner
 │   └── groovy-runner/  # Groovy 编译器测试 runner
-├── test-framework/     # Kotlin 测试框架集成
 ```
 
 ---
@@ -205,14 +204,6 @@ Printer（当前为 TODO）。
 ### groovy-runner — Groovy 编译器测试
 
 支持 Groovy 4.0.x 和 5.0.x 的差分测试。
-
----
-
-## 11. test-framework — Kotlin 测试框架集成
-
-**路径:** `test-framework/src/`
-
-提供将生成的测试用例集成到 Kotlin 编译器测试框架的能力，生成标准格式的测试文件。（测试代码仍在逐步完善中。）
 
 ---
 
